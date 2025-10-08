@@ -1,0 +1,40 @@
+# render.yaml - Configuración para Render
+# Este archivo permite desplegar tu backend en Render con un solo click
+
+services:
+  # API Backend
+  - type: web
+    name: subiteya-api
+    runtime: node
+    region: oregon # Puedes cambiarlo a: oregon, frankfurt, singapore
+    plan: free # Opciones: free, starter, standard, pro
+    env: node
+    buildCommand: bash scripts/build.sh
+    startCommand: bash scripts/start.sh
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DB_URL
+        fromDatabase:
+          name: subiteya-db
+          property: connectionString
+      - key: DIRECT_URL
+        fromDatabase:
+          name: subiteya-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: https://martinpuli.github.io
+    autoDeploy: true
+
+databases:
+  # PostgreSQL Database
+  - name: subiteya-db
+    databaseName: subiteya
+    plan: free # Opciones: free (con límites), starter, standard
+    region: oregon
+    postgresMajorVersion: 15
