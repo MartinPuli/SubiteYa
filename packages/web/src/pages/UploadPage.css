@@ -1,0 +1,209 @@
+.upload-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+  min-height: 100vh;
+}
+
+.upload-header {
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, rgba(254, 44, 85, 0.05) 0%, rgba(37, 244, 238, 0.05) 100%);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+}
+
+.upload-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--color-gray-900);
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.02em;
+}
+
+.upload-subtitle {
+  font-size: 1rem;
+  color: var(--color-gray-600);
+  margin: 0;
+  font-weight: 500;
+}
+
+.upload-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.upload-form h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 1rem 0;
+}
+
+.upload-dropzone {
+  border: 3px dashed var(--color-gray-300);
+  border-radius: var(--radius-xl);
+  padding: 3rem 2rem;
+  transition: all var(--transition-base);
+  background: linear-gradient(135deg, rgba(254, 44, 85, 0.02) 0%, rgba(37, 244, 238, 0.02) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-dropzone::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--color-tiktok-pink) 0%, var(--color-tiktok-cyan) 100%);
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.upload-dropzone:hover {
+  border-color: var(--color-tiktok-pink);
+  transform: scale(1.01);
+  box-shadow: var(--shadow-lg);
+}
+
+.upload-dropzone:hover::before {
+  opacity: 0.05;
+}
+
+.upload-label {
+  display: block;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+}
+
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: var(--color-gray-600);
+}
+
+.upload-icon {
+  font-size: 4rem;
+  background: linear-gradient(135deg, var(--color-tiktok-pink) 0%, var(--color-tiktok-cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.upload-hint {
+  font-size: 0.9375rem;
+  color: var(--color-gray-500);
+  font-weight: 500;
+}
+
+.file-preview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.file-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.file-info span {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-600);
+}
+
+.upload-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: var(--font-size-base);
+  resize: vertical;
+  transition: border-color var(--transition-fast);
+}
+
+.upload-textarea:focus {
+  outline: none;
+  border-color: var(--color-black);
+}
+
+.char-count {
+  text-align: right;
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-500);
+  margin-top: 0.5rem;
+}
+
+.accounts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.account-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.account-item:hover {
+  border-color: var(--color-black);
+}
+
+.account-item--selected {
+  border-color: var(--color-black);
+  background: var(--color-gray-50);
+}
+
+.account-checkbox {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-gray-400);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-bold);
+}
+
+.account-item--selected .account-checkbox {
+  background: var(--color-black);
+  color: var(--color-white);
+  border-color: var(--color-black);
+}
+
+.no-accounts {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-gray-600);
+}
+
+.upload-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+@media (max-width: 768px) {
+  .accounts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .upload-actions {
+    flex-direction: column-reverse;
+  }
+
+  .upload-actions .btn {
+    width: 100%;
+  }
+}

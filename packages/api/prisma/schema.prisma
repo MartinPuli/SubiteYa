@@ -1,0 +1,161 @@
+// Prisma schema for SubiteYa
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DB_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  passwordHash String   @map("password_hash")
+  passwordSalt String   @map("password_salt")
+  role         String   @default("user") // "user" | "admin"
+  language     String   @default("es") // "es" | "en"
+  timezone     String   @default("UTC")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tiktokConnections TikTokConnection[]
+  videoAssets       VideoAsset[]
+  publishBatches    PublishBatch[]
+  publishJobs       PublishJob[]
+  auditEvents       AuditEvent[]
+
+  @@map("users")
+}
+
+model TikTokConnection {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  openId          String   @unique @map("open_id")
+  displayName     String   @map("display_name")
+  avatarUrl       String?  @map("avatar_url")
+  scopeGranted    String[] @map("scope_granted")
+  accessTokenEnc  String   @map("access_token_enc")
+  refreshTokenEnc String   @map("refresh_token_enc")
+  expiresAt       DateTime @map("expires_at")
+  isDefault       Boolean  @default(false) @map("is_default")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publishJobs PublishJob[]
+
+  @@index([userId])
+  @@map("tiktok_connections")
+}
+
+model VideoAsset {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  storageUrl       String   @map("storage_url")
+  originalFilename String   @map("original_filename")
+  sizeBytes        BigInt   @map("size_bytes")
+  durationSec      Int?     @map("duration_sec")
+  checksum         String
+  status           String   @default("uploaded") // "uploaded" | "validated" | "ready" | "deleted"
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publishBatches PublishBatch[]
+  publishJobs    PublishJob[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("video_assets")
+}
+
+model PublishBatch {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  videoAssetId    String    @map("video_asset_id")
+  defaultsJson    Json      @map("defaults_json")
+  scheduleTimeUtc DateTime? @map("schedule_time_utc")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videoAsset VideoAsset   @relation(fields: [videoAssetId], references: [id])
+  jobs       PublishJob[]
+
+  @@index([userId])
+  @@index([scheduleTimeUtc])
+  @@map("publish_batches")
+}
+
+model PublishJob {
+  id                  String    @id @default(uuid())
+  batchId             String    @map("batch_id")
+  userId              String    @map("user_id")
+  tiktokConnectionId  String    @map("tiktok_connection_id")
+  videoAssetId        String    @map("video_asset_id")
+  caption             String?
+  hashtags            String[]  @default([])
+  privacyStatus       String    @map("privacy_status") @default("public") // "public" | "friends" | "private"
+  allowDuet           Boolean   @default(true) @map("allow_duet")
+  allowStitch         Boolean   @default(true) @map("allow_stitch")
+  allowComment        Boolean   @default(true) @map("allow_comment")
+  scheduleTimeUtc     DateTime? @map("schedule_time_utc")
+  state               String    @default("queued") // "queued" | "uploading" | "publishing" | "completed" | "failed" | "canceled"
+  attempts            Int       @default(0)
+  lastAttemptAt       DateTime? @map("last_attempt_at")
+  backoffSec          Int?      @map("backoff_sec")
+  tiktokVideoId       String?   @map("tiktok_video_id")
+  errorCode           String?   @map("error_code")
+  errorMessage        String?   @map("error_message")
+  idempotencyKey      String    @unique @map("idempotency_key")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  batch             PublishBatch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tiktokConnection  TikTokConnection @relation(fields: [tiktokConnectionId], references: [id], onDelete: Cascade)
+  videoAsset        VideoAsset       @relation(fields: [videoAssetId], references: [id])
+
+  @@index([batchId])
+  @@index([userId])
+  @@index([state])
+  @@index([scheduleTimeUtc])
+  @@map("publish_jobs")
+}
+
+model AuditEvent {
+  id          String   @id @default(uuid())
+  userId      String?  @map("user_id")
+  type        String
+  detailsJson Json     @map("details_json")
+  ip          String?
+  userAgent   String?  @map("user_agent")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("audit_events")
+}
+
+model WebhookEvent {
+  id              String    @id @default(uuid())
+  provider        String // "tiktok"
+  eventType       String    @map("event_type")
+  payloadJson     Json      @map("payload_json")
+  signatureValid  Boolean   @map("signature_valid")
+  processed       Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  processedAt     DateTime? @map("processed_at")
+
+  @@index([provider])
+  @@index([processed])
+  @@index([createdAt])
+  @@map("webhook_events")
+}
