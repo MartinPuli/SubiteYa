@@ -178,8 +178,16 @@ router.post(
             );
 
             if (!creatorInfoResponse.ok) {
-              throw new Error('Failed to query creator info');
+              const errorData = await creatorInfoResponse
+                .json()
+                .catch(() => ({}));
+              throw new Error(
+                `Failed to query creator info: ${creatorInfoResponse.status} ${JSON.stringify(errorData)}`
+              );
             }
+
+            const creatorInfo = await creatorInfoResponse.json();
+            console.log('Creator info:', creatorInfo);
 
             // 2. Initialize video upload
             const initResponse = await fetch(
