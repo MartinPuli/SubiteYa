@@ -49,10 +49,17 @@ app.use(
       }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Content-Length', 'X-Request-Id'],
+    maxAge: 86400, // 24 hours
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   })
 );
+
+// Handle preflight requests explicitly
+app.options('*', cors());
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -98,6 +105,14 @@ app.use('/api/auth', tiktokRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
+  // Ensure CORS headers in 404 responses
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.some(allowed => allowed.replace(/\/$/, '') === origin.replace(/\/$/, ''))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Vary', 'Origin');
+  }
+  
   res.status(404).json({
     error: 'Not Found',
     path: req.path,
@@ -106,10 +121,19 @@ app.use((req: Request, res: Response) => {
 
 // Error handler
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-  console.error('Unhandled error:', err.message, {
+  console.error('❌ Unhandled error:', err.message, {
     path: req.path,
     method: req.method,
+    origin: req.headers.origin,
   });
+
+  // Ensure CORS headers in error responses
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.some(allowed => allowed.replace(/\/$/, '') === origin.replace(/\/$/, ''))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Vary', 'Origin');
+  }
 
   res.status(500).json({
     error: 'Internal Server Error',

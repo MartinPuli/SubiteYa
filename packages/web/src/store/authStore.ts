@@ -30,6 +30,7 @@ export const useAuthStore = create<AuthState>()(
         const response = await fetch(API_ENDPOINTS.login, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include', // Important for CORS with cookies
           body: JSON.stringify({ email, password }),
         });
 
@@ -48,6 +49,7 @@ export const useAuthStore = create<AuthState>()(
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // Important for CORS with cookies
             body: JSON.stringify({ name, email, password }),
           }
         );
