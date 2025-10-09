@@ -213,18 +213,18 @@ router.post(
 
               // Provide helpful error messages
               if (
-                errorCode === 'access_token_invalid' ||
-                creatorInfoResponse.status === 401
-              ) {
-                throw new Error(
-                  'Token inválido o expirado. Reconecta tu cuenta de TikTok.'
-                );
-              } else if (
                 errorCode === 'scope_not_authorized' ||
                 errorMsg.includes('scope')
               ) {
                 throw new Error(
-                  'Falta el permiso video.publish. Reconecta tu cuenta con los permisos correctos.'
+                  'Falta el permiso video.publish. Ve a Conexiones y reconecta tu cuenta de TikTok para otorgar los permisos necesarios.'
+                );
+              } else if (
+                errorCode === 'access_token_invalid' ||
+                creatorInfoResponse.status === 401
+              ) {
+                throw new Error(
+                  'Token inválido o expirado. Reconecta tu cuenta de TikTok en la página de Conexiones.'
                 );
               } else {
                 throw new Error(
