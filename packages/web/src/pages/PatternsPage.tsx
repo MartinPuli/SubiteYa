@@ -4,6 +4,7 @@ import { Card } from '../components/Card/Card';
 import { Button } from '../components/Button/Button';
 import { useAuthStore } from '../store/authStore';
 import { useAppStore } from '../store/appStore';
+import { API_ENDPOINTS } from '../config/api';
 import './PatternsPage.css';
 
 interface Pattern {
@@ -48,16 +49,13 @@ export const PatternsPage: React.FC = () => {
     setLoading(true);
     try {
       const url = connectionId
-        ? `/api/patterns?connectionId=${connectionId}`
-        : '/api/patterns';
+        ? `${API_ENDPOINTS.patterns}?connectionId=${connectionId}`
+        : API_ENDPOINTS.patterns;
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}${url}`,
-        {
-          headers: { Authorization: `Bearer ${authToken}` },
-          credentials: 'include',
-        }
-      );
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${authToken}` },
+        credentials: 'include',
+      });
 
       if (response.ok) {
         const data = await response.json();
@@ -81,18 +79,15 @@ export const PatternsPage: React.FC = () => {
     if (!token) return;
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/patterns/${patternId}`,
-        {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({ isDefault: true }),
-        }
-      );
+      const response = await fetch(`${API_ENDPOINTS.patterns}/${patternId}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ isDefault: true }),
+      });
 
       if (response.ok) {
         loadPatterns(
@@ -109,14 +104,11 @@ export const PatternsPage: React.FC = () => {
     if (!token || !confirm('¿Eliminar este patrón?')) return;
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/patterns/${patternId}`,
-        {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
-          credentials: 'include',
-        }
-      );
+      const response = await fetch(`${API_ENDPOINTS.patterns}/${patternId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      });
 
       if (response.ok) {
         loadPatterns(
