@@ -171,11 +171,26 @@ model BrandPattern {
   isDefault           Boolean  @default(false) @map("is_default")
   version             Int      @default(1)
   
-  // Simple config for MVP
+  // Logo config
   logoUrl             String?  @map("logo_url")
   logoPosition        String   @default("bottom-right") @map("logo_position") // "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center"
   logoSize            Int      @default(15) @map("logo_size") // % of video width
   logoOpacity         Int      @default(100) @map("logo_opacity") // 0-100
+  
+  // Visual Effects
+  enableEffects       Boolean  @default(false) @map("enable_effects")
+  filterType          String   @default("none") @map("filter_type") // "none" | "vintage" | "vibrant" | "cinematic" | "grayscale" | "sepia"
+  brightness          Int      @default(100) @map("brightness") // 50-150
+  contrast            Int      @default(100) @map("contrast") // 50-150
+  saturation          Int      @default(100) @map("saturation") // 0-200
+  
+  // Subtitles
+  enableSubtitles     Boolean  @default(false) @map("enable_subtitles")
+  subtitleStyle       String   @default("modern") @map("subtitle_style") // "modern" | "classic" | "bold" | "outlined" | "boxed"
+  subtitlePosition    String   @default("bottom") @map("subtitle_position") // "top" | "center" | "bottom"
+  subtitleColor       String   @default("#FFFFFF") @map("subtitle_color")
+  subtitleBgColor     String   @default("#000000") @map("subtitle_bg_color")
+  subtitleFontSize    Int      @default(24) @map("subtitle_font_size") // 16-48
   
   // Preview thumbnail
   thumbnailUrl        String?  @map("thumbnail_url")

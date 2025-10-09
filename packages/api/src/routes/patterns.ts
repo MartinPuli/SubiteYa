@@ -152,7 +152,21 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       logoPosition = 'bottom-right',
       logoSize = 15,
       logoOpacity = 100,
+      thumbnailUrl,
       isDefault = false,
+      // Visual Effects
+      enableEffects = false,
+      filterType = 'none',
+      brightness = 100,
+      contrast = 100,
+      saturation = 100,
+      // Subtitles
+      enableSubtitles = false,
+      subtitleStyle = 'modern',
+      subtitlePosition = 'bottom',
+      subtitleColor = '#FFFFFF',
+      subtitleBgColor = '#000000',
+      subtitleFontSize = 24,
     } = req.body;
 
     // Validate required fields
@@ -198,7 +212,21 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         logoPosition,
         logoSize,
         logoOpacity,
+        thumbnailUrl,
         isDefault,
+        // Visual Effects
+        enableEffects,
+        filterType,
+        brightness,
+        contrast,
+        saturation,
+        // Subtitles
+        enableSubtitles,
+        subtitleStyle,
+        subtitlePosition,
+        subtitleColor,
+        subtitleBgColor,
+        subtitleFontSize,
       },
       include: {
         tiktokConnection: {
@@ -233,6 +261,19 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
       logoOpacity,
       thumbnailUrl,
       isDefault,
+      // Visual Effects
+      enableEffects,
+      filterType,
+      brightness,
+      contrast,
+      saturation,
+      // Subtitles
+      enableSubtitles,
+      subtitleStyle,
+      subtitlePosition,
+      subtitleColor,
+      subtitleBgColor,
+      subtitleFontSize,
     } = req.body;
 
     // Find pattern
@@ -272,6 +313,19 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
         ...(logoOpacity !== undefined && { logoOpacity }),
         ...(thumbnailUrl !== undefined && { thumbnailUrl }),
         ...(isDefault !== undefined && { isDefault }),
+        // Visual Effects
+        ...(enableEffects !== undefined && { enableEffects }),
+        ...(filterType !== undefined && { filterType }),
+        ...(brightness !== undefined && { brightness }),
+        ...(contrast !== undefined && { contrast }),
+        ...(saturation !== undefined && { saturation }),
+        // Subtitles
+        ...(enableSubtitles !== undefined && { enableSubtitles }),
+        ...(subtitleStyle !== undefined && { subtitleStyle }),
+        ...(subtitlePosition !== undefined && { subtitlePosition }),
+        ...(subtitleColor !== undefined && { subtitleColor }),
+        ...(subtitleBgColor !== undefined && { subtitleBgColor }),
+        ...(subtitleFontSize !== undefined && { subtitleFontSize }),
         version: { increment: 1 },
       },
       include: {

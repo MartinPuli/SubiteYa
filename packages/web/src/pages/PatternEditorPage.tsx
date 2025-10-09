@@ -19,6 +19,19 @@ interface Pattern {
   logoOpacity: number;
   thumbnailUrl: string | null;
   tiktokConnectionId: string;
+  // Visual Effects
+  enableEffects: boolean;
+  filterType: string;
+  brightness: number;
+  contrast: number;
+  saturation: number;
+  // Subtitles
+  enableSubtitles: boolean;
+  subtitleStyle: string;
+  subtitlePosition: string;
+  subtitleColor: string;
+  subtitleBgColor: string;
+  subtitleFontSize: number;
 }
 
 const LOGO_POSITIONS = [
@@ -112,6 +125,19 @@ export const PatternEditorPage: React.FC = () => {
         setLogoSize(pattern.logoSize);
         setLogoOpacity(pattern.logoOpacity);
         setIsDefault(pattern.isDefault);
+        // Visual Effects
+        setEnableEffects(pattern.enableEffects || false);
+        setFilterType(pattern.filterType || 'none');
+        setBrightness(pattern.brightness || 100);
+        setContrast(pattern.contrast || 100);
+        setSaturation(pattern.saturation || 100);
+        // Subtitles
+        setEnableSubtitles(pattern.enableSubtitles || false);
+        setSubtitleStyle(pattern.subtitleStyle || 'modern');
+        setSubtitlePosition(pattern.subtitlePosition || 'bottom');
+        setSubtitleColor(pattern.subtitleColor || '#FFFFFF');
+        setSubtitleBgColor(pattern.subtitleBgColor || '#000000');
+        setSubtitleFontSize(pattern.subtitleFontSize || 24);
       }
     } catch (error) {
       console.error('Error loading pattern:', error);
@@ -273,6 +299,19 @@ export const PatternEditorPage: React.FC = () => {
         logoOpacity,
         thumbnailUrl,
         isDefault,
+        // Visual Effects
+        enableEffects,
+        filterType,
+        brightness,
+        contrast,
+        saturation,
+        // Subtitles
+        enableSubtitles,
+        subtitleStyle,
+        subtitlePosition,
+        subtitleColor,
+        subtitleBgColor,
+        subtitleFontSize,
       };
 
       const url =
