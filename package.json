@@ -21,7 +21,7 @@
     "check:config": "node scripts/check-config.mjs",
     "db:migrate": "npm run migrate -w @subiteya/api",
     "db:seed": "npm run seed -w @subiteya/api",
-    "prepare": "husky install"
+    "prepare": "node -e \"try { require('husky').install() } catch (e) {}\""
   },
   "devDependencies": {
     "@commitlint/cli": "^18.4.3",
