@@ -1,13 +1,15 @@
 # Build script for Render
 echo "🔨 Building SubiteYa API..."
 
+# Navigate to API package
+cd packages/api
+
 # Install dependencies
 echo "📦 Installing dependencies..."
 npm ci
 
 # Generate Prisma Client
 echo "🔄 Generating Prisma Client..."
-cd packages/api
 npx prisma generate
 
 # Build TypeScript
