@@ -70,7 +70,6 @@ router.post(
       const {
         title: titleParam,
         caption,
-        privacyLevel = 'PUBLIC_TO_EVERYONE',
         disableComment: disableCommentRaw = 'false',
         disableDuet: disableDuetRaw = 'false',
         disableStitch: disableStitchRaw = 'false',
@@ -83,6 +82,10 @@ router.post(
       const disableDuet = disableDuetRaw === 'true' || disableDuetRaw === true;
       const disableStitch =
         disableStitchRaw === 'true' || disableStitchRaw === true;
+
+      // For unaudited apps, TikTok only allows SELF_ONLY (private) posts
+      // Force private mode until app is audited by TikTok
+      const privacyLevel = 'SELF_ONLY';
 
       // Accept either title or caption
       const title = titleParam || caption;
