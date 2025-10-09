@@ -17,7 +17,9 @@ const TIKTOK_REDIRECT_URI =
   process.env.TIKTOK_REDIRECT_URI ||
   'http://localhost:3000/api/auth/tiktok/callback';
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL =
+  process.env.FRONTEND_URL ||
+  'https://martinpuli.github.io/SubiteYa/connections';
 
 // Encrypt token using AES-256-GCM
 function encryptToken(token: string): string {
