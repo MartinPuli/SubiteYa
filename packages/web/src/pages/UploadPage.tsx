@@ -22,7 +22,6 @@ export const UploadPage: React.FC = () => {
   const [disableDuet, setDisableDuet] = useState(false);
   const [disableStitch, setDisableStitch] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [publishResults, setPublishResults] = useState<any>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -52,7 +51,6 @@ export const UploadPage: React.FC = () => {
     if (!file || selectedAccounts.length === 0 || !token) return;
 
     setLoading(true);
-    setPublishResults(null);
     try {
       const formData = new FormData();
       formData.append('video', file);
@@ -82,13 +80,15 @@ export const UploadPage: React.FC = () => {
       }
 
       const data = await response.json();
-      setPublishResults(data);
 
       // Show success message with details
+      interface PublishResult {
+        success: boolean;
+      }
       const successCount =
-        data.results?.filter((r: any) => r.success).length || 0;
+        data.results?.filter((r: PublishResult) => r.success).length || 0;
       const failedCount =
-        data.results?.filter((r: any) => !r.success).length || 0;
+        data.results?.filter((r: PublishResult) => !r.success).length || 0;
 
       if (failedCount === 0) {
         alert(`✅ ${data.message}`);
