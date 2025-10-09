@@ -75,7 +75,9 @@ router.get('/tiktok', authenticate, (req: AuthRequest, res: Response) => {
       })
     ).toString('base64');
 
-    const scopes = ['user.info.basic', 'video.upload', 'video.publish'];
+    // Only request basic user info for now
+    // Add video.upload and video.publish when approved by TikTok
+    const scopes = ['user.info.basic'];
 
     const authUrl = new URL('https://www.tiktok.com/v2/auth/authorize/');
     authUrl.searchParams.set('client_key', TIKTOK_CLIENT_KEY);
