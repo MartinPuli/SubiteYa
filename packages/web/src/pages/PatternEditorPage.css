@@ -48,6 +48,53 @@
   margin: 0 0 1.5rem 0;
 }
 
+/* Settings Tabs */
+.settings-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.tab-button {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: -2px;
+}
+
+.tab-button:hover {
+  color: var(--color-text);
+  background: var(--color-surface-hover);
+}
+
+.tab-button.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.tab-content {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .form-group {
   margin-bottom: 1.5rem;
 }
@@ -139,6 +186,55 @@
   border-radius: 50%;
   cursor: pointer;
   border: none;
+}
+
+/* Color Picker */
+.color-picker-group {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.color-input {
+  width: 60px;
+  height: 40px;
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  background: none;
+}
+
+.color-input::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+
+.color-value {
+  font-family: monospace;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  padding: 0.5rem;
+  background: var(--color-surface);
+  border-radius: 4px;
+}
+
+/* Help Text */
+.help-text {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 0.5rem 0 0 0;
+  font-style: italic;
+}
+
+/* Default Checkbox */
+.default-checkbox {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px dashed var(--color-border);
 }
 
 .checkbox-label {

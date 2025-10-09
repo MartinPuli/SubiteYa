@@ -24,6 +24,10 @@ export const API_ENDPOINTS = {
   // Publishing
   publish: `${API_BASE_URL}/publish`,
   publishBatch: `${API_BASE_URL}/publish/batch`,
+
+  // Brand Patterns
+  patterns: `${API_BASE_URL}/patterns`,
+  uploadLogo: `${API_BASE_URL}/patterns/upload-logo`,
 };
 
 // Helper function to build URLs with query params

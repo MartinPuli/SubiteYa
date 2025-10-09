@@ -5,6 +5,7 @@ import { Button } from '../components/Button/Button';
 import { Input } from '../components/Input/Input';
 import { useAuthStore } from '../store/authStore';
 import { useAppStore } from '../store/appStore';
+import { API_ENDPOINTS } from '../config/api';
 import './PatternEditorPage.css';
 
 interface Pattern {
@@ -47,6 +48,24 @@ export const PatternEditorPage: React.FC = () => {
   const [isDefault, setIsDefault] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'logo' | 'effects' | 'subtitles'>(
+    'logo'
+  );
+
+  // Visual Effects State
+  const [enableEffects, setEnableEffects] = useState(false);
+  const [filterType, setFilterType] = useState('none');
+  const [brightness, setBrightness] = useState(100);
+  const [contrast, setContrast] = useState(100);
+  const [saturation, setSaturation] = useState(100);
+
+  // Subtitles State
+  const [enableSubtitles, setEnableSubtitles] = useState(false);
+  const [subtitleStyle, setSubtitleStyle] = useState('modern');
+  const [subtitlePosition, setSubtitlePosition] = useState('bottom');
+  const [subtitleColor, setSubtitleColor] = useState('#FFFFFF');
+  const [subtitleBgColor, setSubtitleBgColor] = useState('#000000');
+  const [subtitleFontSize, setSubtitleFontSize] = useState(24);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -78,13 +97,10 @@ export const PatternEditorPage: React.FC = () => {
   const loadPattern = async (authToken: string, patternId: string) => {
     setLoading(true);
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/patterns/${patternId}`,
-        {
-          headers: { Authorization: `Bearer ${authToken}` },
-          credentials: 'include',
-        }
-      );
+      const response = await fetch(`${API_ENDPOINTS.patterns}/${patternId}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+        credentials: 'include',
+      });
 
       if (response.ok) {
         const data = await response.json();
@@ -207,17 +223,14 @@ export const PatternEditorPage: React.FC = () => {
     formData.append('logo', logoFile);
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/patterns/upload-logo`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          credentials: 'include',
-          body: formData,
-        }
-      );
+      const response = await fetch(API_ENDPOINTS.uploadLogo, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: 'include',
+        body: formData,
+      });
 
       if (response.ok) {
         const data = await response.json();
@@ -264,8 +277,8 @@ export const PatternEditorPage: React.FC = () => {
 
       const url =
         id && id !== 'new'
-          ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/patterns/${id}`
-          : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/patterns`;
+          ? `${API_ENDPOINTS.patterns}/${id}`
+          : API_ENDPOINTS.patterns;
 
       const method = id && id !== 'new' ? 'PATCH' : 'POST';
 
@@ -321,8 +334,9 @@ export const PatternEditorPage: React.FC = () => {
       <div className="editor-layout">
         {/* Left Panel - Settings */}
         <Card className="editor-settings">
-          <h2 className="section-title">⚙️ Configuración</h2>
+          <h2 className="section-title">⚙️ Configuración del Patrón</h2>
 
+          {/* Basic Info */}
           <div className="form-group">
             <label htmlFor="name">Nombre del Patrón *</label>
             <Input
@@ -352,75 +366,282 @@ export const PatternEditorPage: React.FC = () => {
             </select>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="logo">Logo / Marca de Agua</label>
-            <input
-              id="logo"
-              type="file"
-              accept="image/*"
-              onChange={handleLogoUpload}
-              className="file-input"
-            />
-            {(previewUrl || logoUrl) && (
-              <div className="logo-preview-small">
-                <img src={previewUrl || logoUrl} alt="Logo preview" />
-              </div>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="position">Posición del Logo</label>
-            <select
-              id="position"
-              value={logoPosition}
-              onChange={e => setLogoPosition(e.target.value)}
-              className="form-select"
+          {/* Tabs */}
+          <div className="settings-tabs">
+            <button
+              className={`tab-button ${activeTab === 'logo' ? 'active' : ''}`}
+              onClick={() => setActiveTab('logo')}
             >
-              {LOGO_POSITIONS.map(pos => (
-                <option key={pos.value} value={pos.value}>
-                  {pos.label}
-                </option>
-              ))}
-            </select>
+              🎨 Logo
+            </button>
+            <button
+              className={`tab-button ${activeTab === 'effects' ? 'active' : ''}`}
+              onClick={() => setActiveTab('effects')}
+            >
+              ✨ Efectos
+            </button>
+            <button
+              className={`tab-button ${activeTab === 'subtitles' ? 'active' : ''}`}
+              onClick={() => setActiveTab('subtitles')}
+            >
+              💬 Subtítulos
+            </button>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="size">
-              Tamaño del Logo ({logoSize}% del ancho)
-            </label>
-            <input
-              id="size"
-              type="range"
-              min="5"
-              max="40"
-              value={logoSize}
-              onChange={e => setLogoSize(Number(e.target.value))}
-              className="range-input"
-            />
-          </div>
+          {/* Logo Tab */}
+          {activeTab === 'logo' && (
+            <div className="tab-content">
+              <div className="form-group">
+                <label htmlFor="logo">Logo / Marca de Agua</label>
+                <input
+                  id="logo"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="file-input"
+                />
+                {(previewUrl || logoUrl) && (
+                  <div className="logo-preview-small">
+                    <img src={previewUrl || logoUrl} alt="Logo preview" />
+                  </div>
+                )}
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="opacity">Opacidad ({logoOpacity}%)</label>
-            <input
-              id="opacity"
-              type="range"
-              min="0"
-              max="100"
-              value={logoOpacity}
-              onChange={e => setLogoOpacity(Number(e.target.value))}
-              className="range-input"
-            />
-          </div>
+              <div className="form-group">
+                <label htmlFor="position">Posición del Logo</label>
+                <select
+                  id="position"
+                  value={logoPosition}
+                  onChange={e => setLogoPosition(e.target.value)}
+                  className="form-select"
+                >
+                  {LOGO_POSITIONS.map(pos => (
+                    <option key={pos.value} value={pos.value}>
+                      {pos.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <div className="form-group">
+              <div className="form-group">
+                <label htmlFor="size">
+                  Tamaño del Logo ({logoSize}% del ancho)
+                </label>
+                <input
+                  id="size"
+                  type="range"
+                  min="5"
+                  max="40"
+                  value={logoSize}
+                  onChange={e => setLogoSize(Number(e.target.value))}
+                  className="range-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="opacity">Opacidad ({logoOpacity}%)</label>
+                <input
+                  id="opacity"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={logoOpacity}
+                  onChange={e => setLogoOpacity(Number(e.target.value))}
+                  className="range-input"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Effects Tab */}
+          {activeTab === 'effects' && (
+            <div className="tab-content">
+              <div className="form-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={enableEffects}
+                    onChange={e => setEnableEffects(e.target.checked)}
+                  />
+                  <span>Aplicar efectos visuales</span>
+                </label>
+              </div>
+
+              {enableEffects && (
+                <>
+                  <div className="form-group">
+                    <label htmlFor="filter">Filtro</label>
+                    <select
+                      id="filter"
+                      value={filterType}
+                      onChange={e => setFilterType(e.target.value)}
+                      className="form-select"
+                    >
+                      <option value="none">Sin filtro</option>
+                      <option value="vintage">Vintage</option>
+                      <option value="vibrant">Vibrante</option>
+                      <option value="cinematic">Cinematográfico</option>
+                      <option value="grayscale">Blanco y Negro</option>
+                      <option value="sepia">Sepia</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="brightness">Brillo ({brightness}%)</label>
+                    <input
+                      id="brightness"
+                      type="range"
+                      min="50"
+                      max="150"
+                      value={brightness}
+                      onChange={e => setBrightness(Number(e.target.value))}
+                      className="range-input"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="contrast">Contraste ({contrast}%)</label>
+                    <input
+                      id="contrast"
+                      type="range"
+                      min="50"
+                      max="150"
+                      value={contrast}
+                      onChange={e => setContrast(Number(e.target.value))}
+                      className="range-input"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="saturation">
+                      Saturación ({saturation}%)
+                    </label>
+                    <input
+                      id="saturation"
+                      type="range"
+                      min="0"
+                      max="200"
+                      value={saturation}
+                      onChange={e => setSaturation(Number(e.target.value))}
+                      className="range-input"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Subtitles Tab */}
+          {activeTab === 'subtitles' && (
+            <div className="tab-content">
+              <div className="form-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={enableSubtitles}
+                    onChange={e => setEnableSubtitles(e.target.checked)}
+                  />
+                  <span>Generar subtítulos automáticos</span>
+                </label>
+                <p className="help-text">
+                  Usa IA para transcribir el audio y generar subtítulos
+                </p>
+              </div>
+
+              {enableSubtitles && (
+                <>
+                  <div className="form-group">
+                    <label htmlFor="subtitleStyle">Estilo de Subtítulos</label>
+                    <select
+                      id="subtitleStyle"
+                      value={subtitleStyle}
+                      onChange={e => setSubtitleStyle(e.target.value)}
+                      className="form-select"
+                    >
+                      <option value="modern">Moderno (Estilo TikTok)</option>
+                      <option value="classic">Clásico</option>
+                      <option value="bold">Negrita + Sombra</option>
+                      <option value="outlined">Contorneado</option>
+                      <option value="boxed">Con Fondo</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="subtitlePosition">Posición</label>
+                    <select
+                      id="subtitlePosition"
+                      value={subtitlePosition}
+                      onChange={e => setSubtitlePosition(e.target.value)}
+                      className="form-select"
+                    >
+                      <option value="top">Superior</option>
+                      <option value="center">Centro</option>
+                      <option value="bottom">Inferior</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="subtitleColor">Color del Texto</label>
+                    <div className="color-picker-group">
+                      <input
+                        id="subtitleColor"
+                        type="color"
+                        value={subtitleColor}
+                        onChange={e => setSubtitleColor(e.target.value)}
+                        className="color-input"
+                      />
+                      <span className="color-value">{subtitleColor}</span>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="subtitleBgColor">Color del Fondo</label>
+                    <div className="color-picker-group">
+                      <input
+                        id="subtitleBgColor"
+                        type="color"
+                        value={subtitleBgColor}
+                        onChange={e => setSubtitleBgColor(e.target.value)}
+                        className="color-input"
+                      />
+                      <span className="color-value">{subtitleBgColor}</span>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="subtitleFontSize">
+                      Tamaño de Fuente ({subtitleFontSize}px)
+                    </label>
+                    <input
+                      id="subtitleFontSize"
+                      type="range"
+                      min="16"
+                      max="48"
+                      value={subtitleFontSize}
+                      onChange={e =>
+                        setSubtitleFontSize(Number(e.target.value))
+                      }
+                      className="range-input"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Default Checkbox - Always visible */}
+          <div className="form-group default-checkbox">
             <label className="checkbox-label">
               <input
                 type="checkbox"
                 checked={isDefault}
                 onChange={e => setIsDefault(e.target.checked)}
               />
-              <span>Establecer como predeterminado</span>
+              <span>⭐ Establecer como patrón predeterminado</span>
             </label>
+            <p className="help-text">
+              Este patrón se aplicará automáticamente a todos los videos
+            </p>
           </div>
         </Card>
 
