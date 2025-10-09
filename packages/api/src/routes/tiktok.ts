@@ -17,6 +17,7 @@ const TIKTOK_REDIRECT_URI =
   process.env.TIKTOK_REDIRECT_URI ||
   'http://localhost:3000/api/auth/tiktok/callback';
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 // Encrypt token using AES-256-GCM
 function encryptToken(token: string): string {
@@ -105,7 +106,7 @@ router.get('/tiktok/callback', async (req: Request, res: Response) => {
     // Check for OAuth errors
     if (error) {
       console.error('TikTok OAuth error:', error, error_description);
-      res.redirect(`http://localhost:5173/connections?error=${error}`);
+      res.redirect(`${FRONTEND_URL}/connections?error=${error}`);
       return;
     }
 
@@ -150,9 +151,7 @@ router.get('/tiktok/callback', async (req: Request, res: Response) => {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.json();
       console.error('TikTok token exchange error:', errorData);
-      res.redirect(
-        'http://localhost:5173/connections?error=token_exchange_failed'
-      );
+      res.redirect(`${FRONTEND_URL}/connections?error=token_exchange_failed`);
       return;
     }
 
@@ -229,10 +228,10 @@ router.get('/tiktok/callback', async (req: Request, res: Response) => {
     });
 
     // Redirect to frontend
-    res.redirect('http://localhost:5173/connections?success=true');
+    res.redirect(`${FRONTEND_URL}/connections?success=true`);
   } catch (error) {
     console.error('TikTok callback error:', error);
-    res.redirect('http://localhost:5173/connections?error=callback_failed');
+    res.redirect(`${FRONTEND_URL}/connections?error=callback_failed`);
   }
 });
 
