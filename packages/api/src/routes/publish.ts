@@ -210,23 +210,23 @@ router.post(
 
           const processResult = await applyBrandPattern(originalVideoPath, {
             // Logo
-            logoUrl: defaultPattern.logoUrl,
-            logoPosition: defaultPattern.logoPosition,
-            logoSize: defaultPattern.logoSize,
-            logoOpacity: defaultPattern.logoOpacity,
+            logoUrl: defaultPattern.logoUrl ?? undefined,
+            logoPosition: defaultPattern.logoPosition ?? undefined,
+            logoSize: defaultPattern.logoSize ?? undefined,
+            logoOpacity: defaultPattern.logoOpacity ?? undefined,
             // Effects
-            enableEffects: defaultPattern.enableEffects,
-            filterType: defaultPattern.filterType,
-            brightness: defaultPattern.brightness,
-            contrast: defaultPattern.contrast,
-            saturation: defaultPattern.saturation,
+            enableEffects: defaultPattern.enableEffects ?? undefined,
+            filterType: defaultPattern.filterType ?? undefined,
+            brightness: defaultPattern.brightness ?? undefined,
+            contrast: defaultPattern.contrast ?? undefined,
+            saturation: defaultPattern.saturation ?? undefined,
             // Subtitles
-            enableSubtitles: defaultPattern.enableSubtitles,
-            subtitleStyle: defaultPattern.subtitleStyle,
-            subtitlePosition: defaultPattern.subtitlePosition,
-            subtitleColor: defaultPattern.subtitleColor,
-            subtitleBgColor: defaultPattern.subtitleBgColor,
-            subtitleFontSize: defaultPattern.subtitleFontSize,
+            enableSubtitles: defaultPattern.enableSubtitles ?? undefined,
+            subtitleStyle: defaultPattern.subtitleStyle ?? undefined,
+            subtitlePosition: defaultPattern.subtitlePosition ?? undefined,
+            subtitleColor: defaultPattern.subtitleColor ?? undefined,
+            subtitleBgColor: defaultPattern.subtitleBgColor ?? undefined,
+            subtitleFontSize: defaultPattern.subtitleFontSize ?? undefined,
           });
 
           if (processResult.success && processResult.outputPath) {
