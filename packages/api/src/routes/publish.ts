@@ -12,7 +12,7 @@ import path from 'path';
 import { promisify } from 'util';
 import { prisma } from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { applyLogoToVideo } from '../lib/video-processor';
+import { applyBrandPattern } from '../lib/video-processor';
 
 const router = Router();
 
@@ -203,21 +203,30 @@ router.post(
           },
         });
 
-        if (defaultPattern && defaultPattern.logoUrl) {
+        if (defaultPattern) {
           console.log(
             `Applying brand pattern "${defaultPattern.name}" to video...`
           );
 
-          const processResult = await applyLogoToVideo(originalVideoPath, {
+          const processResult = await applyBrandPattern(originalVideoPath, {
+            // Logo
             logoUrl: defaultPattern.logoUrl,
-            position: defaultPattern.logoPosition as
-              | 'top-left'
-              | 'top-right'
-              | 'bottom-left'
-              | 'bottom-right'
-              | 'center',
-            size: defaultPattern.logoSize,
-            opacity: defaultPattern.logoOpacity,
+            logoPosition: defaultPattern.logoPosition,
+            logoSize: defaultPattern.logoSize,
+            logoOpacity: defaultPattern.logoOpacity,
+            // Effects
+            enableEffects: defaultPattern.enableEffects,
+            filterType: defaultPattern.filterType,
+            brightness: defaultPattern.brightness,
+            contrast: defaultPattern.contrast,
+            saturation: defaultPattern.saturation,
+            // Subtitles
+            enableSubtitles: defaultPattern.enableSubtitles,
+            subtitleStyle: defaultPattern.subtitleStyle,
+            subtitlePosition: defaultPattern.subtitlePosition,
+            subtitleColor: defaultPattern.subtitleColor,
+            subtitleBgColor: defaultPattern.subtitleBgColor,
+            subtitleFontSize: defaultPattern.subtitleFontSize,
           });
 
           if (processResult.success && processResult.outputPath) {
