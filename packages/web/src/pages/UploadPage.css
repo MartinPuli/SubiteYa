@@ -74,7 +74,7 @@
   display: block;
   cursor: pointer;
   position: relative;
-  z-index: 1;
+  z-index: 10;
 }
 
 .upload-placeholder {
@@ -125,6 +125,8 @@
   font-size: var(--font-size-base);
   resize: vertical;
   transition: border-color var(--transition-fast);
+  position: relative;
+  z-index: 10;
 }
 
 .upload-textarea:focus {
@@ -218,6 +220,8 @@
   background: var(--color-white);
   cursor: pointer;
   transition: border-color var(--transition-fast);
+  position: relative;
+  z-index: 10;
 }
 
 .privacy-select:focus {
@@ -241,6 +245,8 @@
   cursor: pointer;
   transition: all var(--transition-fast);
   user-select: none;
+  position: relative;
+  z-index: 10;
 }
 
 .checkbox-label:hover {
