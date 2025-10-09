@@ -61,8 +61,8 @@ router.post(
   '/',
   upload.single('video'),
   async (req: AuthRequest, res: Response) => {
-    const originalVideoPath: string | null = null;
-    const videoToUpload: string | null = null;
+    const processedFilesForCleanup = new Set<string>();
+    let originalVideoPath: string | null = null;
 
     try {
       const userId = req.user!.userId;
@@ -152,15 +152,11 @@ router.post(
 
       // Save original video to temp file
       const tempDir = process.env.TEMP || '/tmp';
-      const originalVideoPath = path.join(
+      originalVideoPath = path.join(
         tempDir,
         `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.mp4`
       );
       await writeFile(originalVideoPath, file.buffer);
-
-      // Variable to track the video file to upload (original or processed)
-      let videoToUpload = originalVideoPath;
-      let finalVideoBuffer = file.buffer;
 
       // Create video asset
       const videoAsset = await prisma.videoAsset.create({
@@ -190,72 +186,104 @@ router.post(
         },
       });
 
-      // Apply brand pattern if exists
-      // We'll apply the pattern for the first account, or look for a global default
-      // For MVP: We apply the same processed video to all accounts
-      try {
-        const firstConnectionId = connections[0].id;
-        const defaultPattern = await prisma.brandPattern.findFirst({
-          where: {
-            userId,
-            tiktokConnectionId: firstConnectionId,
-            isDefault: true,
-          },
-        });
+      const connectionVideoBuffers = new Map<string, Buffer>();
 
-        if (defaultPattern) {
+      // Apply brand pattern per connection so each cuenta usa su diseño
+      for (const connection of connections) {
+        try {
+          const pattern = await prisma.brandPattern.findFirst({
+            where: {
+              userId,
+              tiktokConnectionId: connection.id,
+              isDefault: true,
+            },
+          });
+
+          const shouldApplyPattern =
+            !!pattern &&
+            (pattern.logoUrl || pattern.enableEffects || pattern.enableSubtitles);
+
+          if (!shouldApplyPattern) {
+            connectionVideoBuffers.set(connection.id, file.buffer);
+            if (!pattern) {
+              console.log(
+                `[${connection.displayName}] Sin patrón por defecto, se usa el video original`
+              );
+            } else {
+              console.log(
+                `[${connection.displayName}] Patrón sin efectos/ajustes activos, se usa el video original`
+              );
+            }
+            continue;
+          }
+
           console.log(
-            `Applying brand pattern "${defaultPattern.name}" to video...`
+            `[${connection.displayName}] Aplicando patrón "${pattern.name}" al video...`
           );
 
           const processResult = await applyBrandPattern(originalVideoPath, {
             // Logo
-            logoUrl: defaultPattern.logoUrl ?? undefined,
-            logoPosition: defaultPattern.logoPosition ?? undefined,
-            logoSize: defaultPattern.logoSize ?? undefined,
-            logoOpacity: defaultPattern.logoOpacity ?? undefined,
+            logoUrl: pattern.logoUrl ?? undefined,
+            logoPosition: pattern.logoPosition ?? undefined,
+            logoSize: pattern.logoSize ?? undefined,
+            logoOpacity: pattern.logoOpacity ?? undefined,
             // Effects
-            enableEffects: defaultPattern.enableEffects ?? undefined,
-            filterType: defaultPattern.filterType ?? undefined,
-            brightness: defaultPattern.brightness ?? undefined,
-            contrast: defaultPattern.contrast ?? undefined,
-            saturation: defaultPattern.saturation ?? undefined,
+            enableEffects: pattern.enableEffects ?? undefined,
+            filterType: pattern.filterType ?? undefined,
+            brightness: pattern.brightness ?? undefined,
+            contrast: pattern.contrast ?? undefined,
+            saturation: pattern.saturation ?? undefined,
             // Subtitles
-            enableSubtitles: defaultPattern.enableSubtitles ?? undefined,
-            subtitleStyle: defaultPattern.subtitleStyle ?? undefined,
-            subtitlePosition: defaultPattern.subtitlePosition ?? undefined,
-            subtitleColor: defaultPattern.subtitleColor ?? undefined,
-            subtitleBgColor: defaultPattern.subtitleBgColor ?? undefined,
-            subtitleFontSize: defaultPattern.subtitleFontSize ?? undefined,
+            enableSubtitles: pattern.enableSubtitles ?? undefined,
+            subtitleStyle: pattern.subtitleStyle ?? undefined,
+            subtitlePosition: pattern.subtitlePosition ?? undefined,
+            subtitleColor: pattern.subtitleColor ?? undefined,
+            subtitleBgColor: pattern.subtitleBgColor ?? undefined,
+            subtitleFontSize: pattern.subtitleFontSize ?? undefined,
           });
 
           if (processResult.success && processResult.outputPath) {
-            videoToUpload = processResult.outputPath;
-            // Read processed video into buffer
-            finalVideoBuffer = await fs.promises.readFile(
+            const processedBuffer = await fs.promises.readFile(
               processResult.outputPath
             );
+            connectionVideoBuffers.set(connection.id, processedBuffer);
             console.log(
-              `✓ Brand pattern applied successfully. New size: ${finalVideoBuffer.length} bytes`
+              `[${connection.displayName}] ✓ Patrón aplicado. Tamaño final: ${processedBuffer.length} bytes`
             );
+
+            if (processResult.outputPath !== originalVideoPath) {
+              try {
+                await unlink(processResult.outputPath);
+              } catch (unlinkError) {
+                console.warn(
+                  `[${connection.displayName}] No se pudo borrar video procesado inmediatamente:`,
+                  unlinkError
+                );
+                processedFilesForCleanup.add(processResult.outputPath);
+              }
+            }
           } else {
             console.warn(
-              `⚠ Failed to apply brand pattern: ${processResult.error}`
+              `[${connection.displayName}] ⚠ Error al aplicar patrón: ${processResult.error}. Se usará el video original.`
             );
-            console.warn('Continuing with original video...');
+            connectionVideoBuffers.set(connection.id, file.buffer);
           }
-        } else {
-          console.log('No default brand pattern found, using original video');
+        } catch (patternError) {
+          console.error(
+            `[${connection.displayName}] Error procesando patrón:`,
+            patternError
+          );
+          connectionVideoBuffers.set(connection.id, file.buffer);
         }
-      } catch (patternError) {
-        console.error('Error processing brand pattern:', patternError);
-        console.warn('Continuing with original video...');
       }
 
       // Publish to each account
       const publishResults = await Promise.all(
         connections.map(async connection => {
           try {
+            const finalVideoBuffer =
+              connectionVideoBuffers.get(connection.id) ?? file.buffer;
+
             // Decrypt access token
             const accessToken = decryptToken(connection.accessTokenEnc);
 
@@ -471,9 +499,15 @@ router.post(
 
       // Cleanup temporary files
       try {
-        await unlink(originalVideoPath);
-        if (videoToUpload !== originalVideoPath) {
-          await unlink(videoToUpload);
+        if (originalVideoPath) {
+          await unlink(originalVideoPath);
+        }
+        for (const tempFile of processedFilesForCleanup) {
+          try {
+            await unlink(tempFile);
+          } catch (err) {
+            console.warn('Failed to cleanup processed temp file:', err);
+          }
         }
       } catch (cleanupError) {
         console.warn('Failed to cleanup temp files:', cleanupError);
@@ -495,8 +529,12 @@ router.post(
         if (originalVideoPath) {
           await unlink(originalVideoPath);
         }
-        if (videoToUpload && videoToUpload !== originalVideoPath) {
-          await unlink(videoToUpload);
+        for (const tempFile of processedFilesForCleanup) {
+          try {
+            await unlink(tempFile);
+          } catch (err) {
+            console.warn('Failed to cleanup processed temp file:', err);
+          }
         }
       } catch (cleanupError) {
         console.warn('Failed to cleanup temp files on error:', cleanupError);
