@@ -56,6 +56,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const response = await fetch(`${API_URL}/connections`, {
         headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -77,6 +78,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const response = await fetch(`${API_URL}/publish/jobs`, {
         headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
       });
 
       if (!response.ok) {

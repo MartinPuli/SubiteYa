@@ -97,6 +97,21 @@
   color: var(--color-warning);
 }
 
+.status--processing {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
 .job-date {
   font-size: var(--font-size-sm);
   color: var(--color-gray-500);

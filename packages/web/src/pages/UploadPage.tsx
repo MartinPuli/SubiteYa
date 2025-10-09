@@ -17,7 +17,12 @@ export const UploadPage: React.FC = () => {
   const [caption, setCaption] = useState('');
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [scheduleDate, setScheduleDate] = useState('');
+  const [privacyLevel, setPrivacyLevel] = useState('PUBLIC_TO_EVERYONE');
+  const [disableComment, setDisableComment] = useState(false);
+  const [disableDuet, setDisableDuet] = useState(false);
+  const [disableStitch, setDisableStitch] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [publishResults, setPublishResults] = useState<any>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -47,11 +52,16 @@ export const UploadPage: React.FC = () => {
     if (!file || selectedAccounts.length === 0 || !token) return;
 
     setLoading(true);
+    setPublishResults(null);
     try {
       const formData = new FormData();
       formData.append('video', file);
       formData.append('caption', caption);
       formData.append('accountIds', JSON.stringify(selectedAccounts));
+      formData.append('privacyLevel', privacyLevel);
+      formData.append('disableComment', String(disableComment));
+      formData.append('disableDuet', String(disableDuet));
+      formData.append('disableStitch', String(disableStitch));
 
       if (scheduleDate) {
         formData.append('scheduleTime', new Date(scheduleDate).toISOString());
@@ -62,6 +72,7 @@ export const UploadPage: React.FC = () => {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        credentials: 'include',
         body: formData,
       });
 
@@ -71,8 +82,22 @@ export const UploadPage: React.FC = () => {
       }
 
       const data = await response.json();
-      alert(data.message);
-      navigate('/history');
+      setPublishResults(data);
+
+      // Show success message with details
+      const successCount =
+        data.results?.filter((r: any) => r.success).length || 0;
+      const failedCount =
+        data.results?.filter((r: any) => !r.success).length || 0;
+
+      if (failedCount === 0) {
+        alert(`✅ ${data.message}`);
+        navigate('/history');
+      } else {
+        alert(
+          `⚠️ ${data.message}\n\n✅ Exitosos: ${successCount}\n❌ Fallidos: ${failedCount}`
+        );
+      }
     } catch (error) {
       console.error('Upload error:', error);
       alert(error instanceof Error ? error.message : 'Error al publicar');
@@ -176,6 +201,53 @@ export const UploadPage: React.FC = () => {
         </Card>
 
         <Card>
+          <h3>🔒 Configuración de Privacidad</h3>
+          <div className="privacy-settings">
+            <label className="privacy-label">
+              Privacidad del video:
+              <select
+                className="privacy-select"
+                value={privacyLevel}
+                onChange={e => setPrivacyLevel(e.target.value)}
+              >
+                <option value="PUBLIC_TO_EVERYONE">Público</option>
+                <option value="MUTUAL_FOLLOW_FRIENDS">Solo amigos</option>
+                <option value="SELF_ONLY">Solo yo</option>
+              </select>
+            </label>
+
+            <div className="privacy-options">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={disableComment}
+                  onChange={e => setDisableComment(e.target.checked)}
+                />
+                <span>Desactivar comentarios</span>
+              </label>
+
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={disableDuet}
+                  onChange={e => setDisableDuet(e.target.checked)}
+                />
+                <span>Desactivar duetos</span>
+              </label>
+
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={disableStitch}
+                  onChange={e => setDisableStitch(e.target.checked)}
+                />
+                <span>Desactivar stitch</span>
+              </label>
+            </div>
+          </div>
+        </Card>
+
+        <Card>
           <h3>⏰ Programar (Opcional)</h3>
           <Input
             type="datetime-local"
@@ -183,6 +255,9 @@ export const UploadPage: React.FC = () => {
             onChange={e => setScheduleDate(e.target.value)}
             fullWidth
           />
+          <small style={{ color: '#888', marginTop: '8px', display: 'block' }}>
+            ⚠️ La programación aún no está implementada
+          </small>
         </Card>
 
         <div className="upload-actions">

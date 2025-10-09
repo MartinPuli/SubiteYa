@@ -7,13 +7,20 @@ import { useAppStore } from '../store/appStore';
 import './HistoryPage.css';
 
 const getStateColor = (state: string) => {
-  switch (state) {
-    case 'COMPLETED':
+  const normalized = state.toLowerCase();
+  switch (normalized) {
+    case 'completed':
+    case 'published':
       return 'status--success';
-    case 'FAILED':
+    case 'failed':
       return 'status--error';
-    case 'PENDING':
+    case 'queued':
+    case 'scheduled':
+    case 'pending':
       return 'status--pending';
+    case 'uploading':
+    case 'publishing':
+      return 'status--processing';
     default:
       return '';
   }
@@ -21,13 +28,16 @@ const getStateColor = (state: string) => {
 
 const getStateLabel = (state: string) => {
   const labels: Record<string, string> = {
-    PENDING: 'Pendiente',
-    PROCESSING: 'Procesando',
-    COMPLETED: 'Completado',
-    FAILED: 'Fallido',
-    CANCELLED: 'Cancelado',
+    queued: '⏳ En cola',
+    uploading: '⬆️ Subiendo',
+    publishing: '🚀 Publicando',
+    completed: '✅ Completado',
+    published: '✅ Publicado',
+    failed: '❌ Fallido',
+    scheduled: '📅 Programado',
+    canceled: '🚫 Cancelado',
   };
-  return labels[state] || state;
+  return labels[state.toLowerCase()] || state;
 };
 
 export const HistoryPage: React.FC = () => {
