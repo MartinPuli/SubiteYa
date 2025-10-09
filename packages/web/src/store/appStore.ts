@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { API_BASE_URL } from '../config/api';
 
 interface TikTokConnection {
   id: string;
@@ -37,7 +38,7 @@ interface AppState {
   createMockConnection: (token: string, displayName: string) => Promise<void>;
 }
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = API_BASE_URL;
 
 export const useAppStore = create<AppState>((set, get) => ({
   connections: [],

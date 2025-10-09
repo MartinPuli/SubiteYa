@@ -4,6 +4,7 @@ import { Card } from '../components/Card/Card';
 import { Button } from '../components/Button/Button';
 import { useAuthStore } from '../store/authStore';
 import { useAppStore } from '../store/appStore';
+import { API_ENDPOINTS } from '../config/api';
 import './ConnectionsPage.css';
 
 export const ConnectionsPage: React.FC = () => {
@@ -51,7 +52,7 @@ export const ConnectionsPage: React.FC = () => {
 
     try {
       // Call the OAuth endpoint with the token
-      const response = await fetch('http://localhost:3000/api/auth/tiktok', {
+      const response = await fetch(API_ENDPOINTS.tiktokAuth, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,

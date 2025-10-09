@@ -5,6 +5,7 @@ import { Button } from '../components/Button/Button';
 import { Input } from '../components/Input/Input';
 import { useAuthStore } from '../store/authStore';
 import { useAppStore } from '../store/appStore';
+import { API_ENDPOINTS } from '../config/api';
 import './UploadPage.css';
 
 export const UploadPage: React.FC = () => {
@@ -56,7 +57,7 @@ export const UploadPage: React.FC = () => {
         formData.append('scheduleTime', new Date(scheduleDate).toISOString());
       }
 
-      const response = await fetch('http://localhost:3000/api/publish', {
+      const response = await fetch(API_ENDPOINTS.publish, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

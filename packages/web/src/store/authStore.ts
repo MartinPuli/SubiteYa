@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { API_ENDPOINTS } from '../config/api';
 
 interface User {
   id: string;
@@ -26,7 +27,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
 
       login: async (email: string, password: string) => {
-        const response = await fetch('http://localhost:3000/api/auth/login', {
+        const response = await fetch(API_ENDPOINTS.login, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password }),
@@ -43,7 +44,7 @@ export const useAuthStore = create<AuthState>()(
 
       register: async (name: string, email: string, password: string) => {
         const response = await fetch(
-          'http://localhost:3000/api/auth/register',
+          API_ENDPOINTS.register,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
