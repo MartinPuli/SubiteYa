@@ -277,8 +277,24 @@ router.post(
         }
       }
 
+      type PublishResult =
+        | {
+            success: true;
+            jobId: string;
+            publishId: string;
+            connectionId: string;
+            displayName: string;
+          }
+        | {
+            success: false;
+            jobId: string;
+            connectionId: string;
+            displayName: string;
+            error: string;
+          };
+
       // Publish to each account
-      const publishResults = await Promise.all(
+      const publishResults: PublishResult[] = await Promise.all(
         connections.map(async connection => {
           try {
             const finalVideoBuffer =
@@ -476,6 +492,19 @@ router.post(
           }
         })
       );
+
+      const successfulJobs = publishResults.filter(
+        (result): result is Extract<PublishResult, { success: true }> =>
+          result.success
+      );
+
+      if (successfulJobs.length > 0) {
+        const jobIds = successfulJobs.map(result => result.jobId);
+        await prisma.publishJob.updateMany({
+          where: { id: { in: jobIds } },
+          data: { state: 'completed' },
+        });
+      }
 
       const successCount = publishResults.filter(r => r.success).length;
       const failedCount = publishResults.filter(r => !r.success).length;
