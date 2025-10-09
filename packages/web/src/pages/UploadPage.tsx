@@ -129,17 +129,24 @@ export const UploadPage: React.FC = () => {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => setFile(null)}
+                  onClick={e => {
+                    e.stopPropagation();
+                    setFile(null);
+                  }}
                 >
                   ✕ Eliminar
                 </Button>
               </div>
             ) : (
-              <label className="upload-label">
+              <label
+                className="upload-label"
+                onClick={e => e.stopPropagation()}
+              >
                 <input
                   type="file"
                   accept="video/*"
                   onChange={handleFileChange}
+                  onClick={e => e.stopPropagation()}
                   hidden
                 />
                 <div className="upload-placeholder">
@@ -159,6 +166,7 @@ export const UploadPage: React.FC = () => {
             placeholder="Escribe la descripción del video..."
             value={caption}
             onChange={e => setCaption(e.target.value)}
+            onClick={e => e.stopPropagation()}
             rows={4}
             maxLength={2200}
           />
@@ -209,6 +217,7 @@ export const UploadPage: React.FC = () => {
                 className="privacy-select"
                 value={privacyLevel}
                 onChange={e => setPrivacyLevel(e.target.value)}
+                onClick={e => e.stopPropagation()}
               >
                 <option value="PUBLIC_TO_EVERYONE">Público</option>
                 <option value="MUTUAL_FOLLOW_FRIENDS">Solo amigos</option>
@@ -217,7 +226,10 @@ export const UploadPage: React.FC = () => {
             </label>
 
             <div className="privacy-options">
-              <label className="checkbox-label">
+              <label
+                className="checkbox-label"
+                onClick={e => e.stopPropagation()}
+              >
                 <input
                   type="checkbox"
                   checked={disableComment}
@@ -226,7 +238,10 @@ export const UploadPage: React.FC = () => {
                 <span>Desactivar comentarios</span>
               </label>
 
-              <label className="checkbox-label">
+              <label
+                className="checkbox-label"
+                onClick={e => e.stopPropagation()}
+              >
                 <input
                   type="checkbox"
                   checked={disableDuet}
@@ -235,7 +250,10 @@ export const UploadPage: React.FC = () => {
                 <span>Desactivar duetos</span>
               </label>
 
-              <label className="checkbox-label">
+              <label
+                className="checkbox-label"
+                onClick={e => e.stopPropagation()}
+              >
                 <input
                   type="checkbox"
                   checked={disableStitch}
@@ -253,6 +271,7 @@ export const UploadPage: React.FC = () => {
             type="datetime-local"
             value={scheduleDate}
             onChange={e => setScheduleDate(e.target.value)}
+            onClick={e => e.stopPropagation()}
             fullWidth
           />
           <small style={{ color: '#888', marginTop: '8px', display: 'block' }}>
