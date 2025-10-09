@@ -604,13 +604,14 @@ export async function burnSubtitlesIntoVideo(
 
     // 2. Build subtitle style
     const subtitleStyle = buildSubtitleStyle(config);
+    const escapedSubtitlePath = escapeSubtitleFilePath(tempSrtPath);
 
     // 3. Apply subtitles using FFmpeg
     await new Promise<void>((resolve, reject) => {
       ffmpeg(inputPath)
         .outputOptions([
           '-vf',
-          `subtitles=${tempSrtPath.replace(/\\/g, '/')}:${subtitleStyle}`,
+          `subtitles=${escapedSubtitlePath}:${subtitleStyle}`,
           '-c:v libx264',
           '-preset fast',
           '-crf 23',
@@ -729,6 +730,15 @@ function buildSubtitleStyle(config: SubtitleConfig): string {
   }
 
   return `force_style='${styles.join(',')}'`;
+}
+
+/**
+ * Escape subtitle file path for FFmpeg subtitles filter
+ */
+function escapeSubtitleFilePath(filePath: string): string {
+  const normalizedPath = filePath.replace(/\\/g, '/');
+  const escapedQuotesPath = normalizedPath.replace(/'/g, "\\'");
+  return `'${escapedQuotesPath}'`;
 }
 
 /**
