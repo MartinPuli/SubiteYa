@@ -1,17 +1,69 @@
 /**
  * @fileoverview Brand Patterns Routes
  * Purpose: CRUD operations for brand patterns (logos, watermarks, styles per account)
- * Max lines: 300
+ * Max lines: 350
  */
 
 import { Router, Response } from 'express';
+import multer from 'multer';
 import { prisma } from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
+// Configure multer for logo upload (in-memory)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB max
+  },
+  fileFilter: (_req, file, cb) => {
+    const allowedMimes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Solo se permiten imágenes PNG, JPG o WebP'));
+    }
+  },
+});
+
 // All routes require authentication
 router.use(authenticate);
+
+// POST /patterns/upload-logo - Upload logo (returns data URL for MVP)
+router.post(
+  '/upload-logo',
+  upload.single('logo'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const file = req.file;
+
+      if (!file) {
+        res.status(400).json({
+          error: 'Bad Request',
+          message: 'Archivo de logo requerido',
+        });
+        return;
+      }
+
+      // For MVP: Convert to data URL (base64)
+      // In production: Upload to S3/Cloud Storage and return URL
+      const dataUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+
+      res.json({
+        logoUrl: dataUrl,
+        originalName: file.originalname,
+        size: file.size,
+      });
+    } catch (error) {
+      console.error('Upload logo error:', error);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'Error al subir logo',
+      });
+    }
+  }
+);
 
 // GET /patterns - Get all patterns for user
 router.get('/', async (req: AuthRequest, res: Response) => {

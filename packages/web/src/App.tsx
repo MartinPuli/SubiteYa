@@ -12,6 +12,7 @@ import { ConnectionsPage } from './pages/ConnectionsPage';
 import { UploadPage } from './pages/UploadPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { PatternsPage } from './pages/PatternsPage';
+import { PatternEditorPage } from './pages/PatternEditorPage';
 
 export function App() {
   const location = useLocation();
@@ -60,6 +61,14 @@ export function App() {
           element={
             <ProtectedRoute>
               <PatternsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/patterns/:id"
+          element={
+            <ProtectedRoute>
+              <PatternEditorPage />
             </ProtectedRoute>
           }
         />
