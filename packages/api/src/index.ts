@@ -19,28 +19,30 @@ const PORT = process.env.PORT || 3000;
 app.use(helmet());
 
 // CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [
-  'http://localhost:5173',
-  'http://localhost:3000',
-];
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o =>
+  o.trim()
+) || ['http://localhost:5173', 'http://localhost:3000'];
 
 console.log('🔧 CORS allowed origins:', allowedOrigins);
 
 const corsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+  origin: (
+    origin: string | undefined,
+    callback: (err: Error | null, allow?: boolean) => void
+  ) => {
     // Allow requests with no origin (like mobile apps or Postman)
     if (!origin) {
       console.log('✅ CORS: No origin (allowed)');
       return callback(null, true);
     }
-    
+
     // Remove trailing slash for comparison
     const normalizedOrigin = origin.replace(/\/$/, '');
     const isAllowed = allowedOrigins.some(allowed => {
       const normalizedAllowed = allowed.replace(/\/$/, '');
       return normalizedOrigin === normalizedAllowed;
     });
-    
+
     if (isAllowed) {
       console.log('✅ CORS allowed origin:', origin);
       callback(null, true);
@@ -89,6 +91,7 @@ import authRoutes from './routes/auth';
 import connectionsRoutes from './routes/connections';
 import publishRoutes from './routes/publish';
 import tiktokRoutes from './routes/tiktok';
+import patternsRoutes from './routes/patterns';
 
 // API routes
 app.get('/api', (_req: Request, res: Response) => {
@@ -104,17 +107,23 @@ app.use('/api/auth', authRoutes);
 app.use('/api/connections', connectionsRoutes);
 app.use('/api/publish', publishRoutes);
 app.use('/api/auth', tiktokRoutes);
+app.use('/api/patterns', patternsRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
   // Ensure CORS headers in 404 responses
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.some(allowed => allowed.replace(/\/$/, '') === origin.replace(/\/$/, ''))) {
+  if (
+    origin &&
+    allowedOrigins.some(
+      allowed => allowed.replace(/\/$/, '') === origin.replace(/\/$/, '')
+    )
+  ) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Vary', 'Origin');
   }
-  
+
   res.status(404).json({
     error: 'Not Found',
     path: req.path,
@@ -131,7 +140,12 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
 
   // Ensure CORS headers in error responses
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.some(allowed => allowed.replace(/\/$/, '') === origin.replace(/\/$/, ''))) {
+  if (
+    origin &&
+    allowedOrigins.some(
+      allowed => allowed.replace(/\/$/, '') === origin.replace(/\/$/, '')
+    )
+  ) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Vary', 'Origin');

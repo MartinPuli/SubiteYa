@@ -28,6 +28,7 @@ model User {
   publishBatches    PublishBatch[]
   publishJobs       PublishJob[]
   auditEvents       AuditEvent[]
+  brandPatterns     BrandPattern[]
 
   @@map("users")
 }
@@ -46,8 +47,9 @@ model TikTokConnection {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   publishJobs PublishJob[]
+  patterns    BrandPattern[]
 
   @@index([userId])
   @@map("tiktok_connections")
@@ -158,4 +160,34 @@ model WebhookEvent {
   @@index([processed])
   @@index([createdAt])
   @@map("webhook_events")
+}
+
+// Brand Patterns (MVP)
+model BrandPattern {
+  id                  String   @id @default(uuid())
+  userId              String   @map("user_id")
+  tiktokConnectionId  String   @map("tiktok_connection_id")
+  name                String
+  isDefault           Boolean  @default(false) @map("is_default")
+  version             Int      @default(1)
+  
+  // Simple config for MVP
+  logoUrl             String?  @map("logo_url")
+  logoPosition        String   @default("bottom-right") @map("logo_position") // "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center"
+  logoSize            Int      @default(15) @map("logo_size") // % of video width
+  logoOpacity         Int      @default(100) @map("logo_opacity") // 0-100
+  
+  // Preview thumbnail
+  thumbnailUrl        String?  @map("thumbnail_url")
+  
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tiktokConnection TikTokConnection @relation(fields: [tiktokConnectionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tiktokConnectionId])
+  @@index([isDefault])
+  @@map("brand_patterns")
 }
