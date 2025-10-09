@@ -31,7 +31,7 @@ const getStateLabel = (state: string) => {
     queued: '⏳ En cola',
     uploading: '⬆️ Subiendo',
     publishing: '🚀 Publicando',
-    completed: '✅ Completado',
+    completed: '✅ Publicado',
     published: '✅ Publicado',
     failed: '❌ Fallido',
     scheduled: '📅 Programado',
