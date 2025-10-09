@@ -71,11 +71,18 @@ router.post(
         title: titleParam,
         caption,
         privacyLevel = 'PUBLIC_TO_EVERYONE',
-        disableComment = false,
-        disableDuet = false,
-        disableStitch = false,
+        disableComment: disableCommentRaw = 'false',
+        disableDuet: disableDuetRaw = 'false',
+        disableStitch: disableStitchRaw = 'false',
         accountIds,
       } = req.body;
+
+      // Convert string booleans to actual booleans (FormData sends strings)
+      const disableComment =
+        disableCommentRaw === 'true' || disableCommentRaw === true;
+      const disableDuet = disableDuetRaw === 'true' || disableDuetRaw === true;
+      const disableStitch =
+        disableStitchRaw === 'true' || disableStitchRaw === true;
 
       // Accept either title or caption
       const title = titleParam || caption;

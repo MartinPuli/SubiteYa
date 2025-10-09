@@ -79,8 +79,9 @@ router.get('/tiktok', authenticate, (req: AuthRequest, res: Response) => {
     ).toString('base64');
 
     // Request user info and video publishing permissions
-    // video.publish scope is required for Content Posting API
-    const scopes = ['user.info.basic', 'video.publish'];
+    // video.publish is required for Content Posting API (Direct Post)
+    // video.upload is for draft uploads (included for compatibility)
+    const scopes = ['user.info.basic', 'video.publish', 'video.upload'];
 
     const authUrl = new URL('https://www.tiktok.com/v2/auth/authorize/');
     authUrl.searchParams.set('client_key', TIKTOK_CLIENT_KEY);
