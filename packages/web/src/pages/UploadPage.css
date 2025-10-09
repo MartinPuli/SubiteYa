@@ -57,6 +57,7 @@
   background: linear-gradient(135deg, var(--color-tiktok-pink) 0%, var(--color-tiktok-cyan) 100%);
   opacity: 0;
   transition: opacity var(--transition-base);
+  pointer-events: none;
 }
 
 .upload-dropzone:hover {
