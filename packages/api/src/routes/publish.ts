@@ -165,7 +165,10 @@ router.post(
             // Decrypt access token
             const accessToken = decryptToken(connection.accessTokenEnc);
 
-            // 1. Query Creator Info
+            // 1. Query Creator Info (required before posting)
+            console.log(
+              `[${connection.displayName}] Step 1: Querying creator info...`
+            );
             const creatorInfoResponse = await fetch(
               'https://open.tiktokapis.com/v2/post/publish/creator_info/query/',
               {
@@ -174,20 +177,67 @@ router.post(
                   Authorization: `Bearer ${accessToken}`,
                   'Content-Type': 'application/json; charset=UTF-8',
                 },
+                // No body required per TikTok docs
               }
             );
 
+            const responseText = await creatorInfoResponse.text();
+            console.log(
+              `[${connection.displayName}] Creator info response (${creatorInfoResponse.status}):`,
+              responseText
+            );
+
             if (!creatorInfoResponse.ok) {
-              const errorData = await creatorInfoResponse
-                .json()
-                .catch(() => ({}));
-              throw new Error(
-                `Failed to query creator info: ${creatorInfoResponse.status} ${JSON.stringify(errorData)}`
+              let errorData;
+              try {
+                errorData = JSON.parse(responseText);
+              } catch {
+                errorData = { rawResponse: responseText };
+              }
+
+              // Check for common errors
+              const errorMsg =
+                errorData.error?.message ||
+                errorData.message ||
+                JSON.stringify(errorData);
+              const errorCode = errorData.error?.code || 'unknown';
+
+              console.error(
+                `[${connection.displayName}] Creator info failed:`,
+                {
+                  status: creatorInfoResponse.status,
+                  code: errorCode,
+                  message: errorMsg,
+                }
               );
+
+              // Provide helpful error messages
+              if (
+                errorCode === 'access_token_invalid' ||
+                creatorInfoResponse.status === 401
+              ) {
+                throw new Error(
+                  'Token inválido o expirado. Reconecta tu cuenta de TikTok.'
+                );
+              } else if (
+                errorCode === 'scope_not_authorized' ||
+                errorMsg.includes('scope')
+              ) {
+                throw new Error(
+                  'Falta el permiso video.publish. Reconecta tu cuenta con los permisos correctos.'
+                );
+              } else {
+                throw new Error(
+                  `Error TikTok (${creatorInfoResponse.status}): ${errorMsg}`
+                );
+              }
             }
 
-            const creatorInfo = await creatorInfoResponse.json();
-            console.log('Creator info:', creatorInfo);
+            const creatorInfo = JSON.parse(responseText);
+            console.log(`[${connection.displayName}] Creator info OK:`, {
+              username: creatorInfo.data?.creator_username,
+              maxDuration: creatorInfo.data?.max_video_post_duration_sec,
+            });
 
             // 2. Initialize video upload
             const initResponse = await fetch(
