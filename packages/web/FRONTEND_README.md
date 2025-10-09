@@ -354,3 +354,11 @@ Todos los componentes usan TypeScript estricto:
 **Multi-account**: ✅ Implementado con selección múltiple
 
 **Real-time**: ⚡ Estados y métricas en tiempo real
+
+---
+
+**Nota**: En `tiktok.ts` línea 20, se agregó una URL por defecto para desarrollo:
+
+```typescript
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+```

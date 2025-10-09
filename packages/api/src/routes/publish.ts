@@ -1,7 +1,7 @@
 /**
  * @fileoverview Publish Routes
- * Purpose: Video upload and multi-account publishing
- * Max lines: 250
+ * Purpose: Video upload and multi-account publishing using TikTok Content Posting API
+ * Max lines: 400
  */
 
 import { Router, Response } from 'express';
@@ -11,6 +11,10 @@ import { prisma } from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = Router();
+
+const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY || '';
+const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET || '';
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '';
 
 // Configure multer for video upload
 const upload = multer({
@@ -28,10 +32,24 @@ const upload = multer({
   },
 });
 
+// Decrypt token
+function decryptToken(encryptedToken: string): string {
+  const [ivHex, authTagHex, encrypted] = encryptedToken.split(':');
+  const decipher = crypto.createDecipheriv(
+    'aes-256-gcm',
+    Buffer.from(ENCRYPTION_KEY.slice(0, 32)),
+    Buffer.from(ivHex, 'hex')
+  );
+  decipher.setAuthTag(Buffer.from(authTagHex, 'hex'));
+  let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
+}
+
 // All routes require authentication
 router.use(authenticate);
 
-// POST /publish - Upload video and create publish jobs
+// POST /publish - Upload video and publish to multiple TikTok accounts
 router.post(
   '/',
   upload.single('video'),
@@ -49,7 +67,22 @@ router.post(
       }
 
       // Parse request body
-      const { caption, accountIds, scheduleTime } = req.body;
+      const {
+        title,
+        privacyLevel = 'PUBLIC_TO_EVERYONE',
+        disableComment = false,
+        disableDuet = false,
+        disableStitch = false,
+        accountIds,
+      } = req.body;
+
+      if (!title || title.trim().length === 0) {
+        res.status(400).json({
+          error: 'Bad Request',
+          message: 'El título es requerido',
+        });
+        return;
+      }
 
       if (!accountIds || accountIds.length === 0) {
         res.status(400).json({
@@ -71,7 +104,7 @@ router.post(
         return;
       }
 
-      // Verify all connections belong to user
+      // Verify all connections belong to user and get them
       const connections = await prisma.tikTokConnection.findMany({
         where: {
           id: { in: parsedAccountIds },
@@ -93,11 +126,11 @@ router.post(
         .update(file.buffer)
         .digest('hex');
 
-      // Create video asset (mock storage URL for now)
+      // Create video asset
       const videoAsset = await prisma.videoAsset.create({
         data: {
           userId,
-          storageUrl: `/uploads/${userId}/${checksum}.${file.mimetype.split('/')[1]}`,
+          storageUrl: checksum, // Usamos el checksum como identificador
           originalFilename: file.originalname,
           sizeBytes: file.size,
           checksum,
@@ -106,45 +139,162 @@ router.post(
       });
 
       // Create publish batch
-      const scheduleTimeUtc = scheduleTime ? new Date(scheduleTime) : null;
-
       const batch = await prisma.publishBatch.create({
         data: {
           userId,
           videoAssetId: videoAsset.id,
           defaultsJson: {
-            caption: caption || '',
-            privacyStatus: 'public',
-            allowDuet: true,
-            allowStitch: true,
-            allowComment: true,
+            title,
+            privacyLevel,
+            disableComment,
+            disableDuet,
+            disableStitch,
           },
-          scheduleTimeUtc,
+          scheduleTimeUtc: null,
         },
       });
 
-      // Create publish jobs for each account
-      const jobs = await Promise.all(
-        connections.map((connection: { id: string }) =>
-          prisma.publishJob.create({
-            data: {
-              batchId: batch.id,
-              userId,
-              tiktokConnectionId: connection.id,
-              videoAssetId: videoAsset.id,
-              caption: caption || '',
-              hashtags: [],
-              privacyStatus: 'public',
-              allowDuet: true,
-              allowStitch: true,
-              allowComment: true,
-              scheduleTimeUtc,
-              state: scheduleTimeUtc ? 'scheduled' : 'queued',
-              idempotencyKey: crypto.randomBytes(16).toString('hex'),
-            },
-          })
-        )
+      // Publish to each account
+      const publishResults = await Promise.all(
+        connections.map(async connection => {
+          try {
+            // Decrypt access token
+            const accessToken = decryptToken(connection.accessTokenEnc);
+
+            // 1. Query Creator Info
+            const creatorInfoResponse = await fetch(
+              'https://open.tiktokapis.com/v2/post/publish/creator_info/query/',
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json; charset=UTF-8',
+                },
+              }
+            );
+
+            if (!creatorInfoResponse.ok) {
+              throw new Error('Failed to query creator info');
+            }
+
+            // 2. Initialize video upload
+            const initResponse = await fetch(
+              'https://open.tiktokapis.com/v2/post/publish/video/init/',
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json; charset=UTF-8',
+                },
+                body: JSON.stringify({
+                  post_info: {
+                    title,
+                    privacy_level: privacyLevel,
+                    disable_duet: disableDuet,
+                    disable_comment: disableComment,
+                    disable_stitch: disableStitch,
+                    video_cover_timestamp_ms: 1000,
+                  },
+                  source_info: {
+                    source: 'FILE_UPLOAD',
+                    video_size: file.size,
+                    chunk_size: file.size, // Subir todo de una vez
+                    total_chunk_count: 1,
+                  },
+                }),
+              }
+            );
+
+            if (!initResponse.ok) {
+              const errorData = await initResponse.json();
+              throw new Error(`Init failed: ${JSON.stringify(errorData)}`);
+            }
+
+            const initData = (await initResponse.json()) as {
+              data: {
+                publish_id: string;
+                upload_url: string;
+              };
+            };
+
+            // 3. Upload video file
+            const uploadResponse = await fetch(initData.data.upload_url, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': file.mimetype,
+                'Content-Range': `bytes 0-${file.size - 1}/${file.size}`,
+              },
+              body: file.buffer,
+            });
+
+            if (!uploadResponse.ok) {
+              throw new Error('Video upload failed');
+            }
+
+            // Create publish job record
+            const job = await prisma.publishJob.create({
+              data: {
+                batchId: batch.id,
+                userId,
+                tiktokConnectionId: connection.id,
+                videoAssetId: videoAsset.id,
+                caption: title,
+                hashtags: [],
+                privacyStatus: privacyLevel,
+                allowDuet: !disableDuet,
+                allowStitch: !disableStitch,
+                allowComment: !disableComment,
+                scheduleTimeUtc: null,
+                state: 'published',
+                idempotencyKey: crypto.randomBytes(16).toString('hex'),
+                externalId: initData.data.publish_id,
+              },
+            });
+
+            return {
+              success: true,
+              jobId: job.id,
+              publishId: initData.data.publish_id,
+              connectionId: connection.id,
+              displayName: connection.displayName,
+            };
+          } catch (error) {
+            console.error(
+              `Error publishing to ${connection.displayName}:`,
+              error
+            );
+            // Create failed job
+            const job = await prisma.publishJob.create({
+              data: {
+                batchId: batch.id,
+                userId,
+                tiktokConnectionId: connection.id,
+                videoAssetId: videoAsset.id,
+                caption: title,
+                hashtags: [],
+                privacyStatus: privacyLevel,
+                allowDuet: !disableDuet,
+                allowStitch: !disableStitch,
+                allowComment: !disableComment,
+                scheduleTimeUtc: null,
+                state: 'failed',
+                idempotencyKey: crypto.randomBytes(16).toString('hex'),
+              },
+            });
+
+            return {
+              success: false,
+              jobId: job.id,
+              connectionId: connection.id,
+              displayName: connection.displayName,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            };
+          }
+        })
       );
+
+      const successCount = publishResults.filter(r => r.success).length;
+      const failedCount = publishResults.filter(r => !r.success).length;
 
       // Create audit event
       await prisma.auditEvent.create({
@@ -155,7 +305,8 @@ router.post(
             batchId: batch.id,
             videoAssetId: videoAsset.id,
             accountCount: connections.length,
-            scheduled: !!scheduleTimeUtc,
+            successCount,
+            failedCount,
           },
           ip: req.ip,
           userAgent: req.headers['user-agent'],
@@ -163,20 +314,12 @@ router.post(
       });
 
       res.status(201).json({
-        message: `Video publicado en ${jobs.length} cuenta(s)`,
+        message: `Video publicado en ${successCount} de ${connections.length} cuenta(s)`,
         batch: {
           id: batch.id,
           videoAssetId: videoAsset.id,
-          jobCount: jobs.length,
-          scheduleTime: scheduleTimeUtc,
         },
-        jobs: jobs.map(
-          (job: { id: string; tiktokConnectionId: string; state: string }) => ({
-            id: job.id,
-            connectionId: job.tiktokConnectionId,
-            state: job.state,
-          })
-        ),
+        results: publishResults,
       });
     } catch (error) {
       console.error('Publish error:', error);

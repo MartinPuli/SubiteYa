@@ -252,10 +252,10 @@ router.get('/tiktok/callback', async (req: Request, res: Response) => {
     });
 
     // Redirect to frontend
-    res.redirect(`${FRONTEND_URL}/connections?success=true`);
+    res.redirect(`${FRONTEND_URL}/connections`);
   } catch (error) {
     console.error('TikTok callback error:', error);
-    res.redirect(`${FRONTEND_URL}/connections?error=callback_failed`);
+    res.redirect(`${FRONTEND_URL}/connections`);
   }
 });
 
