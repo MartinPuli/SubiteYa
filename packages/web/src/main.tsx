@@ -18,6 +18,15 @@ if (!root) {
 // basename para GitHub Pages en producción, vacío en desarrollo
 const basename = import.meta.env.PROD ? '/SubiteYa' : '';
 
+// Handle 404.html redirect for GitHub Pages
+const redirectPath = sessionStorage.getItem('redirectPath');
+if (redirectPath) {
+  sessionStorage.removeItem('redirectPath');
+  // Remove the basename from the stored path before navigating
+  const pathWithoutBase = redirectPath.replace('/SubiteYa', '');
+  history.replaceState(null, '', basename + pathWithoutBase);
+}
+
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <BrowserRouter basename={basename}>
