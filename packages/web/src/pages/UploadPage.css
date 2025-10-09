@@ -260,6 +260,37 @@
   font-weight: var(--font-weight-medium);
 }
 
+.warning-card {
+  background: rgba(251, 146, 60, 0.1) !important;
+  border: 2px solid rgba(251, 146, 60, 0.3) !important;
+}
+
+.warning-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.warning-icon {
+  font-size: 1.5rem;
+}
+
+.warning-title {
+  color: #d97706;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.warning-list {
+  margin: 0;
+  padding-left: 20px;
+  color: #92400e;
+}
+
+.warning-list li {
+  margin: 4px 0;
+}
+
 @media (max-width: 768px) {
   .accounts-grid {
     grid-template-columns: 1fr;

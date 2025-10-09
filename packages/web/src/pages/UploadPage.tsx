@@ -260,6 +260,25 @@ export const UploadPage: React.FC = () => {
           </small>
         </Card>
 
+        {(!file || selectedAccounts.length === 0) && (
+          <Card className="warning-card">
+            <div className="warning-content">
+              <span className="warning-icon">⚠️</span>
+              <div>
+                <strong className="warning-title">
+                  Para publicar necesitas:
+                </strong>
+                <ul className="warning-list">
+                  {!file && <li>Subir un video</li>}
+                  {selectedAccounts.length === 0 && (
+                    <li>Seleccionar al menos una cuenta</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          </Card>
+        )}
+
         <div className="upload-actions">
           <Button
             type="button"
@@ -274,7 +293,9 @@ export const UploadPage: React.FC = () => {
             loading={loading}
             disabled={!file || selectedAccounts.length === 0}
           >
-            Publicar en {selectedAccounts.length} cuenta(s)
+            {loading
+              ? 'Publicando...'
+              : `Publicar en ${selectedAccounts.length} cuenta(s)`}
           </Button>
         </div>
       </form>
