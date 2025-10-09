@@ -550,7 +550,18 @@ router.get('/jobs', async (req: AuthRequest, res: Response) => {
     });
 
     console.log(`[GET /jobs] Found ${jobs.length} jobs for user ${userId}`);
-    res.json({ jobs });
+
+    const serializedJobs = jobs.map(job => ({
+      ...job,
+      videoAsset: job.videoAsset
+        ? {
+            ...job.videoAsset,
+            sizeBytes: Number(job.videoAsset.sizeBytes),
+          }
+        : null,
+    }));
+
+    res.json({ jobs: serializedJobs });
   } catch (error) {
     console.error('Get jobs error:', error);
     res.status(500).json({
