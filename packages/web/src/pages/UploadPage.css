@@ -75,6 +75,7 @@
   cursor: pointer;
   position: relative;
   z-index: 10;
+  pointer-events: auto;
 }
 
 .upload-placeholder {
@@ -127,6 +128,7 @@
   transition: border-color var(--transition-fast);
   position: relative;
   z-index: 10;
+  pointer-events: auto;
 }
 
 .upload-textarea:focus {
@@ -156,6 +158,9 @@
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--transition-fast);
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 .account-item:hover {
@@ -222,6 +227,7 @@
   transition: border-color var(--transition-fast);
   position: relative;
   z-index: 10;
+  pointer-events: auto;
 }
 
 .privacy-select:focus {
@@ -247,6 +253,7 @@
   user-select: none;
   position: relative;
   z-index: 10;
+  pointer-events: auto;
 }
 
 .checkbox-label:hover {
