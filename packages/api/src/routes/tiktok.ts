@@ -86,6 +86,8 @@ router.get('/tiktok', authenticate, (req: AuthRequest, res: Response) => {
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('redirect_uri', TIKTOK_REDIRECT_URI);
     authUrl.searchParams.set('state', state);
+    // Siempre mostrar pantalla de autorización para permitir múltiples cuentas
+    authUrl.searchParams.set('disable_auto_auth', '1');
 
     // Return the auth URL instead of redirecting
     res.json({ authUrl: authUrl.toString() });
@@ -166,25 +168,45 @@ router.get('/tiktok/callback', async (req: Request, res: Response) => {
     const { access_token, refresh_token, expires_in, open_id, scope } =
       tokenData;
 
-    // Get user info
-    const userInfoResponse = await fetch(
-      'https://open.tiktokapis.com/v2/user/info/',
-      {
-        headers: {
-          Authorization: `Bearer ${access_token}`,
-        },
-      }
+    // Get user info - IMPORTANTE: TikTok requiere especificar los campos
+    const userInfoUrl = new URL('https://open.tiktokapis.com/v2/user/info/');
+    userInfoUrl.searchParams.set(
+      'fields',
+      'open_id,union_id,avatar_url,avatar_url_100,display_name'
     );
+
+    const userInfoResponse = await fetch(userInfoUrl.toString(), {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+      },
+    });
+
+    if (!userInfoResponse.ok) {
+      console.error('TikTok user info error:', await userInfoResponse.text());
+    }
 
     const userInfo = (await userInfoResponse.json()) as {
       data?: {
         user?: {
           display_name?: string;
           avatar_url?: string;
+          avatar_url_100?: string;
+          union_id?: string;
         };
       };
+      error?: {
+        code?: string;
+        message?: string;
+      };
     };
+
+    console.log(
+      'TikTok user info response:',
+      JSON.stringify(userInfo, null, 2)
+    );
+
     const userData = userInfo.data?.user || {};
+    const avatarUrl = userData.avatar_url_100 || userData.avatar_url || null;
 
     // Save connection to database
     const expiresAt = new Date(Date.now() + expires_in * 1000);
@@ -195,7 +217,7 @@ router.get('/tiktok/callback', async (req: Request, res: Response) => {
         userId,
         openId: open_id,
         displayName: userData.display_name || 'TikTok User',
-        avatarUrl: userData.avatar_url || null,
+        avatarUrl: avatarUrl,
         scopeGranted: scope.split(','),
         accessTokenEnc: encryptToken(access_token),
         refreshTokenEnc: encryptToken(refresh_token),
@@ -204,7 +226,7 @@ router.get('/tiktok/callback', async (req: Request, res: Response) => {
       },
       update: {
         displayName: userData.display_name || 'TikTok User',
-        avatarUrl: userData.avatar_url || null,
+        avatarUrl: avatarUrl,
         scopeGranted: scope.split(','),
         accessTokenEnc: encryptToken(access_token),
         refreshTokenEnc: encryptToken(refresh_token),
