@@ -7,10 +7,17 @@
 import { Router, Response } from 'express';
 import multer from 'multer';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import { promisify } from 'util';
 import { prisma } from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { applyLogoToVideo } from '../lib/video-processor';
 
 const router = Router();
+
+const writeFile = promisify(fs.writeFile);
+const unlink = promisify(fs.unlink);
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '';
 // const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY || '';
@@ -54,6 +61,9 @@ router.post(
   '/',
   upload.single('video'),
   async (req: AuthRequest, res: Response) => {
+    const originalVideoPath: string | null = null;
+    const videoToUpload: string | null = null;
+
     try {
       const userId = req.user!.userId;
       const file = req.file;
@@ -140,6 +150,18 @@ router.post(
         .update(file.buffer)
         .digest('hex');
 
+      // Save original video to temp file
+      const tempDir = process.env.TEMP || '/tmp';
+      const originalVideoPath = path.join(
+        tempDir,
+        `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.mp4`
+      );
+      await writeFile(originalVideoPath, file.buffer);
+
+      // Variable to track the video file to upload (original or processed)
+      let videoToUpload = originalVideoPath;
+      let finalVideoBuffer = file.buffer;
+
       // Create video asset
       const videoAsset = await prisma.videoAsset.create({
         data: {
@@ -167,6 +189,59 @@ router.post(
           scheduleTimeUtc: null,
         },
       });
+
+      // Apply brand pattern if exists
+      // We'll apply the pattern for the first account, or look for a global default
+      // For MVP: We apply the same processed video to all accounts
+      try {
+        const firstConnectionId = connections[0].id;
+        const defaultPattern = await prisma.brandPattern.findFirst({
+          where: {
+            userId,
+            tiktokConnectionId: firstConnectionId,
+            isDefault: true,
+          },
+        });
+
+        if (defaultPattern && defaultPattern.logoUrl) {
+          console.log(
+            `Applying brand pattern "${defaultPattern.name}" to video...`
+          );
+
+          const processResult = await applyLogoToVideo(originalVideoPath, {
+            logoUrl: defaultPattern.logoUrl,
+            position: defaultPattern.logoPosition as
+              | 'top-left'
+              | 'top-right'
+              | 'bottom-left'
+              | 'bottom-right'
+              | 'center',
+            size: defaultPattern.logoSize,
+            opacity: defaultPattern.logoOpacity,
+          });
+
+          if (processResult.success && processResult.outputPath) {
+            videoToUpload = processResult.outputPath;
+            // Read processed video into buffer
+            finalVideoBuffer = await fs.promises.readFile(
+              processResult.outputPath
+            );
+            console.log(
+              `✓ Brand pattern applied successfully. New size: ${finalVideoBuffer.length} bytes`
+            );
+          } else {
+            console.warn(
+              `⚠ Failed to apply brand pattern: ${processResult.error}`
+            );
+            console.warn('Continuing with original video...');
+          }
+        } else {
+          console.log('No default brand pattern found, using original video');
+        }
+      } catch (patternError) {
+        console.error('Error processing brand pattern:', patternError);
+        console.warn('Continuing with original video...');
+      }
 
       // Publish to each account
       const publishResults = await Promise.all(
@@ -269,8 +344,8 @@ router.post(
                   },
                   source_info: {
                     source: 'FILE_UPLOAD',
-                    video_size: file.size,
-                    chunk_size: file.size, // Subir todo de una vez
+                    video_size: finalVideoBuffer.length,
+                    chunk_size: finalVideoBuffer.length, // Subir todo de una vez
                     total_chunk_count: 1,
                   },
                 }),
@@ -294,9 +369,9 @@ router.post(
               method: 'PUT',
               headers: {
                 'Content-Type': file.mimetype,
-                'Content-Range': `bytes 0-${file.size - 1}/${file.size}`,
+                'Content-Range': `bytes 0-${finalVideoBuffer.length - 1}/${finalVideoBuffer.length}`,
               },
-              body: file.buffer,
+              body: finalVideoBuffer,
             });
 
             if (!uploadResponse.ok) {
@@ -385,6 +460,16 @@ router.post(
         },
       });
 
+      // Cleanup temporary files
+      try {
+        await unlink(originalVideoPath);
+        if (videoToUpload !== originalVideoPath) {
+          await unlink(videoToUpload);
+        }
+      } catch (cleanupError) {
+        console.warn('Failed to cleanup temp files:', cleanupError);
+      }
+
       res.status(201).json({
         message: `Video publicado en ${successCount} de ${connections.length} cuenta(s)`,
         batch: {
@@ -395,6 +480,19 @@ router.post(
       });
     } catch (error) {
       console.error('Publish error:', error);
+
+      // Cleanup on error
+      try {
+        if (originalVideoPath) {
+          await unlink(originalVideoPath);
+        }
+        if (videoToUpload && videoToUpload !== originalVideoPath) {
+          await unlink(videoToUpload);
+        }
+      } catch (cleanupError) {
+        console.warn('Failed to cleanup temp files on error:', cleanupError);
+      }
+
       res.status(500).json({
         error: 'Internal Server Error',
         message: 'Error al publicar video',
