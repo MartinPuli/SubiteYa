@@ -60,11 +60,8 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 };
 
-// Apply CORS middleware
+// Apply CORS middleware globally (handles preflight automatically)
 app.use(cors(corsOptions));
-
-// Handle preflight requests explicitly with same options
-app.options('*', cors(corsOptions));
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
