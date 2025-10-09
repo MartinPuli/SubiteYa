@@ -76,18 +76,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   fetchJobs: async (token: string) => {
     set({ isLoading: true, error: null });
     try {
+      console.log('Fetching jobs from:', `${API_URL}/publish/jobs`);
       const response = await fetch(`${API_URL}/publish/jobs`, {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       });
 
+      console.log('Jobs response status:', response.status);
+
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Jobs fetch error:', response.status, errorText);
         throw new Error('Error al obtener trabajos');
       }
 
       const data = await response.json();
+      console.log('Jobs fetched:', data.jobs?.length || 0, 'jobs');
       set({ jobs: data.jobs, isLoading: false });
     } catch (error) {
+      console.error('Fetch jobs exception:', error);
       const message =
         error instanceof Error ? error.message : 'Error desconocido';
       set({ error: message, isLoading: false });

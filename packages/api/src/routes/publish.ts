@@ -407,6 +407,8 @@ router.post(
 router.get('/jobs', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
+    console.log(`[GET /jobs] Fetching jobs for user: ${userId}`);
+
     const { state, limit = '50' } = req.query;
 
     interface WhereClause {
@@ -440,6 +442,7 @@ router.get('/jobs', async (req: AuthRequest, res: Response) => {
       take: parseInt(limit as string, 10),
     });
 
+    console.log(`[GET /jobs] Found ${jobs.length} jobs for user ${userId}`);
     res.json({ jobs });
   } catch (error) {
     console.error('Get jobs error:', error);
