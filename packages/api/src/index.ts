@@ -148,6 +148,7 @@ app.listen(PORT, () => {
   console.log(`🚀 SubiteYa API listening on port ${PORT}`);
   console.log(`📝 Health check: http://localhost:${PORT}/health`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔧 CORS configured for origins:`, allowedOrigins);
 });
 
 // Graceful shutdown
