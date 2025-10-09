@@ -11,6 +11,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { ConnectionsPage } from './pages/ConnectionsPage';
 import { UploadPage } from './pages/UploadPage';
 import { HistoryPage } from './pages/HistoryPage';
+import { PatternsPage } from './pages/PatternsPage';
 
 export function App() {
   const location = useLocation();
@@ -51,6 +52,14 @@ export function App() {
           element={
             <ProtectedRoute>
               <HistoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/patterns"
+          element={
+            <ProtectedRoute>
+              <PatternsPage />
             </ProtectedRoute>
           }
         />
