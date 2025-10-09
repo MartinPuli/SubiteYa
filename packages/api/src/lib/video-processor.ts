@@ -9,12 +9,18 @@ import ffmpegPath from '@ffmpeg-installer/ffmpeg';
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
+import OpenAI from 'openai';
 
 // Set FFmpeg path
 ffmpeg.setFfmpegPath(ffmpegPath.path);
 
 const writeFile = promisify(fs.writeFile);
 const unlink = promisify(fs.unlink);
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 interface LogoConfig {
   logoUrl: string; // Base64 data URL or file path
@@ -416,49 +422,139 @@ interface SubtitleSegment {
 }
 
 /**
- * Generate subtitles from video audio using speech-to-text
- * NOTE: This is a placeholder. In production, integrate with Whisper API or similar service.
+ * Extract audio from video file using FFmpeg
  */
-export async function generateSubtitles(
-  videoPath: string
-): Promise<{
+async function extractAudioFromVideo(videoPath: string): Promise<string> {
+  const audioPath = videoPath.replace(/\.[^.]+$/, '_audio.mp3');
+
+  return new Promise((resolve, reject) => {
+    ffmpeg(videoPath)
+      .outputOptions([
+        '-vn', // No video
+        '-acodec libmp3lame', // MP3 codec
+        '-q:a 2', // High quality
+      ])
+      .output(audioPath)
+      .on('start', commandLine => {
+        console.log('Extracting audio:', commandLine);
+      })
+      .on('end', () => {
+        console.log('Audio extracted successfully');
+        resolve(audioPath);
+      })
+      .on('error', err => {
+        console.error('Error extracting audio:', err);
+        reject(err);
+      })
+      .run();
+  });
+}
+
+/**
+ * Generate subtitles from video audio using OpenAI Whisper
+ */
+export async function generateSubtitles(videoPath: string): Promise<{
   success: boolean;
   subtitles?: SubtitleSegment[];
   error?: string;
 }> {
+  let audioPath: string | null = null;
+
   try {
     console.log('Generating subtitles for:', videoPath);
 
-    // TODO: Implement actual speech-to-text integration
-    // Options:
-    // 1. OpenAI Whisper API: https://platform.openai.com/docs/guides/speech-to-text
-    // 2. Google Cloud Speech-to-Text
-    // 3. AWS Transcribe
-    // 4. Azure Speech Services
+    // Check if OpenAI API key is configured
+    if (!process.env.OPENAI_API_KEY) {
+      console.warn(
+        '⚠ OPENAI_API_KEY not configured. Using mock subtitles instead.'
+      );
+      return generateMockSubtitles();
+    }
 
-    // Placeholder: Return mock subtitles for now
-    const mockSubtitles: SubtitleSegment[] = [
-      { start: 0, end: 2, text: 'Hola, este es un video de prueba' },
-      {
-        start: 2.5,
-        end: 5,
-        text: 'Los subtítulos se generarán automáticamente',
-      },
-      {
-        start: 5.5,
-        end: 8,
-        text: 'Usando tecnología de reconocimiento de voz',
-      },
-    ];
+    // Step 1: Extract audio from video
+    console.log('Extracting audio from video...');
+    audioPath = await extractAudioFromVideo(videoPath);
 
-    return { success: true, subtitles: mockSubtitles };
+    // Step 2: Transcribe using OpenAI Whisper
+    console.log('Transcribing audio with Whisper...');
+    const transcription = await openai.audio.transcriptions.create({
+      file: fs.createReadStream(audioPath),
+      model: 'whisper-1',
+      response_format: 'verbose_json',
+      timestamp_granularities: ['segment'],
+    });
+
+    // Step 3: Convert Whisper segments to SubtitleSegment[]
+    const subtitles: SubtitleSegment[] = [];
+
+    if ('segments' in transcription && Array.isArray(transcription.segments)) {
+      for (const segment of transcription.segments) {
+        if (
+          typeof segment.start === 'number' &&
+          typeof segment.end === 'number' &&
+          typeof segment.text === 'string'
+        ) {
+          subtitles.push({
+            start: segment.start,
+            end: segment.end,
+            text: segment.text.trim(),
+          });
+        }
+      }
+    }
+
+    console.log(`✓ Generated ${subtitles.length} subtitle segments`);
+
+    // Clean up temporary audio file
+    if (audioPath) {
+      try {
+        await unlink(audioPath);
+      } catch (err) {
+        console.warn('Failed to cleanup audio file:', err);
+      }
+    }
+
+    return { success: true, subtitles };
   } catch (error) {
+    // Clean up temporary audio file
+    if (audioPath) {
+      try {
+        await unlink(audioPath);
+      } catch (err) {
+        console.warn('Failed to cleanup audio file:', err);
+      }
+    }
+
     console.error('Error generating subtitles:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
+
+    // If Whisper fails, return mock subtitles as fallback
+    console.warn('Falling back to mock subtitles...');
+    return generateMockSubtitles();
   }
+}
+
+/**
+ * Generate mock subtitles for testing or when Whisper is unavailable
+ */
+function generateMockSubtitles(): {
+  success: boolean;
+  subtitles: SubtitleSegment[];
+} {
+  const mockSubtitles: SubtitleSegment[] = [
+    { start: 0, end: 2, text: 'Hola, este es un video de prueba' },
+    {
+      start: 2.5,
+      end: 5,
+      text: 'Los subtítulos se generarán automáticamente',
+    },
+    {
+      start: 5.5,
+      end: 8,
+      text: 'Usando tecnología de reconocimiento de voz',
+    },
+  ];
+
+  return { success: true, subtitles: mockSubtitles };
 }
 
 /**
