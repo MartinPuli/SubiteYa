@@ -12,9 +12,9 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
-const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY || '';
-const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET || '';
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '';
+// const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY || '';
+// const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET || '';
 
 // Configure multer for video upload
 const upload = multer({
@@ -68,7 +68,8 @@ router.post(
 
       // Parse request body
       const {
-        title,
+        title: titleParam,
+        caption,
         privacyLevel = 'PUBLIC_TO_EVERYONE',
         disableComment = false,
         disableDuet = false,
@@ -76,10 +77,13 @@ router.post(
         accountIds,
       } = req.body;
 
+      // Accept either title or caption
+      const title = titleParam || caption;
+
       if (!title || title.trim().length === 0) {
         res.status(400).json({
           error: 'Bad Request',
-          message: 'El título es requerido',
+          message: 'El título/descripción es requerido',
         });
         return;
       }
@@ -245,9 +249,9 @@ router.post(
                 allowStitch: !disableStitch,
                 allowComment: !disableComment,
                 scheduleTimeUtc: null,
-                state: 'published',
+                state: 'publishing',
                 idempotencyKey: crypto.randomBytes(16).toString('hex'),
-                externalId: initData.data.publish_id,
+                tiktokVideoId: initData.data.publish_id,
               },
             });
 
