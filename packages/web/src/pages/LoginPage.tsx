@@ -88,6 +88,18 @@ export const LoginPage: React.FC = () => {
             {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
           </Button>
 
+          {isLogin && (
+            <div className="login-links">
+              <button
+                type="button"
+                className="forgot-password-link"
+                onClick={() => navigate('/forgot-password')}
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+          )}
+
           <button
             type="button"
             className="login-toggle"

@@ -7,6 +7,11 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Navigation } from './components/Navigation/Navigation';
 import { ProtectedRoute } from './components/ProtectedRoute/ProtectedRoute';
 import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { EmailVerificationPage } from './pages/EmailVerificationPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { LegalDocumentsPage } from './pages/LegalDocumentsPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ConnectionsPage } from './pages/ConnectionsPage';
 import { UploadPage } from './pages/UploadPage';
@@ -16,7 +21,13 @@ import { PatternEditorPage } from './pages/PatternEditorPage';
 
 export function App() {
   const location = useLocation();
-  const showNavigation = location.pathname !== '/login';
+  const showNavigation =
+    location.pathname !== '/login' &&
+    location.pathname !== '/register' &&
+    location.pathname !== '/verify-email' &&
+    location.pathname !== '/forgot-password' &&
+    location.pathname !== '/reset-password' &&
+    !location.pathname.startsWith('/legal');
 
   return (
     <div className="app">
@@ -24,6 +35,11 @@ export function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-email" element={<EmailVerificationPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/legal/:type" element={<LegalDocumentsPage />} />
         <Route
           path="/dashboard"
           element={

@@ -1,0 +1,77 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import './LegalDocumentsPage.css';
+
+type DocumentType = 'terms' | 'privacy';
+
+export const LegalDocumentsPage: React.FC = () => {
+  const { type } = useParams<{ type: DocumentType }>();
+  const navigate = useNavigate();
+  const [content, setContent] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadDocument = async () => {
+      setLoading(true);
+      try {
+        let url = '';
+        if (type === 'terms') {
+          url = '/TERMINOS_Y_CONDICIONES.md';
+        } else if (type === 'privacy') {
+          url = '/POLITICA_DE_PRIVACIDAD.md';
+        } else {
+          navigate('/');
+          return;
+        }
+
+        const response = await fetch(url);
+        const text = await response.text();
+        setContent(text);
+      } catch (error) {
+        console.error('Error loading document:', error);
+        setContent(
+          'Error al cargar el documento. Por favor, intenta nuevamente.'
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDocument();
+  }, [type, navigate]);
+
+  const getTitle = () => {
+    if (type === 'terms') return 'Términos y Condiciones';
+    if (type === 'privacy') return 'Política de Privacidad';
+    return '';
+  };
+
+  return (
+    <div className="legal-page">
+      <div className="legal-container">
+        <div className="legal-header">
+          <button className="back-button" onClick={() => navigate(-1)}>
+            ← Volver
+          </button>
+          <h1 className="legal-title">{getTitle()}</h1>
+        </div>
+
+        <div className="legal-content">
+          {loading ? (
+            <div className="loading">Cargando documento...</div>
+          ) : (
+            <pre className="markdown-content">{content}</pre>
+          )}
+        </div>
+
+        <div className="legal-footer">
+          <p>Última actualización: Octubre 2025</p>
+          <p>
+            Para consultas:{' '}
+            <a href="mailto:legal@subiteya.com">legal@subiteya.com</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};

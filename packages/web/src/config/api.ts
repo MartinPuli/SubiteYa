@@ -13,6 +13,10 @@ export const API_ENDPOINTS = {
   register: `${API_BASE_URL}/auth/register`,
   logout: `${API_BASE_URL}/auth/logout`,
   me: `${API_BASE_URL}/auth/me`,
+  verifyEmail: `${API_BASE_URL}/auth/verify-email`,
+  resendVerification: `${API_BASE_URL}/auth/resend-verification`,
+  forgotPassword: `${API_BASE_URL}/auth/forgot-password`,
+  resetPassword: `${API_BASE_URL}/auth/reset-password`,
 
   // TikTok OAuth
   tiktokAuth: `${API_BASE_URL}/auth/tiktok`,

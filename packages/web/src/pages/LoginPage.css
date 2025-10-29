@@ -74,6 +74,28 @@
   font-size: var(--font-size-sm);
 }
 
+.login-links {
+  text-align: center;
+  margin: 0.5rem 0;
+}
+
+.forgot-password-link {
+  background: none;
+  border: none;
+  color: #667eea;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  transition: all 0.3s ease;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.forgot-password-link:hover {
+  text-decoration: underline;
+  color: #5568d3;
+}
+
 .login-toggle {
   background: none;
   border: none;
