@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
 import './LegalDocumentsPage.css';
 
 type DocumentType = 'terms' | 'privacy';
@@ -15,10 +16,11 @@ export const LegalDocumentsPage: React.FC = () => {
       setLoading(true);
       try {
         let url = '';
+        const basePath = import.meta.env.PROD ? '/SubiteYa' : '';
         if (type === 'terms') {
-          url = '/TERMINOS_Y_CONDICIONES.md';
+          url = `${basePath}/TERMINOS_Y_CONDICIONES.md`;
         } else if (type === 'privacy') {
-          url = '/POLITICA_DE_PRIVACIDAD.md';
+          url = `${basePath}/POLITICA_DE_PRIVACIDAD.md`;
         } else {
           navigate('/');
           return;
@@ -60,7 +62,9 @@ export const LegalDocumentsPage: React.FC = () => {
           {loading ? (
             <div className="loading">Cargando documento...</div>
           ) : (
-            <pre className="markdown-content">{content}</pre>
+            <div className="markdown-content">
+              <ReactMarkdown>{content}</ReactMarkdown>
+            </div>
           )}
         </div>
 

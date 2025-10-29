@@ -7,13 +7,11 @@ import './LoginPage.css';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login, register } = useAuthStore();
-  const [isLogin, setIsLogin] = useState(true);
+  const { login } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
     password: '',
   });
@@ -24,11 +22,7 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      if (isLogin) {
-        await login(formData.email, formData.password);
-      } else {
-        await register(formData.name, formData.email, formData.password);
-      }
+      await login(formData.email, formData.password);
       navigate('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ocurrió un error');
@@ -48,18 +42,6 @@ export const LoginPage: React.FC = () => {
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>
-          {!isLogin && (
-            <Input
-              label="Nombre"
-              type="text"
-              placeholder="Tu nombre"
-              value={formData.name}
-              onChange={e => setFormData({ ...formData, name: e.target.value })}
-              required
-              fullWidth
-            />
-          )}
-
           <Input
             label="Email"
             type="email"
@@ -85,29 +67,25 @@ export const LoginPage: React.FC = () => {
           {error && <div className="login-error">{error}</div>}
 
           <Button type="submit" variant="primary" fullWidth loading={loading}>
-            {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
+            Iniciar Sesión
           </Button>
 
-          {isLogin && (
-            <div className="login-links">
-              <button
-                type="button"
-                className="forgot-password-link"
-                onClick={() => navigate('/forgot-password')}
-              >
-                ¿Olvidaste tu contraseña?
-              </button>
-            </div>
-          )}
+          <div className="login-links">
+            <button
+              type="button"
+              className="forgot-password-link"
+              onClick={() => navigate('/forgot-password')}
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
+          </div>
 
           <button
             type="button"
             className="login-toggle"
-            onClick={() => setIsLogin(!isLogin)}
+            onClick={() => navigate('/register')}
           >
-            {isLogin
-              ? '¿No tienes cuenta? Regístrate'
-              : '¿Ya tienes cuenta? Inicia sesión'}
+            ¿No tienes cuenta? Regístrate
           </button>
         </form>
       </div>
