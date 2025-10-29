@@ -52,7 +52,16 @@ export const LegalDocumentsPage: React.FC = () => {
     <div className="legal-page">
       <div className="legal-container">
         <div className="legal-header">
-          <button className="back-button" onClick={() => navigate(-1)}>
+          <button
+            className="back-button"
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate('/register');
+              }
+            }}
+          >
             ← Volver
           </button>
           <h1 className="legal-title">{getTitle()}</h1>

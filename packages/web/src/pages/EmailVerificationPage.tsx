@@ -51,7 +51,9 @@ export const EmailVerificationPage: React.FC = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Error al verificar el código');
+        throw new Error(
+          data.message || data.error || 'Error al verificar el código'
+        );
       }
 
       setSuccess('¡Email verificado exitosamente! Redirigiendo...');
@@ -59,7 +61,13 @@ export const EmailVerificationPage: React.FC = () => {
         navigate('/login');
       }, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ocurrió un error');
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        setError(
+          'No se pudo conectar con el servidor. Por favor, verifica tu conexión.'
+        );
+      } else {
+        setError(err instanceof Error ? err.message : 'Ocurrió un error');
+      }
     } finally {
       setLoading(false);
     }

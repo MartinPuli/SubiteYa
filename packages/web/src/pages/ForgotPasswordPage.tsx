@@ -30,7 +30,9 @@ export const ForgotPasswordPage: React.FC = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Error al enviar el código');
+        throw new Error(
+          data.message || data.error || 'Error al enviar el código'
+        );
       }
 
       setSuccess(true);
@@ -39,7 +41,13 @@ export const ForgotPasswordPage: React.FC = () => {
         navigate('/reset-password', { state: { email } });
       }, 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ocurrió un error');
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        setError(
+          'No se pudo conectar con el servidor. Por favor, verifica tu conexión.'
+        );
+      } else {
+        setError(err instanceof Error ? err.message : 'Ocurrió un error');
+      }
     } finally {
       setLoading(false);
     }
