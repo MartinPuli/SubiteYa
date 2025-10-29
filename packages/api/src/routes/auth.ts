@@ -29,13 +29,23 @@ const router = Router();
 // POST /auth/register - User registration
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, acceptedTerms, acceptedPrivacy } = req.body;
 
     // Validate input
     if (!email || !password || !name) {
       res.status(400).json({
         error: 'Bad Request',
         message: 'Email, password y nombre son requeridos',
+      });
+      return;
+    }
+
+    // Validate terms acceptance
+    if (!acceptedTerms || !acceptedPrivacy) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message:
+          'Debe aceptar los Términos y Condiciones y la Política de Privacidad',
       });
       return;
     }
@@ -61,11 +71,16 @@ router.post('/register', async (req: Request, res: Response) => {
       return;
     }
 
+    // Generate email verification code
+    const verificationCode = crypto.randomBytes(32).toString('hex');
+    const verificationExp = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
     // Hash password
     const salt = generateSalt();
     const hash = hashPassword(password, salt);
 
     // Create user
+    const now = new Date();
     const user = await prisma.user.create({
       data: {
         email,
@@ -75,6 +90,11 @@ router.post('/register', async (req: Request, res: Response) => {
         role: 'user',
         language: 'es',
         timezone: 'America/Argentina/Buenos_Aires',
+        emailVerified: false,
+        emailVerificationCode: verificationCode,
+        emailVerificationExp: verificationExp,
+        acceptedTermsAt: now,
+        acceptedPrivacyAt: now,
       },
     });
 
@@ -228,6 +248,311 @@ router.get('/me', async (req: Request, res: Response) => {
     res.json({ user });
   } catch (error) {
     res.status(401).json({ error: 'Token inválido' });
+  }
+});
+
+// POST /auth/verify-email - Verify email with code
+router.post('/verify-email', async (req: Request, res: Response) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'Email y código son requeridos',
+      });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      res.status(404).json({
+        error: 'Not Found',
+        message: 'Usuario no encontrado',
+      });
+      return;
+    }
+
+    if (user.emailVerified) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'El email ya está verificado',
+      });
+      return;
+    }
+
+    if (!user.emailVerificationCode || !user.emailVerificationExp) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'No hay código de verificación pendiente',
+      });
+      return;
+    }
+
+    if (new Date() > user.emailVerificationExp) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'El código de verificación ha expirado',
+      });
+      return;
+    }
+
+    if (user.emailVerificationCode !== code) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'Código de verificación inválido',
+      });
+      return;
+    }
+
+    // Mark email as verified
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerified: true,
+        emailVerificationCode: null,
+        emailVerificationExp: null,
+      },
+    });
+
+    await prisma.auditEvent.create({
+      data: {
+        userId: user.id,
+        type: 'user.email_verified',
+        detailsJson: { email },
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    });
+
+    res.json({
+      message: 'Email verificado exitosamente',
+    });
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Error al verificar email',
+    });
+  }
+});
+
+// POST /auth/resend-verification - Resend verification code
+router.post('/resend-verification', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'Email es requerido',
+      });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      res.status(404).json({
+        error: 'Not Found',
+        message: 'Usuario no encontrado',
+      });
+      return;
+    }
+
+    if (user.emailVerified) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'El email ya está verificado',
+      });
+      return;
+    }
+
+    // Generate new verification code
+    const verificationCode = crypto.randomBytes(32).toString('hex');
+    const verificationExp = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerificationCode: verificationCode,
+        emailVerificationExp: verificationExp,
+      },
+    });
+
+    // TODO: Send email with verification code
+    console.log(`Verification code for ${email}: ${verificationCode}`);
+
+    res.json({
+      message: 'Código de verificación reenviado',
+    });
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Error al reenviar código',
+    });
+  }
+});
+
+// POST /auth/forgot-password - Request password reset
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'Email es requerido',
+      });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    // Don't reveal if user exists
+    if (!user) {
+      res.json({
+        message: 'Si el email existe, recibirás un código de recuperación',
+      });
+      return;
+    }
+
+    // Generate reset code
+    const resetCode = crypto.randomBytes(32).toString('hex');
+    const resetExp = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetCode: resetCode,
+        passwordResetExp: resetExp,
+      },
+    });
+
+    await prisma.auditEvent.create({
+      data: {
+        userId: user.id,
+        type: 'user.password_reset_requested',
+        detailsJson: { email },
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    });
+
+    // TODO: Send email with reset code
+    console.log(`Password reset code for ${email}: ${resetCode}`);
+
+    res.json({
+      message: 'Si el email existe, recibirás un código de recuperación',
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Error al procesar solicitud',
+    });
+  }
+});
+
+// POST /auth/reset-password - Reset password with code
+router.post('/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { email, code, newPassword } = req.body;
+
+    if (!email || !code || !newPassword) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'Email, código y nueva contraseña son requeridos',
+      });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'La contraseña debe tener al menos 8 caracteres',
+      });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      res.status(404).json({
+        error: 'Not Found',
+        message: 'Usuario no encontrado',
+      });
+      return;
+    }
+
+    if (!user.passwordResetCode || !user.passwordResetExp) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'No hay código de recuperación pendiente',
+      });
+      return;
+    }
+
+    if (new Date() > user.passwordResetExp) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'El código de recuperación ha expirado',
+      });
+      return;
+    }
+
+    if (user.passwordResetCode !== code) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'Código de recuperación inválido',
+      });
+      return;
+    }
+
+    // Hash new password
+    const salt = generateSalt();
+    const hash = hashPassword(newPassword, salt);
+
+    // Update password
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: hash,
+        passwordSalt: salt,
+        passwordResetCode: null,
+        passwordResetExp: null,
+      },
+    });
+
+    await prisma.auditEvent.create({
+      data: {
+        userId: user.id,
+        type: 'user.password_reset_completed',
+        detailsJson: { email },
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    });
+
+    res.json({
+      message: 'Contraseña actualizada exitosamente',
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Error al restablecer contraseña',
+    });
   }
 });
 
