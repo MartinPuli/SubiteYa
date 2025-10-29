@@ -13,6 +13,8 @@ export const ResetPasswordPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     email: emailFromState || '',
@@ -156,30 +158,56 @@ export const ResetPasswordPage: React.FC = () => {
 
             <div className="form-group">
               <label htmlFor="newPassword">Nueva contraseña</label>
-              <Input
-                id="newPassword"
-                name="newPassword"
-                type="password"
-                placeholder="Mínimo 8 caracteres"
-                value={formData.newPassword}
-                onChange={handleChange}
-                required
-                autoComplete="new-password"
-              />
+              <div className="password-input-wrapper">
+                <Input
+                  id="newPassword"
+                  name="newPassword"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Mínimo 8 caracteres"
+                  value={formData.newPassword}
+                  onChange={handleChange}
+                  required
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={
+                    showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'
+                  }
+                >
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
             </div>
 
             <div className="form-group">
               <label htmlFor="confirmPassword">Confirmar contraseña</label>
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                placeholder="Repite tu nueva contraseña"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-                autoComplete="new-password"
-              />
+              <div className="password-input-wrapper">
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="Repite tu nueva contraseña"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={
+                    showConfirmPassword
+                      ? 'Ocultar contraseña'
+                      : 'Mostrar contraseña'
+                  }
+                >
+                  {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
             </div>
 
             <Button

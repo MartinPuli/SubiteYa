@@ -133,12 +133,22 @@ export const ConnectionsPage: React.FC = () => {
                     <img
                       src={connection.avatarUrl}
                       alt={connection.displayName}
+                      onError={e => {
+                        // Si la imagen falla, mostrar placeholder
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const placeholder =
+                          target.nextElementSibling as HTMLElement;
+                        if (placeholder) placeholder.style.display = 'flex';
+                      }}
                     />
-                  ) : (
-                    <div className="avatar-placeholder">
-                      {connection.displayName[0]}
-                    </div>
-                  )}
+                  ) : null}
+                  <div
+                    className="avatar-placeholder"
+                    style={{ display: connection.avatarUrl ? 'none' : 'flex' }}
+                  >
+                    {connection.displayName[0]}
+                  </div>
                 </div>
                 <div>
                   <h3 className="connection-name">{connection.displayName}</h3>

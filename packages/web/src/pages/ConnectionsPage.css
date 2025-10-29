@@ -98,6 +98,7 @@
   background: linear-gradient(white, white) padding-box,
               linear-gradient(135deg, var(--color-tiktok-pink), var(--color-tiktok-cyan)) border-box;
   transition: transform var(--transition-base);
+  position: relative;
 }
 
 .connection-card:hover .connection-avatar {
@@ -118,6 +119,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
   font-size: 1.5rem;
   font-weight: 800;
 }
