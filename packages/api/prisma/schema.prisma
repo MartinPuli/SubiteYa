@@ -24,11 +24,13 @@ model User {
   emailVerificationCode String?   @map("email_verification_code")
   emailVerificationExp  DateTime? @map("email_verification_exp")
   passwordResetCode     String?   @map("password_reset_code")
-  passwordResetExp      DateTime? @map("password_reset_exp")
-  acceptedTermsAt       DateTime? @map("accepted_terms_at")
-  acceptedPrivacyAt     DateTime? @map("accepted_privacy_at")
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt @map("updated_at")
+  passwordResetExp       DateTime? @map("password_reset_exp")
+  acceptedTermsAt        DateTime? @map("accepted_terms_at")
+  acceptedPrivacyAt      DateTime? @map("accepted_privacy_at")
+  acceptedTermsVersion   String?   @map("accepted_terms_version") @db.VarChar(10)
+  acceptedPrivacyVersion String?   @map("accepted_privacy_version") @db.VarChar(10)
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
 
   tiktokConnections TikTokConnection[]
   videoAssets       VideoAsset[]

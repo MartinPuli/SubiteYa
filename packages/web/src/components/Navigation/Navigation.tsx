@@ -52,13 +52,6 @@ export const Navigation: React.FC = () => {
             Subir
           </Link>
           <Link
-            to="/patterns"
-            className={`nav-link ${isActive('/patterns') ? 'nav-link--active' : ''}`}
-          >
-            <span className="nav-icon">🎨</span>
-            Patrones
-          </Link>
-          <Link
             to="/history"
             className={`nav-link ${isActive('/history') ? 'nav-link--active' : ''}`}
           >
