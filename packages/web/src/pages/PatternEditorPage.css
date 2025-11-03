@@ -1,9 +1,20 @@
 .pattern-editor-page {
   padding: 2rem;
-  max-width: 1600px;
+  max-width: 1800px;
   margin: 0 auto;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #f5f7fa 0%, #e0e7ff 50%, #c3cfe2 100%);
   min-height: 100vh;
+  animation: gradientShift 15s ease infinite;
+  background-size: 200% 200%;
+}
+
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
 }
 
 .editor-header {
@@ -42,7 +53,7 @@
 
 .editor-layout {
   display: grid;
-  grid-template-columns: 480px 1fr;
+  grid-template-columns: 560px 1fr;
   gap: 2rem;
   align-items: start;
 }
@@ -52,7 +63,18 @@
   padding: 2rem !important;
   background: white;
   border-radius: 16px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  box-shadow: 
+    0 4px 24px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(102, 126, 234, 0.05);
+  transition: all 0.3s ease;
+}
+
+.editor-settings:hover,
+.editor-preview:hover {
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(102, 126, 234, 0.1);
+  transform: translateY(-2px);
 }
 
 .section-title {
