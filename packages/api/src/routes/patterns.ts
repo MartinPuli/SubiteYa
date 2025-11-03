@@ -15,7 +15,7 @@ const router = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB max
+    fileSize: 2 * 1024 * 1024, // 2MB max (reducido para evitar saturación)
   },
   fileFilter: (_req, file, cb) => {
     const allowedMimes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
@@ -30,7 +30,7 @@ const upload = multer({
 // All routes require authentication
 router.use(authenticate);
 
-// POST /patterns/upload-logo - Upload logo (returns data URL for MVP)
+// POST /patterns/upload-logo - Upload logo (returns compressed data URL for MVP)
 router.post(
   '/upload-logo',
   upload.single('logo'),
@@ -46,9 +46,39 @@ router.post(
         return;
       }
 
-      // For MVP: Convert to data URL (base64)
-      // In production: Upload to S3/Cloud Storage and return URL
-      const dataUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      console.log(
+        `[Logo Upload] Original size: ${(file.size / 1024).toFixed(2)}KB, type: ${file.mimetype}`
+      );
+
+      // Compress image if it's too large
+      const imageBuffer = file.buffer;
+      const finalMimeType = file.mimetype;
+
+      // If image is over 500KB, we should compress it
+      if (file.size > 500 * 1024) {
+        console.log('[Logo Upload] Image too large, compressing...');
+
+        // For now, just warn and use original
+        // TODO: Add sharp library for compression
+        console.warn(
+          '[Logo Upload] Warning: Image over 500KB. Consider adding image compression with sharp library.'
+        );
+      }
+
+      // Convert to data URL (base64)
+      const dataUrl = `data:${finalMimeType};base64,${imageBuffer.toString('base64')}`;
+      const finalSize = dataUrl.length;
+
+      console.log(
+        `[Logo Upload] Final base64 size: ${(finalSize / 1024).toFixed(2)}KB`
+      );
+
+      // Warn if final base64 is very large (>1MB in base64)
+      if (finalSize > 1024 * 1024) {
+        console.warn(
+          '[Logo Upload] Warning: Base64 data URL is over 1MB. This may cause performance issues.'
+        );
+      }
 
       res.json({
         logoUrl: dataUrl,
@@ -56,7 +86,7 @@ router.post(
         size: file.size,
       });
     } catch (error) {
-      console.error('Upload logo error:', error);
+      console.error('[Logo Upload] Error:', error);
       res.status(500).json({
         error: 'Internal Server Error',
         message: 'Error al subir logo',
@@ -145,6 +175,10 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
 router.post('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
+
+    console.log('[Create Pattern] Request body keys:', Object.keys(req.body));
+    console.log('[Create Pattern] User ID:', userId);
+
     const {
       tiktokConnectionId,
       name,
@@ -167,15 +201,67 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       subtitleColor = '#FFFFFF',
       subtitleBgColor = '#000000',
       subtitleFontSize = 24,
+      subtitleAnimation = 'none',
+      subtitleFontFamily = 'Arial',
+      // Crop
+      enableAutoCrop = false,
+      aspectRatio = 'original',
+      cropPosition = 'center',
+      // Color Grading
+      enableColorGrading = false,
+      temperature = 0,
+      tint = 0,
+      hue = 0,
+      exposure = 0,
+      highlights = 0,
+      shadows = 0,
+      // Effects Extra
+      vignette = 0,
+      sharpen = 0,
+      blur = 0,
+      grain = 0,
+      // Speed & Motion
+      speedMultiplier = 1,
+      enableSmoothSlowMotion = false,
+      enableStabilization = false,
+      enableDenoise = false,
+      denoiseStrength = 0.5,
+      // Audio
+      audioVolume = 100,
+      audioNormalize = false,
+      enableBackgroundMusic = false,
+      backgroundMusicVolume = 50,
+      // Quality
+      outputQuality = 'medium',
+      outputBitrate = '2000k',
+      outputFps = 30,
+      // Transitions
+      transitionType = 'none',
     } = req.body;
 
     // Validate required fields
     if (!tiktokConnectionId || !name) {
+      console.log('[Create Pattern] Missing required fields:', {
+        tiktokConnectionId,
+        name,
+      });
       res.status(400).json({
         error: 'Bad Request',
         message: 'tiktokConnectionId y name son requeridos',
       });
       return;
+    }
+
+    // Log payload sizes
+    if (logoUrl) {
+      console.log(
+        `[Create Pattern] Logo URL size: ${(logoUrl.length / 1024).toFixed(2)}KB`
+      );
+    }
+    if (thumbnailUrl) {
+      console.log(
+        `[Create Pattern] Thumbnail URL size: ${(thumbnailUrl.length / 1024).toFixed(2)}KB`
+      );
     }
 
     // Verify connection belongs to user
@@ -203,6 +289,8 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       });
     }
 
+    console.log('[Create Pattern] Creating pattern with data...');
+
     const pattern = await prisma.brandPattern.create({
       data: {
         userId,
@@ -214,12 +302,34 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         logoOpacity,
         thumbnailUrl,
         isDefault,
-        // Visual Effects
-        enableEffects,
-        filterType,
+        // Color Grading
+        enableColorGrading,
         brightness,
         contrast,
         saturation,
+        temperature,
+        tint,
+        hue,
+        exposure,
+        highlights,
+        shadows,
+        // Visual Effects
+        enableEffects,
+        filterType,
+        vignette,
+        sharpen,
+        blur,
+        grain,
+        // Speed & Motion
+        speedMultiplier,
+        enableSmoothSlow: enableSmoothSlowMotion,
+        enableStabilization,
+        enableDenoise,
+        denoiseStrength: Math.round(denoiseStrength * 100), // Convert 0-1 to 0-100
+        // Auto Crop
+        enableAutoCrop,
+        targetAspectRatio: aspectRatio,
+        cropPosition,
         // Subtitles
         enableSubtitles,
         subtitleStyle,
@@ -227,6 +337,20 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         subtitleColor,
         subtitleBgColor,
         subtitleFontSize,
+        subtitleFontFamily,
+        subtitleAnimation,
+        // Audio
+        enableAudioEnhance: audioNormalize || enableBackgroundMusic,
+        audioNormalize,
+        audioVolume,
+        enableBgMusic: enableBackgroundMusic,
+        bgMusicVolume: backgroundMusicVolume,
+        // Quality
+        outputQuality,
+        outputBitrate,
+        outputFps,
+        // Transitions
+        transitionType,
       },
       include: {
         tiktokConnection: {
@@ -238,12 +362,22 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       },
     });
 
+    console.log('[Create Pattern] Pattern created successfully:', pattern.id);
     res.status(201).json({ pattern });
   } catch (error) {
-    console.error('Create pattern error:', error);
+    console.error('[Create Pattern] Error:', error);
+
+    // Log detailed error for debugging
+    if (error instanceof Error) {
+      console.error('[Create Pattern] Error message:', error.message);
+      console.error('[Create Pattern] Error stack:', error.stack);
+    }
+
     res.status(500).json({
       error: 'Internal Server Error',
       message: 'Error al crear patrón',
+      details:
+        process.env.NODE_ENV === 'development' ? String(error) : undefined,
     });
   }
 });

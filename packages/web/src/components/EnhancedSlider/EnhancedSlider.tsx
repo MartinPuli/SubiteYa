@@ -25,31 +25,6 @@ interface EnhancedSliderProps {
   description?: string;
 }
 
-const getSliderGradient = (type: SliderType): string => {
-  switch (type) {
-    case 'brightness':
-      return 'linear-gradient(to right, #1e293b 0%, #fbbf24 100%)';
-    case 'contrast':
-      return 'linear-gradient(to right, #6b7280 0%, #000000 100%)';
-    case 'saturation':
-      return 'linear-gradient(to right, #9ca3af 0%, #ef4444 25%, #f59e0b 50%, #10b981 75%, #3b82f6 100%)';
-    case 'temperature':
-      return 'linear-gradient(to right, #3b82f6 0%, #ffffff 50%, #f97316 100%)';
-    case 'tint':
-      return 'linear-gradient(to right, #10b981 0%, #ffffff 50%, #ec4899 100%)';
-    case 'hue':
-      return 'linear-gradient(to right, #ef4444 0%, #f59e0b 16.67%, #eab308 33.33%, #22c55e 50%, #3b82f6 66.67%, #a855f7 83.33%, #ef4444 100%)';
-    case 'exposure':
-      return 'linear-gradient(to right, #000000 0%, #6b7280 50%, #ffffff 100%)';
-    case 'volume':
-      return 'linear-gradient(to right, #64748b 0%, #10b981 50%, #ef4444 100%)';
-    case 'speed':
-      return 'linear-gradient(to right, #3b82f6 0%, #ffffff 50%, #ef4444 100%)';
-    default:
-      return 'linear-gradient(to right, #e0e7ff 0%, #667eea 100%)';
-  }
-};
-
 const getValueColor = (
   type: SliderType,
   value: number,
@@ -82,7 +57,6 @@ export const EnhancedSlider: React.FC<EnhancedSliderProps> = ({
   description,
 }) => {
   const percentage = ((value - min) / (max - min)) * 100;
-  const gradient = getSliderGradient(type);
   const valueColor = getValueColor(type, value, min, max);
 
   return (
@@ -96,13 +70,12 @@ export const EnhancedSlider: React.FC<EnhancedSliderProps> = ({
       </div>
       {description && <p className="slider-description">{description}</p>}
       <div className="slider-track-container">
-        <div className="slider-track" style={{ background: gradient }}>
+        <div className="slider-track">
           <div
             className="slider-fill"
+            data-type={type}
             style={{
               width: `${percentage}%`,
-              background: gradient,
-              opacity: 0.7,
             }}
           />
         </div>

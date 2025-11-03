@@ -15,6 +15,7 @@ import {
 } from '../components/FilterPresetCard/FilterPresetCard';
 import { EnhancedSlider } from '../components/EnhancedSlider/EnhancedSlider';
 import { BeforeAfterPreview } from '../components/BeforeAfterPreview/BeforeAfterPreview';
+import { LogoUploader } from '../components/LogoUploader/LogoUploader';
 import { useAuthStore } from '../store/authStore';
 import { useAppStore } from '../store/appStore';
 import { API_ENDPOINTS } from '../config/api';
@@ -439,13 +440,6 @@ export const PatternEditorPage: React.FC = () => {
     }
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file?.type.startsWith('image/')) {
-      setLogoFile(file);
-    }
-  };
-
   const uploadLogo = async (): Promise<string | null> => {
     if (!logoFile || !token) return null;
 
@@ -672,21 +666,11 @@ export const PatternEditorPage: React.FC = () => {
             {/* Logo Tab */}
             <TabPanel id="logo" activeTab={activeTab}>
               <Section title="Logo / Marca de Agua" columns={1}>
-                <div className="form-group">
-                  <label htmlFor="logo">Logo / Marca de Agua</label>
-                  <input
-                    id="logo"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    className="file-input"
-                  />
-                  {(previewUrl || logoUrl) && (
-                    <div className="logo-preview-small">
-                      <img src={previewUrl || logoUrl} alt="Logo preview" />
-                    </div>
-                  )}
-                </div>
+                <LogoUploader
+                  currentLogo={logoUrl}
+                  previewUrl={previewUrl}
+                  onFileSelect={setLogoFile}
+                />
 
                 <Select
                   label="Posición del Logo"
@@ -1234,6 +1218,17 @@ export const PatternEditorPage: React.FC = () => {
             logoPosition={logoPosition}
             logoSize={logoSize}
             logoOpacity={logoOpacity}
+            enableSubtitles={enableSubtitles}
+            subtitleStyle={subtitleStyle}
+            subtitlePosition={subtitlePosition}
+            subtitleColor={subtitleColor}
+            subtitleBgColor={subtitleBgColor}
+            subtitleFontSize={subtitleFontSize}
+            subtitleAnimation={subtitleAnimation}
+            subtitleFontFamily={subtitleFontFamily}
+            enableAutoCrop={enableAutoCrop}
+            aspectRatio={aspectRatio}
+            cropPosition={cropPosition}
           />
 
           <div className="preview-info">
