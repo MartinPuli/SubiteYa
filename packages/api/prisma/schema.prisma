@@ -175,32 +175,80 @@ model BrandPattern {
   userId              String   @map("user_id")
   tiktokConnectionId  String   @map("tiktok_connection_id")
   name                String
+  description         String?
   isDefault           Boolean  @default(false) @map("is_default")
   version             Int      @default(1)
   
-  // Logo config
+  // Logo/Watermark config
   logoUrl             String?  @map("logo_url")
   logoPosition        String   @default("bottom-right") @map("logo_position") // "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center"
-  logoSize            Int      @default(15) @map("logo_size") // % of video width
+  logoSize            Int      @default(15) @map("logo_size") // % of video width (5-40)
   logoOpacity         Int      @default(100) @map("logo_opacity") // 0-100
   
-  // Visual Effects
-  enableEffects       Boolean  @default(false) @map("enable_effects")
-  filterType          String   @default("none") @map("filter_type") // "none" | "vintage" | "vibrant" | "cinematic" | "grayscale" | "sepia"
-  brightness          Int      @default(100) @map("brightness") // 50-150
-  contrast            Int      @default(100) @map("contrast") // 50-150
-  saturation          Int      @default(100) @map("saturation") // 0-200
+  // Color Adjustments (CapCut style)
+  enableColorGrading  Boolean  @default(false) @map("enable_color_grading")
+  brightness          Int      @default(100) @map("brightness") // 0-200, 100=normal
+  contrast            Int      @default(100) @map("contrast") // 0-200, 100=normal
+  saturation          Int      @default(100) @map("saturation") // 0-200, 100=normal
+  temperature         Int      @default(100) @map("temperature") // 0-200, 100=normal (warm/cool)
+  tint                Int      @default(100) @map("tint") // 0-200, 100=normal (green/magenta)
+  hue                 Int      @default(0) @map("hue") // -180 to 180 degrees
+  exposure            Int      @default(100) @map("exposure") // 50-150, 100=normal
+  highlights          Int      @default(100) @map("highlights") // 0-200, 100=normal
+  shadows             Int      @default(100) @map("shadows") // 0-200, 100=normal
   
-  // Subtitles
+  // Effects
+  enableEffects       Boolean  @default(false) @map("enable_effects")
+  filterType          String   @default("none") @map("filter_type") // "none" | "vintage" | "vibrant" | "cinematic" | "warm" | "cool" | "bw" | "sepia" | "dramatic"
+  vignette            Int      @default(0) @map("vignette") // 0-100, 0=none
+  sharpen             Int      @default(0) @map("sharpen") // 0-100, 0=none
+  blur                Int      @default(0) @map("blur") // 0-100, 0=none
+  grain               Int      @default(0) @map("grain") // 0-100, 0=none (film grain)
+  
+  // Video Enhancements
+  enableStabilization Boolean  @default(false) @map("enable_stabilization")
+  enableDenoise       Boolean  @default(false) @map("enable_denoise")
+  denoiseStrength     Int      @default(50) @map("denoise_strength") // 0-100
+  
+  // Speed & Motion
+  speedMultiplier     Float    @default(1.0) @map("speed_multiplier") // 0.25-4.0 (0.25=slow, 1.0=normal, 2.0=fast)
+  enableSmoothSlow    Boolean  @default(false) @map("enable_smooth_slow") // Smooth slow motion with interpolation
+  
+  // Auto Crop & Format
+  enableAutoCrop      Boolean  @default(false) @map("enable_auto_crop")
+  targetAspectRatio   String   @default("original") @map("target_aspect_ratio") // "original" | "9:16" | "16:9" | "1:1" | "4:5"
+  cropPosition        String   @default("center") @map("crop_position") // "center" | "top" | "bottom" | "smart" (AI-based)
+  
+  // Subtitles/Captions
   enableSubtitles     Boolean  @default(false) @map("enable_subtitles")
-  subtitleStyle       String   @default("modern") @map("subtitle_style") // "modern" | "classic" | "bold" | "outlined" | "boxed"
+  subtitleStyle       String   @default("modern") @map("subtitle_style") // "modern" | "classic" | "bold" | "outlined" | "boxed" | "neon" | "gradient"
   subtitlePosition    String   @default("bottom") @map("subtitle_position") // "top" | "center" | "bottom"
   subtitleColor       String   @default("#FFFFFF") @map("subtitle_color")
   subtitleBgColor     String   @default("#000000") @map("subtitle_bg_color")
   subtitleFontSize    Int      @default(24) @map("subtitle_font_size") // 16-48
+  subtitleFontFamily  String   @default("Inter") @map("subtitle_font_family")
+  subtitleAnimation   String   @default("none") @map("subtitle_animation") // "none" | "fade" | "slide" | "bounce" | "typewriter"
   
-  // Preview thumbnail
+  // Transitions (for multi-clip videos)
+  transitionType      String   @default("none") @map("transition_type") // "none" | "fade" | "dissolve" | "slide" | "zoom" | "wipe"
+  transitionDuration  Float    @default(0.5) @map("transition_duration") // seconds
+  
+  // Audio Enhancements
+  enableAudioEnhance  Boolean  @default(false) @map("enable_audio_enhance")
+  audioNormalize      Boolean  @default(false) @map("audio_normalize") // Normalize audio levels
+  audioVolume         Int      @default(100) @map("audio_volume") // 0-200, 100=normal
+  enableBgMusic       Boolean  @default(false) @map("enable_bg_music")
+  bgMusicUrl          String?  @map("bg_music_url")
+  bgMusicVolume       Int      @default(50) @map("bg_music_volume") // 0-100
+  
+  // Output Quality
+  outputQuality       String   @default("high") @map("output_quality") // "low" | "medium" | "high" | "ultra"
+  outputBitrate       String   @default("auto") @map("output_bitrate") // "auto" | "2M" | "5M" | "10M"
+  outputFps           Int      @default(30) @map("output_fps") // 24, 30, 60
+  
+  // Preview
   thumbnailUrl        String?  @map("thumbnail_url")
+  previewVideoUrl     String?  @map("preview_video_url") // Short preview of pattern applied
   
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
