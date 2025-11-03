@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/Card/Card';
 import { Button } from '../components/Button/Button';
+import { PatternCard } from '../components/PatternCard/PatternCard';
 import { useAuthStore } from '../store/authStore';
 import { useAppStore } from '../store/appStore';
 import { API_ENDPOINTS } from '../config/api';
@@ -178,50 +179,13 @@ export const PatternsPage: React.FC = () => {
           ) : (
             <div className="patterns-grid">
               {patterns.map(pattern => (
-                <Card key={pattern.id} className="pattern-card">
-                  <div className="pattern-thumbnail">
-                    {pattern.thumbnailUrl ? (
-                      <img src={pattern.thumbnailUrl} alt={pattern.name} />
-                    ) : (
-                      <div className="pattern-placeholder">
-                        <span>📱</span>
-                        <span>Sin preview</span>
-                      </div>
-                    )}
-                    {pattern.isDefault && (
-                      <div className="pattern-badge">✓ Predeterminado</div>
-                    )}
-                  </div>
-                  <div className="pattern-info">
-                    <h3 className="pattern-name">{pattern.name}</h3>
-                    <p className="pattern-account">
-                      {pattern.tiktokConnection.displayName}
-                    </p>
-                    <p className="pattern-version">v{pattern.version}</p>
-                  </div>
-                  <div className="pattern-actions">
-                    <Button
-                      variant="ghost"
-                      onClick={() => navigate(`/patterns/${pattern.id}`)}
-                    >
-                      ✏️ Editar
-                    </Button>
-                    {!pattern.isDefault && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleSetDefault(pattern.id)}
-                      >
-                        ⭐ Predeterminar
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      onClick={() => handleDelete(pattern.id)}
-                    >
-                      🗑️
-                    </Button>
-                  </div>{' '}
-                </Card>
+                <PatternCard
+                  key={pattern.id}
+                  pattern={pattern}
+                  onEdit={() => navigate(`/patterns/${pattern.id}`)}
+                  onSetDefault={() => handleSetDefault(pattern.id)}
+                  onDelete={() => handleDelete(pattern.id)}
+                />
               ))}
             </div>
           )}

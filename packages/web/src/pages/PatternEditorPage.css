@@ -372,6 +372,13 @@
   transform: scale(1.02);
 }
 
+.editor-preview {
+  position: sticky;
+  top: 2rem;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+}
+
 .preview-info {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));

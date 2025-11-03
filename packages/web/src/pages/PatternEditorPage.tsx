@@ -14,6 +14,7 @@ import {
   FILTER_PRESETS_VISUAL,
 } from '../components/FilterPresetCard/FilterPresetCard';
 import { EnhancedSlider } from '../components/EnhancedSlider/EnhancedSlider';
+import { BeforeAfterPreview } from '../components/BeforeAfterPreview/BeforeAfterPreview';
 import { useAuthStore } from '../store/authStore';
 import { useAppStore } from '../store/appStore';
 import { API_ENDPOINTS } from '../config/api';
@@ -1217,15 +1218,23 @@ export const PatternEditorPage: React.FC = () => {
 
         {/* Right Panel - Preview */}
         <Card className="editor-preview">
-          <h2 className="section-title">👁️ Vista Previa</h2>
+          <h2 className="section-title">👁️ Vista Previa Interactiva</h2>
           <p className="preview-description">
-            Así se verá tu logo en los videos. Las líneas punteadas marcan las
-            zonas seguras (evita que UI de TikTok tape tu logo).
+            Compara cómo se verá tu video antes y después de aplicar los
+            efectos. Arrastra el control para ver la diferencia en tiempo real.
           </p>
 
-          <div className="canvas-container">
-            <canvas ref={canvasRef} className="preview-canvas" />
-          </div>
+          <BeforeAfterPreview
+            brightness={brightness}
+            contrast={contrast}
+            saturation={saturation}
+            filterType={filterType}
+            vignette={vignette}
+            logoUrl={previewUrl || logoUrl}
+            logoPosition={logoPosition}
+            logoSize={logoSize}
+            logoOpacity={logoOpacity}
+          />
 
           <div className="preview-info">
             <div className="info-item">
@@ -1254,6 +1263,11 @@ export const PatternEditorPage: React.FC = () => {
               <strong>💡 Tip:</strong> El logo está en zona segura ✓
             </div>
           )}
+
+          {/* Legacy canvas preview (hidden) */}
+          <div style={{ display: 'none' }}>
+            <canvas ref={canvasRef} className="preview-canvas" />
+          </div>
         </Card>
       </div>
     </div>
