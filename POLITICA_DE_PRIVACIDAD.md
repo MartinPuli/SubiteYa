@@ -508,7 +508,7 @@ Implementaremos:
 
 - **Soporte Técnico:** support@subiteya.com
 - **Seguridad:** security@subiteya.com
-- **Legal:** legal@subiteya.com
+- **Legal:** legalessubiteya@gmail.com
 
 ### 17.3 Domicilio Legal
 
