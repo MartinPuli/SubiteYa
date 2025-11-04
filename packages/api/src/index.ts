@@ -9,8 +9,25 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
+import { testEncryption } from './utils/encryption';
 
 dotenv.config();
+
+// Validate required environment variables
+if (!process.env.ENCRYPTION_KEY) {
+  console.error('❌ ENCRYPTION_KEY is required in environment variables');
+  console.error(
+    "   Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\""
+  );
+  process.exit(1);
+}
+
+// Test encryption on boot
+if (!testEncryption()) {
+  console.error('❌ Encryption test failed - check your ENCRYPTION_KEY');
+  process.exit(1);
+}
+console.log('✅ Encryption test passed');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -92,6 +109,7 @@ import connectionsRoutes from './routes/connections';
 import publishRoutes from './routes/publish';
 import tiktokRoutes from './routes/tiktok';
 import patternsRoutes from './routes/patterns';
+import legalRoutes from './routes/legal';
 
 // API routes
 app.get('/api', (_req: Request, res: Response) => {
@@ -108,6 +126,7 @@ app.use('/api/connections', connectionsRoutes);
 app.use('/api/publish', publishRoutes);
 app.use('/api/auth', tiktokRoutes);
 app.use('/api/patterns', patternsRoutes);
+app.use('/api/legal', legalRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

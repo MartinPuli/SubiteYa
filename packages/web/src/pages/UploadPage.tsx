@@ -8,12 +8,21 @@ import { useAppStore } from '../store/appStore';
 import { API_ENDPOINTS } from '../config/api';
 import './UploadPage.css';
 
+interface VideoUploadStatus {
+  file: File;
+  status: 'pending' | 'uploading' | 'completed' | 'error';
+  progress: number;
+  error?: string;
+  results?: Array<{ accountName: string; success: boolean; error?: string }>;
+}
+
 export const UploadPage: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, token } = useAuthStore();
   const { connections, fetchConnections } = useAppStore();
 
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploadStatuses, setUploadStatuses] = useState<VideoUploadStatus[]>([]);
   const [caption, setCaption] = useState('');
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [scheduleDate, setScheduleDate] = useState('');
@@ -35,9 +44,22 @@ export const UploadPage: React.FC = () => {
   }, [isAuthenticated, token, navigate, fetchConnections]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+      setFiles(newFiles);
+      setUploadStatuses(
+        newFiles.map(file => ({
+          file,
+          status: 'pending' as const,
+          progress: 0,
+        }))
+      );
     }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+    setUploadStatuses(prev => prev.filter((_, i) => i !== index));
   };
 
   const toggleAccount = (id: string) => {
@@ -46,11 +68,21 @@ export const UploadPage: React.FC = () => {
     );
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file || selectedAccounts.length === 0 || !token) return;
+  const uploadSingleVideo = async (
+    file: File,
+    index: number
+  ): Promise<void> => {
+    if (!token) return;
 
-    setLoading(true);
+    // Update status to uploading
+    setUploadStatuses(prev =>
+      prev.map((status, i) =>
+        i === index
+          ? { ...status, status: 'uploading' as const, progress: 0 }
+          : status
+      )
+    );
+
     try {
       const formData = new FormData();
       formData.append('video', file);
@@ -74,28 +106,81 @@ export const UploadPage: React.FC = () => {
         body: formData,
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Error al publicar');
-      }
-
       const data = await response.json();
 
-      // Show success message with details
-      interface PublishResult {
-        success: boolean;
+      if (!response.ok) {
+        throw new Error(data.message || 'Error al publicar');
       }
-      const successCount =
-        data.results?.filter((r: PublishResult) => r.success).length || 0;
-      const failedCount =
-        data.results?.filter((r: PublishResult) => !r.success).length || 0;
 
-      if (failedCount === 0) {
-        alert(`✅ ${data.message}`);
-        navigate('/history');
+      // Extract results for each account
+      const accountResults = selectedAccounts.map((accountId, idx) => {
+        const connection = connections.find(c => c.id === accountId);
+        const result = data.results?.[idx];
+        return {
+          accountName: connection?.displayName || 'Cuenta desconocida',
+          success: result?.success || false,
+          error: result?.error,
+        };
+      });
+
+      // Update status to completed
+      setUploadStatuses(prev =>
+        prev.map((status, i) =>
+          i === index
+            ? {
+                ...status,
+                status: 'completed' as const,
+                progress: 100,
+                results: accountResults,
+              }
+            : status
+        )
+      );
+    } catch (error) {
+      // Update status to error
+      setUploadStatuses(prev =>
+        prev.map((status, i) =>
+          i === index
+            ? {
+                ...status,
+                status: 'error' as const,
+                progress: 0,
+                error:
+                  error instanceof Error ? error.message : 'Error desconocido',
+              }
+            : status
+        )
+      );
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (files.length === 0 || selectedAccounts.length === 0 || !token) return;
+
+    setLoading(true);
+
+    try {
+      // Upload videos one by one
+      for (let i = 0; i < files.length; i++) {
+        await uploadSingleVideo(files[i], i);
+        // Small delay between uploads to avoid rate limiting
+        if (i < files.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      // Check if all uploads were successful
+      const allSuccessful = uploadStatuses.every(
+        status => status.status === 'completed'
+      );
+
+      if (allSuccessful) {
+        alert(`✅ Todos los videos fueron publicados exitosamente`);
+        setTimeout(() => navigate('/history'), 2000);
       } else {
         alert(
-          `⚠️ ${data.message}\n\n✅ Exitosos: ${successCount}\n❌ Fallidos: ${failedCount}`
+          `⚠️ Algunos videos no pudieron ser publicados. Revisa el estado de cada uno.`
         );
       }
     } catch (error) {
@@ -117,45 +202,105 @@ export const UploadPage: React.FC = () => {
 
       <form onSubmit={handleSubmit} className="upload-form">
         <Card>
-          <h3>📹 Video</h3>
+          <h3>📹 Videos ({files.length})</h3>
           <div className="upload-dropzone">
-            {file ? (
-              <div className="file-preview">
-                <div className="file-info">
-                  <strong>{file.name}</strong>
-                  <span>{(file.size / 1024 / 1024).toFixed(2)} MB</span>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={e => {
-                    e.stopPropagation();
-                    setFile(null);
-                  }}
-                >
-                  ✕ Eliminar
-                </Button>
+            {files.length > 0 ? (
+              <div className="files-list">
+                {uploadStatuses.map((status, index) => (
+                  <div key={index} className="file-item">
+                    <div className="file-info">
+                      <div className="file-header">
+                        <strong>{status.file.name}</strong>
+                        <span className="file-size">
+                          {(status.file.size / 1024 / 1024).toFixed(2)} MB
+                        </span>
+                      </div>
+
+                      {/* Status indicator */}
+                      <div className="file-status">
+                        {status.status === 'pending' && (
+                          <span className="status-badge status-pending">
+                            ⏳ Pendiente
+                          </span>
+                        )}
+                        {status.status === 'uploading' && (
+                          <span className="status-badge status-uploading">
+                            ⬆️ Subiendo...
+                          </span>
+                        )}
+                        {status.status === 'completed' && (
+                          <span className="status-badge status-completed">
+                            ✅ Completado
+                          </span>
+                        )}
+                        {status.status === 'error' && (
+                          <span className="status-badge status-error">
+                            ❌ Error
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Show results per account if completed */}
+                      {status.status === 'completed' && status.results && (
+                        <div className="account-results">
+                          {status.results.map((result, idx) => (
+                            <div key={idx} className="account-result">
+                              <span
+                                className={result.success ? 'success' : 'error'}
+                              >
+                                {result.success ? '✓' : '✗'}
+                              </span>
+                              <span>{result.accountName}</span>
+                              {result.error && <small>{result.error}</small>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Show error message */}
+                      {status.status === 'error' && status.error && (
+                        <div className="error-message">
+                          <small>{status.error}</small>
+                        </div>
+                      )}
+                    </div>
+
+                    {status.status === 'pending' && !loading && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={e => {
+                          e.stopPropagation();
+                          removeFile(index);
+                        }}
+                      >
+                        ✕
+                      </Button>
+                    )}
+                  </div>
+                ))}
               </div>
-            ) : (
-              <label
-                className="upload-label"
+            ) : null}
+
+            <label className="upload-label" onClick={e => e.stopPropagation()}>
+              <input
+                type="file"
+                accept="video/*"
+                multiple
+                onChange={handleFileChange}
                 onClick={e => e.stopPropagation()}
-              >
-                <input
-                  type="file"
-                  accept="video/*"
-                  onChange={handleFileChange}
-                  onClick={e => e.stopPropagation()}
-                  hidden
-                />
-                <div className="upload-placeholder">
-                  <span className="upload-icon">⬆️</span>
-                  <span>Haz clic para seleccionar video</span>
-                  <span className="upload-hint">MP4, MOV - Máx 500MB</span>
-                </div>
-              </label>
-            )}
+                disabled={loading}
+                hidden
+              />
+              <div className="upload-placeholder">
+                <span className="upload-icon">⬆️</span>
+                <span>Haz clic para seleccionar videos</span>
+                <span className="upload-hint">
+                  Múltiples archivos - MP4, MOV - Máx 500MB c/u
+                </span>
+              </div>
+            </label>
           </div>
         </Card>
 
@@ -279,7 +424,7 @@ export const UploadPage: React.FC = () => {
           </small>
         </Card>
 
-        {(!file || selectedAccounts.length === 0) && (
+        {(files.length === 0 || selectedAccounts.length === 0) && (
           <Card className="warning-card">
             <div className="warning-content">
               <span className="warning-icon">⚠️</span>
@@ -288,7 +433,7 @@ export const UploadPage: React.FC = () => {
                   Para publicar necesitas:
                 </strong>
                 <ul className="warning-list">
-                  {!file && <li>Subir un video</li>}
+                  {files.length === 0 && <li>Subir al menos un video</li>}
                   {selectedAccounts.length === 0 && (
                     <li>Seleccionar al menos una cuenta</li>
                   )}
@@ -303,6 +448,7 @@ export const UploadPage: React.FC = () => {
             type="button"
             variant="ghost"
             onClick={() => navigate('/dashboard')}
+            disabled={loading}
           >
             Cancelar
           </Button>
@@ -310,11 +456,11 @@ export const UploadPage: React.FC = () => {
             type="submit"
             variant="primary"
             loading={loading}
-            disabled={!file || selectedAccounts.length === 0}
+            disabled={files.length === 0 || selectedAccounts.length === 0}
           >
             {loading
-              ? 'Publicando...'
-              : `Publicar en ${selectedAccounts.length} cuenta(s)`}
+              ? `Publicando ${uploadStatuses.filter(s => s.status === 'uploading').length}/${files.length}...`
+              : `Publicar ${files.length} video(s) en ${selectedAccounts.length} cuenta(s)`}
           </Button>
         </div>
       </form>
