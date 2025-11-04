@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm ci && cd packages/web && npm run build",
+  "buildCommand": "npm run build --workspace=@subiteya/web",
   "outputDirectory": "packages/web/dist",
   "installCommand": "npm ci",
   "framework": null,
