@@ -1,11 +1,15 @@
 {
-  "buildCommand": "npm install && npm run build --workspace=@subiteya/web",
+  "buildCommand": "cd packages/web && npm install && npm run build",
   "outputDirectory": "packages/web/dist",
-  "installCommand": "npm install",
-  "rewrites": [
+  "installCommand": null,
+  "framework": null,
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
