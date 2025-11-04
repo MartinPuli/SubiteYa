@@ -1,8 +1,7 @@
 {
-  "buildCommand": "cd packages/web && npm install && npm run build",
+  "buildCommand": "npm install && npm run build --workspace=@subiteya/web",
   "outputDirectory": "packages/web/dist",
-  "installCommand": "npm install --workspaces=false",
-  "framework": null,
+  "installCommand": "npm install",
   "rewrites": [
     {
       "source": "/(.*)",
