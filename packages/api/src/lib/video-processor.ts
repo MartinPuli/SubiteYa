@@ -277,13 +277,54 @@ export async function validateVideo(
 }
 
 /**
- * Visual Effects Configuration
+ * Advanced Video Processing Configuration (CapCut-style)
+ */
+interface AdvancedProcessingConfig {
+  // Color Grading
+  brightness?: number; // 0-200, 100=normal
+  contrast?: number; // 0-200, 100=normal
+  saturation?: number; // 0-200, 100=normal
+  temperature?: number; // 0-200, 100=normal (warm/cool)
+  tint?: number; // 0-200, 100=normal (green/magenta)
+  hue?: number; // -180 to 180
+  exposure?: number; // 50-150, 100=normal
+  highlights?: number; // 0-200, 100=normal
+  shadows?: number; // 0-200, 100=normal
+
+  // Effects
+  filterType?: string; // 'none' | 'vintage' | 'vibrant' | 'cinematic' | 'warm' | 'cool' | 'bw' | 'sepia' | 'dramatic'
+  vignette?: number; // 0-100
+  sharpen?: number; // 0-100
+  blur?: number; // 0-100
+  grain?: number; // 0-100
+
+  // Enhancements
+  stabilization?: boolean;
+  denoise?: boolean;
+  denoiseStrength?: number; // 0-100
+
+  // Speed
+  speedMultiplier?: number; // 0.25-4.0
+  smoothSlow?: boolean; // Smooth slow motion with frame interpolation
+
+  // Auto Crop
+  autoCrop?: boolean;
+  aspectRatio?: string; // 'original' | '9:16' | '16:9' | '1:1' | '4:5'
+  cropPosition?: string; // 'center' | 'top' | 'bottom' | 'smart'
+
+  // Audio
+  audioVolume?: number; // 0-200, 100=normal
+  audioNormalize?: boolean;
+}
+
+/**
+ * Legacy Effects Config for backwards compatibility
  */
 interface EffectsConfig {
-  filterType: string; // 'none' | 'vintage' | 'vibrant' | 'cinematic' | 'grayscale' | 'sepia'
-  brightness: number; // 50-150
-  contrast: number; // 50-150
-  saturation: number; // 0-200
+  filterType: string;
+  brightness: number;
+  contrast: number;
+  saturation: number;
 }
 
 /**

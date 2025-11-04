@@ -3,6 +3,19 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Card } from '../components/Card/Card';
 import { Button } from '../components/Button/Button';
 import { Input } from '../components/Input/Input';
+import { Slider } from '../components/Slider/Slider';
+import { Toggle } from '../components/Toggle/Toggle';
+import { Select } from '../components/Select/Select';
+import { ColorPicker } from '../components/ColorPicker/ColorPicker';
+import { Tabs, TabPanel } from '../components/Tabs/Tabs';
+import { Section } from '../components/Section/Section';
+import {
+  FilterPresetCard,
+  FILTER_PRESETS_VISUAL,
+} from '../components/FilterPresetCard/FilterPresetCard';
+import { EnhancedSlider } from '../components/EnhancedSlider/EnhancedSlider';
+import { BeforeAfterPreview } from '../components/BeforeAfterPreview/BeforeAfterPreview';
+import { LogoUploader } from '../components/LogoUploader/LogoUploader';
 import { useAuthStore } from '../store/authStore';
 import { useAppStore } from '../store/appStore';
 import { API_ENDPOINTS } from '../config/api';
@@ -19,19 +32,62 @@ interface Pattern {
   logoOpacity: number;
   thumbnailUrl: string | null;
   tiktokConnectionId: string;
-  // Visual Effects
-  enableEffects: boolean;
-  filterType: string;
+
+  // Color Grading (9 fields)
+  enableColorGrading: boolean;
   brightness: number;
   contrast: number;
   saturation: number;
-  // Subtitles
+  temperature: number;
+  tint: number;
+  hue: number;
+  exposure: number;
+  highlights: number;
+  shadows: number;
+
+  // Effects (5 fields)
+  enableEffects: boolean;
+  filterType: string;
+  vignette: number;
+  sharpen: number;
+  blur: number;
+  grain: number;
+
+  // Speed & Motion (4 fields)
+  speedMultiplier: number;
+  enableSmoothSlowMotion: boolean;
+  enableStabilization: boolean;
+  enableDenoise: boolean;
+  denoiseStrength: number;
+
+  // Auto Crop (3 fields)
+  enableAutoCrop: boolean;
+  aspectRatio: string;
+  cropPosition: string;
+
+  // Audio (4 fields)
+  audioVolume: number;
+  audioNormalize: boolean;
+  enableBackgroundMusic: boolean;
+  backgroundMusicVolume: number;
+
+  // Subtitles (7 fields)
   enableSubtitles: boolean;
   subtitleStyle: string;
   subtitlePosition: string;
   subtitleColor: string;
   subtitleBgColor: string;
   subtitleFontSize: number;
+  subtitleAnimation: string;
+  subtitleFontFamily: string;
+
+  // Quality (3 fields)
+  outputQuality: string;
+  outputBitrate: string;
+  outputFps: number;
+
+  // Transitions (1 field)
+  transitionType: string;
 }
 
 const LOGO_POSITIONS = [
@@ -40,6 +96,65 @@ const LOGO_POSITIONS = [
   { value: 'bottom-left', label: 'Inferior Izquierda' },
   { value: 'bottom-right', label: 'Inferior Derecha' },
   { value: 'center', label: 'Centro' },
+];
+
+// Using FILTER_PRESETS_VISUAL from FilterPresetCard instead
+
+const ASPECT_RATIOS = [
+  { value: 'original', label: 'Original' },
+  { value: '9:16', label: '9:16 (TikTok/Reels)' },
+  { value: '16:9', label: '16:9 (YouTube)' },
+  { value: '1:1', label: '1:1 (Cuadrado)' },
+  { value: '4:5', label: '4:5 (Instagram Feed)' },
+];
+
+const CROP_POSITIONS = [
+  { value: 'center', label: 'Centro' },
+  { value: 'top', label: 'Superior' },
+  { value: 'bottom', label: 'Inferior' },
+  { value: 'left', label: 'Izquierda' },
+  { value: 'right', label: 'Derecha' },
+];
+
+const SUBTITLE_ANIMATIONS = [
+  { value: 'none', label: 'Sin animación' },
+  { value: 'fade', label: 'Fade In/Out' },
+  { value: 'slide', label: 'Deslizar' },
+  { value: 'pop', label: 'Pop' },
+  { value: 'typewriter', label: 'Máquina de escribir' },
+];
+
+const SUBTITLE_FONTS = [
+  { value: 'Arial', label: 'Arial' },
+  { value: 'Helvetica', label: 'Helvetica' },
+  { value: 'Roboto', label: 'Roboto' },
+  { value: 'Open Sans', label: 'Open Sans' },
+  { value: 'Montserrat', label: 'Montserrat' },
+  { value: 'Poppins', label: 'Poppins' },
+  { value: 'Impact', label: 'Impact' },
+];
+
+const QUALITY_PRESETS = [
+  { value: 'low', label: 'Baja (Rápido)' },
+  { value: 'medium', label: 'Media (Recomendada)' },
+  { value: 'high', label: 'Alta (Mejor calidad)' },
+  { value: 'ultra', label: 'Ultra (Máxima calidad)' },
+];
+
+const BITRATE_OPTIONS = [
+  { value: '1000k', label: '1 Mbps' },
+  { value: '2000k', label: '2 Mbps (Recomendado)' },
+  { value: '4000k', label: '4 Mbps' },
+  { value: '8000k', label: '8 Mbps (Alta)' },
+  { value: '15000k', label: '15 Mbps (Ultra)' },
+];
+
+const TRANSITION_TYPES = [
+  { value: 'none', label: 'Sin transición' },
+  { value: 'fade', label: 'Fade' },
+  { value: 'dissolve', label: 'Dissolve' },
+  { value: 'wipe', label: 'Wipe' },
+  { value: 'slide', label: 'Slide' },
 ];
 
 export const PatternEditorPage: React.FC = () => {
@@ -51,34 +166,77 @@ export const PatternEditorPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Form state
+  // Basic Info
   const [name, setName] = useState('');
   const [connectionId, setConnectionId] = useState('');
+  const [isDefault, setIsDefault] = useState(false);
+
+  // Logo
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState('');
   const [logoPosition, setLogoPosition] = useState('bottom-right');
   const [logoSize, setLogoSize] = useState(15);
   const [logoOpacity, setLogoOpacity] = useState(100);
-  const [isDefault, setIsDefault] = useState(false);
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'logo' | 'effects' | 'subtitles'>(
-    'logo'
-  );
 
-  // Visual Effects State
-  const [enableEffects, setEnableEffects] = useState(false);
-  const [filterType, setFilterType] = useState('none');
+  // Active Tab
+  const [activeTab, setActiveTab] = useState('colorGrading');
+
+  // Color Grading (9 fields)
+  const [enableColorGrading, setEnableColorGrading] = useState(false);
   const [brightness, setBrightness] = useState(100);
   const [contrast, setContrast] = useState(100);
   const [saturation, setSaturation] = useState(100);
+  const [temperature, setTemperature] = useState(0);
+  const [tint, setTint] = useState(0);
+  const [hue, setHue] = useState(0);
+  const [exposure, setExposure] = useState(0);
+  const [highlights, setHighlights] = useState(0);
+  const [shadows, setShadows] = useState(0);
 
-  // Subtitles State
+  // Effects (5 fields)
+  const [enableEffects, setEnableEffects] = useState(false);
+  const [filterType, setFilterType] = useState('none');
+  const [vignette, setVignette] = useState(0);
+  const [sharpen, setSharpen] = useState(0);
+  const [blur, setBlur] = useState(0);
+  const [grain, setGrain] = useState(0);
+
+  // Speed & Motion (4 fields)
+  const [speedMultiplier, setSpeedMultiplier] = useState(1);
+  const [enableSmoothSlowMotion, setEnableSmoothSlowMotion] = useState(false);
+  const [enableStabilization, setEnableStabilization] = useState(false);
+  const [enableDenoise, setEnableDenoise] = useState(false);
+  const [denoiseStrength, setDenoiseStrength] = useState(0.5);
+
+  // Auto Crop (3 fields)
+  const [enableAutoCrop, setEnableAutoCrop] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState('original');
+  const [cropPosition, setCropPosition] = useState('center');
+
+  // Audio (4 fields)
+  const [audioVolume, setAudioVolume] = useState(100);
+  const [audioNormalize, setAudioNormalize] = useState(false);
+  const [enableBackgroundMusic, setEnableBackgroundMusic] = useState(false);
+  const [backgroundMusicVolume, setBackgroundMusicVolume] = useState(50);
+
+  // Subtitles (7 fields)
   const [enableSubtitles, setEnableSubtitles] = useState(false);
   const [subtitleStyle, setSubtitleStyle] = useState('modern');
   const [subtitlePosition, setSubtitlePosition] = useState('bottom');
   const [subtitleColor, setSubtitleColor] = useState('#FFFFFF');
   const [subtitleBgColor, setSubtitleBgColor] = useState('#000000');
   const [subtitleFontSize, setSubtitleFontSize] = useState(24);
+  const [subtitleAnimation, setSubtitleAnimation] = useState('none');
+  const [subtitleFontFamily, setSubtitleFontFamily] = useState('Arial');
+
+  // Quality (3 fields)
+  const [outputQuality, setOutputQuality] = useState('medium');
+  const [outputBitrate, setOutputBitrate] = useState('2000k');
+  const [outputFps, setOutputFps] = useState(30);
+
+  // Transitions (1 field)
+  const [transitionType, setTransitionType] = useState('none');
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -118,19 +276,56 @@ export const PatternEditorPage: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         const pattern: Pattern = data.pattern;
+
+        // Basic Info
         setName(pattern.name);
         setConnectionId(pattern.tiktokConnectionId);
+        setIsDefault(pattern.isDefault);
+
+        // Logo
         setLogoUrl(pattern.logoUrl || '');
         setLogoPosition(pattern.logoPosition);
         setLogoSize(pattern.logoSize);
         setLogoOpacity(pattern.logoOpacity);
-        setIsDefault(pattern.isDefault);
-        // Visual Effects
-        setEnableEffects(pattern.enableEffects || false);
-        setFilterType(pattern.filterType || 'none');
+
+        // Color Grading
+        setEnableColorGrading(pattern.enableColorGrading || false);
         setBrightness(pattern.brightness || 100);
         setContrast(pattern.contrast || 100);
         setSaturation(pattern.saturation || 100);
+        setTemperature(pattern.temperature || 0);
+        setTint(pattern.tint || 0);
+        setHue(pattern.hue || 0);
+        setExposure(pattern.exposure || 0);
+        setHighlights(pattern.highlights || 0);
+        setShadows(pattern.shadows || 0);
+
+        // Effects
+        setEnableEffects(pattern.enableEffects || false);
+        setFilterType(pattern.filterType || 'none');
+        setVignette(pattern.vignette || 0);
+        setSharpen(pattern.sharpen || 0);
+        setBlur(pattern.blur || 0);
+        setGrain(pattern.grain || 0);
+
+        // Speed & Motion
+        setSpeedMultiplier(pattern.speedMultiplier || 1);
+        setEnableSmoothSlowMotion(pattern.enableSmoothSlowMotion || false);
+        setEnableStabilization(pattern.enableStabilization || false);
+        setEnableDenoise(pattern.enableDenoise || false);
+        setDenoiseStrength(pattern.denoiseStrength || 0.5);
+
+        // Auto Crop
+        setEnableAutoCrop(pattern.enableAutoCrop || false);
+        setAspectRatio(pattern.aspectRatio || 'original');
+        setCropPosition(pattern.cropPosition || 'center');
+
+        // Audio
+        setAudioVolume(pattern.audioVolume || 100);
+        setAudioNormalize(pattern.audioNormalize || false);
+        setEnableBackgroundMusic(pattern.enableBackgroundMusic || false);
+        setBackgroundMusicVolume(pattern.backgroundMusicVolume || 50);
+
         // Subtitles
         setEnableSubtitles(pattern.enableSubtitles || false);
         setSubtitleStyle(pattern.subtitleStyle || 'modern');
@@ -138,6 +333,16 @@ export const PatternEditorPage: React.FC = () => {
         setSubtitleColor(pattern.subtitleColor || '#FFFFFF');
         setSubtitleBgColor(pattern.subtitleBgColor || '#000000');
         setSubtitleFontSize(pattern.subtitleFontSize || 24);
+        setSubtitleAnimation(pattern.subtitleAnimation || 'none');
+        setSubtitleFontFamily(pattern.subtitleFontFamily || 'Arial');
+
+        // Quality
+        setOutputQuality(pattern.outputQuality || 'medium');
+        setOutputBitrate(pattern.outputBitrate || '2000k');
+        setOutputFps(pattern.outputFps || 30);
+
+        // Transitions
+        setTransitionType(pattern.transitionType || 'none');
       }
     } catch (error) {
       console.error('Error loading pattern:', error);
@@ -235,13 +440,6 @@ export const PatternEditorPage: React.FC = () => {
     }
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      setLogoFile(file);
-    }
-  };
-
   const uploadLogo = async (): Promise<string | null> => {
     if (!logoFile || !token) return null;
 
@@ -299,12 +497,45 @@ export const PatternEditorPage: React.FC = () => {
         logoOpacity,
         thumbnailUrl,
         isDefault,
-        // Visual Effects
-        enableEffects,
-        filterType,
+
+        // Color Grading
+        enableColorGrading,
         brightness,
         contrast,
         saturation,
+        temperature,
+        tint,
+        hue,
+        exposure,
+        highlights,
+        shadows,
+
+        // Effects
+        enableEffects,
+        filterType,
+        vignette,
+        sharpen,
+        blur,
+        grain,
+
+        // Speed & Motion
+        speedMultiplier,
+        enableSmoothSlowMotion,
+        enableStabilization,
+        enableDenoise,
+        denoiseStrength,
+
+        // Auto Crop
+        enableAutoCrop,
+        aspectRatio,
+        cropPosition,
+
+        // Audio
+        audioVolume,
+        audioNormalize,
+        enableBackgroundMusic,
+        backgroundMusicVolume,
+
         // Subtitles
         enableSubtitles,
         subtitleStyle,
@@ -312,6 +543,16 @@ export const PatternEditorPage: React.FC = () => {
         subtitleColor,
         subtitleBgColor,
         subtitleFontSize,
+        subtitleAnimation,
+        subtitleFontFamily,
+
+        // Quality
+        outputQuality,
+        outputBitrate,
+        outputFps,
+
+        // Transitions
+        transitionType,
       };
 
       const url =
@@ -349,6 +590,17 @@ export const PatternEditorPage: React.FC = () => {
     return <div className="loading-page">Cargando patrón...</div>;
   }
 
+  const tabs = [
+    { id: 'logo', label: 'Logo', icon: '🎨' },
+    { id: 'colorGrading', label: 'Color', icon: '🌈' },
+    { id: 'effects', label: 'Efectos', icon: '✨' },
+    { id: 'speed', label: 'Velocidad', icon: '⚡' },
+    { id: 'crop', label: 'Recorte', icon: '✂️' },
+    { id: 'audio', label: 'Audio', icon: '🎵' },
+    { id: 'subtitles', label: 'Subtítulos', icon: '💬' },
+    { id: 'quality', label: 'Calidad', icon: '⚙️' },
+  ];
+
   return (
     <div className="pattern-editor-page">
       <div className="editor-header">
@@ -357,7 +609,8 @@ export const PatternEditorPage: React.FC = () => {
             {id && id !== 'new' ? 'Editar Patrón' : 'Nuevo Patrón'}
           </h1>
           <p className="editor-subtitle">
-            Configura el estilo de tu marca para todos los videos
+            Configura el estilo de tu marca con opciones profesionales al estilo
+            CapCut
           </p>
         </div>
         <div className="editor-actions">
@@ -373,328 +626,610 @@ export const PatternEditorPage: React.FC = () => {
       <div className="editor-layout">
         {/* Left Panel - Settings */}
         <Card className="editor-settings">
-          <h2 className="section-title">⚙️ Configuración del Patrón</h2>
+          <h2 className="section-title">
+            ⚙️ Configuración Avanzada del Patrón
+          </h2>
 
           {/* Basic Info */}
-          <div className="form-group">
-            <label htmlFor="name">Nombre del Patrón *</label>
+          <Section title="Información Básica" columns={1}>
             <Input
-              id="name"
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="Ej: Mi Marca Principal"
+              placeholder="Nombre del patrón"
             />
-          </div>
 
-          <div className="form-group">
-            <label htmlFor="connection">Cuenta de TikTok *</label>
-            <select
-              id="connection"
+            <Select
+              label="Cuenta de TikTok *"
               value={connectionId}
-              onChange={e => setConnectionId(e.target.value)}
-              className="form-select"
+              onChange={setConnectionId}
+              options={[
+                { value: '', label: 'Selecciona una cuenta' },
+                ...connections.map(conn => ({
+                  value: conn.id,
+                  label: conn.displayName,
+                })),
+              ]}
               disabled={id !== 'new'}
-            >
-              <option value="">Selecciona una cuenta</option>
-              {connections.map(conn => (
-                <option key={conn.id} value={conn.id}>
-                  {conn.displayName}
-                </option>
-              ))}
-            </select>
-          </div>
+            />
 
-          {/* Tabs */}
-          <div className="settings-tabs">
-            <button
-              className={`tab-button ${activeTab === 'logo' ? 'active' : ''}`}
-              onClick={() => setActiveTab('logo')}
-            >
-              🎨 Logo
-            </button>
-            <button
-              className={`tab-button ${activeTab === 'effects' ? 'active' : ''}`}
-              onClick={() => setActiveTab('effects')}
-            >
-              ✨ Efectos
-            </button>
-            <button
-              className={`tab-button ${activeTab === 'subtitles' ? 'active' : ''}`}
-              onClick={() => setActiveTab('subtitles')}
-            >
-              💬 Subtítulos
-            </button>
-          </div>
+            <Toggle
+              label="Patrón Predeterminado"
+              description="Se aplicará automáticamente a todos los videos"
+              checked={isDefault}
+              onChange={setIsDefault}
+            />
+          </Section>
 
-          {/* Logo Tab */}
-          {activeTab === 'logo' && (
-            <div className="tab-content">
-              <div className="form-group">
-                <label htmlFor="logo">Logo / Marca de Agua</label>
-                <input
-                  id="logo"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoUpload}
-                  className="file-input"
+          {/* Tabs for Settings */}
+          <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab}>
+            {/* Logo Tab */}
+            <TabPanel id="logo" activeTab={activeTab}>
+              <Section title="Logo / Marca de Agua" columns={1}>
+                <LogoUploader
+                  currentLogo={logoUrl}
+                  previewUrl={previewUrl}
+                  onFileSelect={setLogoFile}
                 />
-                {(previewUrl || logoUrl) && (
-                  <div className="logo-preview-small">
-                    <img src={previewUrl || logoUrl} alt="Logo preview" />
-                  </div>
-                )}
-              </div>
 
-              <div className="form-group">
-                <label htmlFor="position">Posición del Logo</label>
-                <select
-                  id="position"
+                <Select
+                  label="Posición del Logo"
                   value={logoPosition}
-                  onChange={e => setLogoPosition(e.target.value)}
-                  className="form-select"
-                >
-                  {LOGO_POSITIONS.map(pos => (
-                    <option key={pos.value} value={pos.value}>
-                      {pos.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  onChange={setLogoPosition}
+                  options={LOGO_POSITIONS}
+                />
 
-              <div className="form-group">
-                <label htmlFor="size">
-                  Tamaño del Logo ({logoSize}% del ancho)
-                </label>
-                <input
-                  id="size"
-                  type="range"
-                  min="5"
-                  max="40"
+                <Slider
+                  label="Tamaño del Logo"
                   value={logoSize}
-                  onChange={e => setLogoSize(Number(e.target.value))}
-                  className="range-input"
+                  onChange={setLogoSize}
+                  min={5}
+                  max={40}
+                  step={1}
+                  unit="%"
                 />
-              </div>
 
-              <div className="form-group">
-                <label htmlFor="opacity">Opacidad ({logoOpacity}%)</label>
-                <input
-                  id="opacity"
-                  type="range"
-                  min="0"
-                  max="100"
+                <Slider
+                  label="Opacidad"
                   value={logoOpacity}
-                  onChange={e => setLogoOpacity(Number(e.target.value))}
-                  className="range-input"
+                  onChange={setLogoOpacity}
+                  min={0}
+                  max={100}
+                  step={5}
+                  unit="%"
                 />
-              </div>
-            </div>
-          )}
+              </Section>
+            </TabPanel>
 
-          {/* Effects Tab */}
-          {activeTab === 'effects' && (
-            <div className="tab-content">
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={enableEffects}
-                    onChange={e => setEnableEffects(e.target.checked)}
-                  />
-                  <span>Aplicar efectos visuales</span>
-                </label>
-              </div>
+            {/* Color Grading Tab */}
+            <TabPanel id="colorGrading" activeTab={activeTab}>
+              <Section
+                title="Corrección de Color"
+                description="Ajusta los colores del video con controles profesionales"
+                columns={2}
+              >
+                <Toggle
+                  label="Activar Corrección de Color"
+                  checked={enableColorGrading}
+                  onChange={setEnableColorGrading}
+                />
+              </Section>
+
+              {enableColorGrading && (
+                <>
+                  <Section title="Ajustes Básicos" columns={1}>
+                    <EnhancedSlider
+                      label="Brillo"
+                      value={brightness}
+                      onChange={setBrightness}
+                      min={50}
+                      max={150}
+                      step={1}
+                      unit="%"
+                      type="brightness"
+                      description="Ajusta la luminosidad general del video"
+                    />
+
+                    <EnhancedSlider
+                      label="Contraste"
+                      value={contrast}
+                      onChange={setContrast}
+                      min={50}
+                      max={150}
+                      step={1}
+                      unit="%"
+                      type="contrast"
+                      description="Diferencia entre áreas claras y oscuras"
+                    />
+
+                    <EnhancedSlider
+                      label="Saturación"
+                      value={saturation}
+                      onChange={setSaturation}
+                      min={0}
+                      max={200}
+                      step={1}
+                      unit="%"
+                      type="saturation"
+                      description="Intensidad de los colores"
+                    />
+
+                    <EnhancedSlider
+                      label="Exposición"
+                      value={exposure}
+                      onChange={setExposure}
+                      min={-100}
+                      max={100}
+                      step={1}
+                      unit=""
+                      type="exposure"
+                      description="Cantidad de luz en la imagen"
+                    />
+                  </Section>
+
+                  <Section title="Balance de Color" columns={1}>
+                    <EnhancedSlider
+                      label="Temperatura"
+                      value={temperature}
+                      onChange={setTemperature}
+                      min={-100}
+                      max={100}
+                      step={1}
+                      unit=""
+                      type="temperature"
+                      description="Tonos cálidos (naranja) o fríos (azul)"
+                    />
+
+                    <EnhancedSlider
+                      label="Tinte"
+                      value={tint}
+                      onChange={setTint}
+                      min={-100}
+                      max={100}
+                      step={1}
+                      unit=""
+                      type="tint"
+                      description="Balance entre magenta y verde"
+                    />
+
+                    <EnhancedSlider
+                      label="Matiz (Hue)"
+                      value={hue}
+                      onChange={setHue}
+                      min={-180}
+                      max={180}
+                      step={1}
+                      unit="°"
+                      type="hue"
+                      description="Desplaza todos los colores en el espectro"
+                    />
+                  </Section>
+
+                  <Section title="Tonos" columns={1}>
+                    <EnhancedSlider
+                      label="Altas Luces"
+                      value={highlights}
+                      onChange={setHighlights}
+                      min={-100}
+                      max={100}
+                      step={1}
+                      unit=""
+                      type="default"
+                      description="Recupera detalle en las zonas más brillantes"
+                    />
+
+                    <EnhancedSlider
+                      label="Sombras"
+                      value={shadows}
+                      onChange={setShadows}
+                      min={-100}
+                      max={100}
+                      step={1}
+                      unit=""
+                      type="default"
+                      description="Ilumina o oscurece las áreas oscuras"
+                    />
+                  </Section>
+                </>
+              )}
+            </TabPanel>
+
+            {/* Effects Tab */}
+            <TabPanel id="effects" activeTab={activeTab}>
+              <Section
+                title="Efectos Visuales"
+                description="Aplica filtros y efectos artísticos"
+                columns={1}
+              >
+                <Toggle
+                  label="Activar Efectos"
+                  checked={enableEffects}
+                  onChange={setEnableEffects}
+                />
+              </Section>
 
               {enableEffects && (
                 <>
-                  <div className="form-group">
-                    <label htmlFor="filter">Filtro</label>
-                    <select
-                      id="filter"
-                      value={filterType}
-                      onChange={e => setFilterType(e.target.value)}
-                      className="form-select"
-                    >
-                      <option value="none">Sin filtro</option>
-                      <option value="vintage">Vintage</option>
-                      <option value="vibrant">Vibrante</option>
-                      <option value="cinematic">Cinematográfico</option>
-                      <option value="grayscale">Blanco y Negro</option>
-                      <option value="sepia">Sepia</option>
-                    </select>
-                  </div>
+                  <Section title="Filtros Predefinidos" columns={1}>
+                    <div className="filter-presets-grid">
+                      {FILTER_PRESETS_VISUAL.map(preset => (
+                        <FilterPresetCard
+                          key={preset.value}
+                          preset={preset}
+                          selected={filterType === preset.value}
+                          onClick={() => setFilterType(preset.value)}
+                        />
+                      ))}
+                    </div>
 
-                  <div className="form-group">
-                    <label htmlFor="brightness">Brillo ({brightness}%)</label>
-                    <input
-                      id="brightness"
-                      type="range"
-                      min="50"
-                      max="150"
-                      value={brightness}
-                      onChange={e => setBrightness(Number(e.target.value))}
-                      className="range-input"
+                    <Select
+                      label="Transiciones entre clips"
+                      value={transitionType}
+                      onChange={setTransitionType}
+                      options={TRANSITION_TYPES}
                     />
-                  </div>
+                  </Section>
 
-                  <div className="form-group">
-                    <label htmlFor="contrast">Contraste ({contrast}%)</label>
-                    <input
-                      id="contrast"
-                      type="range"
-                      min="50"
-                      max="150"
-                      value={contrast}
-                      onChange={e => setContrast(Number(e.target.value))}
-                      className="range-input"
+                  <Section title="Efectos Personalizados" columns={1}>
+                    <EnhancedSlider
+                      label="Viñeta"
+                      value={vignette}
+                      onChange={setVignette}
+                      min={0}
+                      max={100}
+                      step={1}
+                      unit="%"
+                      type="default"
+                      description="Oscurece las esquinas para enfocar al centro"
                     />
-                  </div>
 
-                  <div className="form-group">
-                    <label htmlFor="saturation">
-                      Saturación ({saturation}%)
-                    </label>
-                    <input
-                      id="saturation"
-                      type="range"
-                      min="0"
-                      max="200"
-                      value={saturation}
-                      onChange={e => setSaturation(Number(e.target.value))}
-                      className="range-input"
+                    <EnhancedSlider
+                      label="Nitidez (Sharpen)"
+                      value={sharpen}
+                      onChange={setSharpen}
+                      min={0}
+                      max={100}
+                      step={1}
+                      unit="%"
+                      type="default"
+                      description="Aumenta la definición de bordes y detalles"
                     />
-                  </div>
+
+                    <EnhancedSlider
+                      label="Desenfoque"
+                      value={blur}
+                      onChange={setBlur}
+                      min={0}
+                      max={10}
+                      step={0.1}
+                      unit=""
+                      type="default"
+                      description="Suaviza la imagen (útil para fondos)"
+                    />
+
+                    <EnhancedSlider
+                      label="Grano de Película"
+                      value={grain}
+                      onChange={setGrain}
+                      min={0}
+                      max={100}
+                      step={1}
+                      unit="%"
+                      type="default"
+                      description="Añade textura de película analógica"
+                    />
+                  </Section>
                 </>
               )}
-            </div>
-          )}
+            </TabPanel>
 
-          {/* Subtitles Tab */}
-          {activeTab === 'subtitles' && (
-            <div className="tab-content">
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={enableSubtitles}
-                    onChange={e => setEnableSubtitles(e.target.checked)}
+            {/* Speed & Motion Tab */}
+            <TabPanel id="speed" activeTab={activeTab}>
+              <Section
+                title="Velocidad y Movimiento"
+                description="Control de velocidad y estabilización del video"
+                columns={1}
+              >
+                <EnhancedSlider
+                  label="Velocidad"
+                  value={speedMultiplier}
+                  onChange={setSpeedMultiplier}
+                  min={0.25}
+                  max={4}
+                  step={0.25}
+                  unit="x"
+                  type="speed"
+                  description="0.25x-0.75x = Slow Motion, 1.0x = Normal, 1.5x-4.0x = Fast Forward"
+                />
+              </Section>
+
+              <Section title="Opciones Avanzadas" columns={2}>
+                <Toggle
+                  label="Cámara Lenta Suave"
+                  description="Interpolación de frames para slow motion fluido"
+                  checked={enableSmoothSlowMotion}
+                  onChange={setEnableSmoothSlowMotion}
+                />
+
+                <Toggle
+                  label="Estabilización"
+                  description="Reduce el movimiento de cámara"
+                  checked={enableStabilization}
+                  onChange={setEnableStabilization}
+                />
+
+                <Toggle
+                  label="Reducción de Ruido"
+                  description="Limpia el ruido visual del video"
+                  checked={enableDenoise}
+                  onChange={setEnableDenoise}
+                />
+              </Section>
+
+              {enableDenoise && (
+                <Section
+                  title="Configuración de Reducción de Ruido"
+                  columns={1}
+                >
+                  <EnhancedSlider
+                    label="Intensidad"
+                    value={denoiseStrength}
+                    onChange={setDenoiseStrength}
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    unit=""
+                    type="default"
+                    description="Mayor valor = Menos ruido pero puede perder detalles"
                   />
-                  <span>Generar subtítulos automáticos</span>
-                </label>
-                <p className="help-text">
-                  Usa IA para transcribir el audio y generar subtítulos
-                </p>
-              </div>
+                </Section>
+              )}
+            </TabPanel>
+
+            {/* Auto Crop Tab */}
+            <TabPanel id="crop" activeTab={activeTab}>
+              <Section
+                title="Recorte Inteligente"
+                description="Ajusta el formato del video automáticamente"
+                columns={2}
+              >
+                <Toggle
+                  label="Recorte Automático"
+                  description="Convierte automáticamente al formato seleccionado"
+                  checked={enableAutoCrop}
+                  onChange={setEnableAutoCrop}
+                />
+
+                {enableAutoCrop && (
+                  <>
+                    <Select
+                      label="Relación de Aspecto"
+                      value={aspectRatio}
+                      onChange={setAspectRatio}
+                      options={ASPECT_RATIOS}
+                    />
+
+                    <Select
+                      label="Posición de Recorte"
+                      value={cropPosition}
+                      onChange={setCropPosition}
+                      options={CROP_POSITIONS}
+                    />
+                  </>
+                )}
+              </Section>
+            </TabPanel>
+
+            {/* Audio Tab */}
+            <TabPanel id="audio" activeTab={activeTab}>
+              <Section
+                title="Ajustes de Audio"
+                description="Control de volumen y música de fondo"
+                columns={1}
+              >
+                <EnhancedSlider
+                  label="Volumen del Audio"
+                  value={audioVolume}
+                  onChange={setAudioVolume}
+                  min={0}
+                  max={200}
+                  step={5}
+                  unit="%"
+                  type="volume"
+                  description="100% = Normal, >100% = Amplificado, <100% = Reducido"
+                />
+              </Section>
+
+              <Section title="Optimización" columns={2}>
+                <Toggle
+                  label="Normalizar Audio"
+                  description="Ajusta el volumen para evitar picos y distorsiones"
+                  checked={audioNormalize}
+                  onChange={setAudioNormalize}
+                />
+
+                <Toggle
+                  label="Música de Fondo"
+                  description="Agrega una pista musical al video"
+                  checked={enableBackgroundMusic}
+                  onChange={setEnableBackgroundMusic}
+                />
+              </Section>
+
+              {enableBackgroundMusic && (
+                <Section title="Configuración de Música" columns={1}>
+                  <EnhancedSlider
+                    label="Volumen de Música de Fondo"
+                    value={backgroundMusicVolume}
+                    onChange={setBackgroundMusicVolume}
+                    min={0}
+                    max={100}
+                    step={5}
+                    unit="%"
+                    type="volume"
+                    description="Balance entre la música y el audio original"
+                  />
+                </Section>
+              )}
+            </TabPanel>
+
+            {/* Subtitles Tab */}
+            <TabPanel id="subtitles" activeTab={activeTab}>
+              <Section
+                title="Subtítulos Automáticos"
+                description="Transcripción con IA y subtítulos estilizados"
+                columns={1}
+              >
+                <Toggle
+                  label="Generar Subtítulos"
+                  description="Usa IA para transcribir el audio automáticamente"
+                  checked={enableSubtitles}
+                  onChange={setEnableSubtitles}
+                />
+              </Section>
 
               {enableSubtitles && (
                 <>
-                  <div className="form-group">
-                    <label htmlFor="subtitleStyle">Estilo de Subtítulos</label>
-                    <select
-                      id="subtitleStyle"
+                  <Section title="Estilo de Subtítulos" columns={2}>
+                    <Select
+                      label="Estilo"
                       value={subtitleStyle}
-                      onChange={e => setSubtitleStyle(e.target.value)}
-                      className="form-select"
-                    >
-                      <option value="modern">Moderno (Estilo TikTok)</option>
-                      <option value="classic">Clásico</option>
-                      <option value="bold">Negrita + Sombra</option>
-                      <option value="outlined">Contorneado</option>
-                      <option value="boxed">Con Fondo</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="subtitlePosition">Posición</label>
-                    <select
-                      id="subtitlePosition"
-                      value={subtitlePosition}
-                      onChange={e => setSubtitlePosition(e.target.value)}
-                      className="form-select"
-                    >
-                      <option value="top">Superior</option>
-                      <option value="center">Centro</option>
-                      <option value="bottom">Inferior</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="subtitleColor">Color del Texto</label>
-                    <div className="color-picker-group">
-                      <input
-                        id="subtitleColor"
-                        type="color"
-                        value={subtitleColor}
-                        onChange={e => setSubtitleColor(e.target.value)}
-                        className="color-input"
-                      />
-                      <span className="color-value">{subtitleColor}</span>
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="subtitleBgColor">Color del Fondo</label>
-                    <div className="color-picker-group">
-                      <input
-                        id="subtitleBgColor"
-                        type="color"
-                        value={subtitleBgColor}
-                        onChange={e => setSubtitleBgColor(e.target.value)}
-                        className="color-input"
-                      />
-                      <span className="color-value">{subtitleBgColor}</span>
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="subtitleFontSize">
-                      Tamaño de Fuente ({subtitleFontSize}px)
-                    </label>
-                    <input
-                      id="subtitleFontSize"
-                      type="range"
-                      min="16"
-                      max="48"
-                      value={subtitleFontSize}
-                      onChange={e =>
-                        setSubtitleFontSize(Number(e.target.value))
-                      }
-                      className="range-input"
+                      onChange={setSubtitleStyle}
+                      options={[
+                        { value: 'modern', label: 'Moderno (TikTok)' },
+                        { value: 'classic', label: 'Clásico' },
+                        { value: 'bold', label: 'Negrita + Sombra' },
+                        { value: 'outlined', label: 'Contorneado' },
+                        { value: 'boxed', label: 'Con Fondo' },
+                      ]}
                     />
-                  </div>
+
+                    <Select
+                      label="Posición"
+                      value={subtitlePosition}
+                      onChange={setSubtitlePosition}
+                      options={[
+                        { value: 'top', label: 'Superior' },
+                        { value: 'center', label: 'Centro' },
+                        { value: 'bottom', label: 'Inferior' },
+                      ]}
+                    />
+
+                    <Select
+                      label="Animación"
+                      value={subtitleAnimation}
+                      onChange={setSubtitleAnimation}
+                      options={SUBTITLE_ANIMATIONS}
+                    />
+
+                    <Select
+                      label="Fuente"
+                      value={subtitleFontFamily}
+                      onChange={setSubtitleFontFamily}
+                      options={SUBTITLE_FONTS}
+                    />
+                  </Section>
+
+                  <Section title="Colores y Tamaño" columns={2}>
+                    <ColorPicker
+                      label="Color del Texto"
+                      value={subtitleColor}
+                      onChange={setSubtitleColor}
+                    />
+
+                    <ColorPicker
+                      label="Color del Fondo"
+                      value={subtitleBgColor}
+                      onChange={setSubtitleBgColor}
+                    />
+                  </Section>
+
+                  <Section title="Tamaño de Texto" columns={1}>
+                    <EnhancedSlider
+                      label="Tamaño de Fuente"
+                      value={subtitleFontSize}
+                      onChange={setSubtitleFontSize}
+                      min={16}
+                      max={72}
+                      step={2}
+                      unit="px"
+                      type="default"
+                      description="16-24px = Pequeño, 32-48px = Medio, 56-72px = Grande"
+                    />
+                  </Section>
                 </>
               )}
-            </div>
-          )}
+            </TabPanel>
 
-          {/* Default Checkbox - Always visible */}
-          <div className="form-group default-checkbox">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={isDefault}
-                onChange={e => setIsDefault(e.target.checked)}
-              />
-              <span>⭐ Establecer como patrón predeterminado</span>
-            </label>
-            <p className="help-text">
-              Este patrón se aplicará automáticamente a todos los videos
-            </p>
-          </div>
+            {/* Quality Tab */}
+            <TabPanel id="quality" activeTab={activeTab}>
+              <Section
+                title="Configuración de Salida"
+                description="Calidad y formato del video procesado"
+                columns={2}
+              >
+                <Select
+                  label="Calidad de Salida"
+                  value={outputQuality}
+                  onChange={setOutputQuality}
+                  options={QUALITY_PRESETS}
+                />
+
+                <Select
+                  label="Bitrate"
+                  value={outputBitrate}
+                  onChange={setOutputBitrate}
+                  options={BITRATE_OPTIONS}
+                />
+              </Section>
+
+              <Section title="FPS y Fluidez" columns={1}>
+                <EnhancedSlider
+                  label="Frames por Segundo (FPS)"
+                  value={outputFps}
+                  onChange={setOutputFps}
+                  min={24}
+                  max={60}
+                  step={6}
+                  unit=" fps"
+                  type="default"
+                  description="24fps = Cinemático, 30fps = Standard, 60fps = Ultra Suave"
+                />
+              </Section>
+            </TabPanel>
+          </Tabs>
         </Card>
 
         {/* Right Panel - Preview */}
         <Card className="editor-preview">
-          <h2 className="section-title">👁️ Vista Previa</h2>
+          <h2 className="section-title">👁️ Vista Previa Interactiva</h2>
           <p className="preview-description">
-            Así se verá tu logo en los videos. Las líneas punteadas marcan las
-            zonas seguras (evita que UI de TikTok tape tu logo).
+            Compara cómo se verá tu video antes y después de aplicar los
+            efectos. Arrastra el control para ver la diferencia en tiempo real.
           </p>
 
-          <div className="canvas-container">
-            <canvas ref={canvasRef} className="preview-canvas" />
-          </div>
+          <BeforeAfterPreview
+            brightness={brightness}
+            contrast={contrast}
+            saturation={saturation}
+            filterType={filterType}
+            vignette={vignette}
+            logoUrl={previewUrl || logoUrl}
+            logoPosition={logoPosition}
+            logoSize={logoSize}
+            logoOpacity={logoOpacity}
+            enableSubtitles={enableSubtitles}
+            subtitleStyle={subtitleStyle}
+            subtitlePosition={subtitlePosition}
+            subtitleColor={subtitleColor}
+            subtitleBgColor={subtitleBgColor}
+            subtitleFontSize={subtitleFontSize}
+            subtitleAnimation={subtitleAnimation}
+            subtitleFontFamily={subtitleFontFamily}
+            enableAutoCrop={enableAutoCrop}
+            aspectRatio={aspectRatio}
+            cropPosition={cropPosition}
+          />
 
           <div className="preview-info">
             <div className="info-item">
@@ -705,6 +1240,17 @@ export const PatternEditorPage: React.FC = () => {
               <span className="info-label">Resolución:</span>
               <span className="info-value">1080x1920</span>
             </div>
+            <div className="info-item">
+              <span className="info-label">Configuración:</span>
+              <span className="info-value">
+                {enableColorGrading ? '✓ Color' : ''}{' '}
+                {enableEffects ? '✓ Efectos' : ''}{' '}
+                {enableSubtitles ? '✓ Subtítulos' : ''}
+                {!enableColorGrading && !enableEffects && !enableSubtitles
+                  ? 'Básica'
+                  : ''}
+              </span>
+            </div>
           </div>
 
           {logoPosition !== 'center' && (
@@ -712,6 +1258,11 @@ export const PatternEditorPage: React.FC = () => {
               <strong>💡 Tip:</strong> El logo está en zona segura ✓
             </div>
           )}
+
+          {/* Legacy canvas preview (hidden) */}
+          <div style={{ display: 'none' }}>
+            <canvas ref={canvasRef} className="preview-canvas" />
+          </div>
         </Card>
       </div>
     </div>
