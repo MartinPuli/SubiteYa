@@ -639,7 +639,7 @@ npm install speakeasy qrcode
 
 - **Privacy:** privacy@subiteya.com
 - **Soporte:** support@subiteya.com
-- **Legal:** legal@subiteya.com
+- **Legal:** legalessubiteya@gmail.com
 - **Seguridad:** security@subiteya.com
 - **Menores:** safety@subiteya.com
 

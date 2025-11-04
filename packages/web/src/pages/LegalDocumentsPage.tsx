@@ -81,7 +81,9 @@ export const LegalDocumentsPage: React.FC = () => {
           <p>Última actualización: Octubre 2025</p>
           <p>
             Para consultas:{' '}
-            <a href="mailto:legal@subiteya.com">legal@subiteya.com</a>
+            <a href="mailto:legalessubiteya@gmail.com">
+              legalessubiteya@gmail.com
+            </a>
           </p>
         </div>
       </div>

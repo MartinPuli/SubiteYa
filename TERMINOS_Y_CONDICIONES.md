@@ -287,7 +287,7 @@ Para consultas sobre estos Términos o el Servicio:
 **SubiteYa**
 
 - Email: support@subiteya.com
-- Email legal: legal@subiteya.com
+- Email legal: legalessubiteya@gmail.com
 - Email privacidad: privacy@subiteya.com
 
 ### 14.2 Tiempo de Respuesta
