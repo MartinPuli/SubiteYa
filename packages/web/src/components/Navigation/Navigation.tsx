@@ -58,6 +58,13 @@ export const Navigation: React.FC = () => {
             <span className="nav-icon">📜</span>
             Historial
           </Link>
+          <Link
+            to="/patterns"
+            className={`nav-link ${isActive('/patterns') ? 'nav-link--active' : ''}`}
+          >
+            <span className="nav-icon">🎨</span>
+            Patrones
+          </Link>
         </div>
 
         <div className="navigation-user">
