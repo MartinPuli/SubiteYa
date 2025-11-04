@@ -1,7 +1,7 @@
 {
-  "buildCommand": "cd packages/web && npm install && npm run build",
+  "buildCommand": "npm ci && cd packages/web && npm run build",
   "outputDirectory": "packages/web/dist",
-  "installCommand": null,
+  "installCommand": "npm ci",
   "framework": null,
   "routes": [
     {
