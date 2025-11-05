@@ -16,11 +16,10 @@ export const LegalDocumentsPage: React.FC = () => {
       setLoading(true);
       try {
         let url = '';
-        const basePath = import.meta.env.PROD ? '/SubiteYa' : '';
         if (type === 'terms') {
-          url = `${basePath}/TERMINOS_Y_CONDICIONES.md`;
+          url = '/TERMINOS_Y_CONDICIONES.md';
         } else if (type === 'privacy') {
-          url = `${basePath}/POLITICA_DE_PRIVACIDAD.md`;
+          url = '/POLITICA_DE_PRIVACIDAD.md';
         } else {
           navigate('/');
           return;
