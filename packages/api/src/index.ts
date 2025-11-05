@@ -55,12 +55,19 @@ const corsOptions = {
 
     // Remove trailing slash for comparison
     const normalizedOrigin = origin.replace(/\/$/, '');
+
+    // Check exact matches
     const isAllowed = allowedOrigins.some(allowed => {
       const normalizedAllowed = allowed.replace(/\/$/, '');
       return normalizedOrigin === normalizedAllowed;
     });
 
-    if (isAllowed) {
+    // Check Vercel preview deployments (*.vercel.app)
+    const isVercelPreview =
+      normalizedOrigin.endsWith('.vercel.app') &&
+      normalizedOrigin.startsWith('https://');
+
+    if (isAllowed || isVercelPreview) {
       console.log('✅ CORS allowed origin:', origin);
       callback(null, true);
     } else {
