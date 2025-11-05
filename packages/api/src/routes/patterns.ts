@@ -303,7 +303,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         thumbnailUrl,
         isDefault,
         // Color Grading
-        enableColorGrading,
+        enable_color_grading: enableColorGrading,
         brightness,
         contrast,
         saturation,
@@ -321,15 +321,15 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         blur,
         grain,
         // Speed & Motion
-        speedMultiplier,
-        enableSmoothSlow: enableSmoothSlowMotion,
-        enableStabilization,
-        enableDenoise,
-        denoiseStrength: Math.round(denoiseStrength * 100), // Convert 0-1 to 0-100
+        speed_multiplier: speedMultiplier,
+        enable_smooth_slow: enableSmoothSlowMotion,
+        enable_stabilization: enableStabilization,
+        enable_denoise: enableDenoise,
+        denoise_strength: Math.round(denoiseStrength * 100), // Convert 0-1 to 0-100
         // Auto Crop
-        enableAutoCrop,
-        targetAspectRatio: aspectRatio,
-        cropPosition,
+        enable_auto_crop: enableAutoCrop,
+        target_aspect_ratio: aspectRatio,
+        crop_position: cropPosition,
         // Subtitles
         enableSubtitles,
         subtitleStyle,
@@ -337,20 +337,20 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         subtitleColor,
         subtitleBgColor,
         subtitleFontSize,
-        subtitleFontFamily,
-        subtitleAnimation,
+        subtitle_animation: subtitleAnimation,
+        subtitle_font_family: subtitleFontFamily,
         // Audio
-        enableAudioEnhance: audioNormalize || enableBackgroundMusic,
-        audioNormalize,
-        audioVolume,
-        enableBgMusic: enableBackgroundMusic,
-        bgMusicVolume: backgroundMusicVolume,
+        enable_audio_enhance: audioNormalize || enableBackgroundMusic,
+        audio_normalize: audioNormalize,
+        audio_volume: audioVolume,
+        enable_bg_music: enableBackgroundMusic,
+        bg_music_volume: backgroundMusicVolume,
         // Quality
-        outputQuality,
-        outputBitrate,
-        outputFps,
+        output_quality: outputQuality,
+        output_bitrate: outputBitrate,
+        output_fps: outputFps,
         // Transitions
-        transitionType,
+        transition_type: transitionType,
       },
       include: {
         tiktokConnection: {
