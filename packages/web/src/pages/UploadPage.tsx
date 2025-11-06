@@ -103,7 +103,7 @@ export const UploadPage: React.FC = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Error al publicar');
+        throw new Error(data.message || data.error || 'Error al publicar');
       }
 
       // Extract results for each account
