@@ -6,6 +6,8 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER || 'subiteyacontact@gmail.com',
     pass: process.env.EMAIL_PASSWORD, // App Password de Gmail
   },
+  connectionTimeout: 5000, // 5 segundos
+  greetingTimeout: 5000,
 });
 
 export async function sendVerificationEmail(
