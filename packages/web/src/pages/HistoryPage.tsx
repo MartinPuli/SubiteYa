@@ -56,6 +56,23 @@ export const HistoryPage: React.FC = () => {
     }
   }, [isAuthenticated, token, navigate, fetchJobs]);
 
+  // Auto-refresh every 5 seconds if there are jobs in progress
+  useEffect(() => {
+    if (!token) return;
+
+    const hasInProgressJobs = jobs.some(job =>
+      ['queued', 'uploading', 'publishing'].includes(job.state.toLowerCase())
+    );
+
+    if (hasInProgressJobs) {
+      const interval = setInterval(() => {
+        fetchJobs(token).catch(console.error);
+      }, 5000); // Refresh every 5 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [token, jobs, fetchJobs]);
+
   return (
     <div className="history-page">
       <div className="history-header">

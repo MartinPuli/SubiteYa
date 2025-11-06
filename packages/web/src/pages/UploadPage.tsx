@@ -155,28 +155,23 @@ export const UploadPage: React.FC = () => {
     setLoading(true);
 
     try {
-      // Upload videos one by one
-      for (let i = 0; i < files.length; i++) {
-        await uploadSingleVideo(files[i], i);
-        // Small delay between uploads to avoid rate limiting
-        if (i < files.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-
-      // Check if all uploads were successful
-      const allSuccessful = uploadStatuses.every(
-        status => status.status === 'completed'
+      // Start async upload - videos will continue uploading in the background
+      const uploadPromises = files.map((file, index) =>
+        uploadSingleVideo(file, index)
       );
 
-      if (allSuccessful) {
-        alert(`✅ Todos los videos fueron publicados exitosamente`);
-        setTimeout(() => navigate('/history'), 2000);
-      } else {
-        alert(
-          `⚠️ Algunos videos no pudieron ser publicados. Revisa el estado de cada uno.`
-        );
-      }
+      // Don't wait for all uploads - let them happen in background
+      Promise.all(uploadPromises)
+        .then(() => {
+          console.log('All uploads completed');
+        })
+        .catch(err => {
+          console.error('Some uploads failed:', err);
+        });
+
+      // Immediately show success message and redirect to history
+      alert(`✅ Videos subidos! Los verás publicándose en el historial.`);
+      navigate('/history');
     } catch (error) {
       console.error('Upload error:', error);
       alert(error instanceof Error ? error.message : 'Error al publicar');
