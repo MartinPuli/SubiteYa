@@ -252,6 +252,13 @@ export const PatternEditorPage: React.FC = () => {
     }
   }, [isAuthenticated, token, id, navigate, fetchConnections]);
 
+  // Redirect if trying to create new pattern without connections
+  useEffect(() => {
+    if (id === 'new' && connections.length === 0 && !loading) {
+      navigate('/connections');
+    }
+  }, [id, connections, loading, navigate]);
+
   useEffect(() => {
     if (logoFile) {
       const url = URL.createObjectURL(logoFile);

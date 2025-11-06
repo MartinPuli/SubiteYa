@@ -131,9 +131,11 @@ export const PatternsPage: React.FC = () => {
             Editamos tu video automáticamente con tu marca y formato
           </p>
         </div>
-        <Button variant="primary" onClick={() => navigate('/patterns/new')}>
-          + Nuevo Patrón
-        </Button>
+        {connections.length > 0 && (
+          <Button variant="primary" onClick={() => navigate('/patterns/new')}>
+            + Nuevo Patrón
+          </Button>
+        )}
       </div>
 
       {connections.length === 0 ? (
