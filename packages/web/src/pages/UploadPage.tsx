@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/Card/Card';
 import { Button } from '../components/Button/Button';
-import { Input } from '../components/Input/Input';
 import { useAuthStore } from '../store/authStore';
 import { useAppStore } from '../store/appStore';
 import { API_ENDPOINTS } from '../config/api';
@@ -25,7 +24,6 @@ export const UploadPage: React.FC = () => {
   const [uploadStatuses, setUploadStatuses] = useState<VideoUploadStatus[]>([]);
   const [caption, setCaption] = useState('');
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
-  const [scheduleDate, setScheduleDate] = useState('');
   const [privacyLevel, setPrivacyLevel] = useState('PUBLIC_TO_EVERYONE');
   const [disableComment, setDisableComment] = useState(false);
   const [disableDuet, setDisableDuet] = useState(false);
@@ -92,10 +90,6 @@ export const UploadPage: React.FC = () => {
       formData.append('disableComment', String(disableComment));
       formData.append('disableDuet', String(disableDuet));
       formData.append('disableStitch', String(disableStitch));
-
-      if (scheduleDate) {
-        formData.append('scheduleTime', new Date(scheduleDate).toISOString());
-      }
 
       const response = await fetch(API_ENDPOINTS.publish, {
         method: 'POST',
@@ -408,20 +402,6 @@ export const UploadPage: React.FC = () => {
               </label>
             </div>
           </div>
-        </Card>
-
-        <Card>
-          <h3>⏰ Programar (Opcional)</h3>
-          <Input
-            type="datetime-local"
-            value={scheduleDate}
-            onChange={e => setScheduleDate(e.target.value)}
-            onClick={e => e.stopPropagation()}
-            fullWidth
-          />
-          <small style={{ color: '#888', marginTop: '8px', display: 'block' }}>
-            ⚠️ La programación aún no está implementada
-          </small>
         </Card>
 
         {(files.length === 0 || selectedAccounts.length === 0) && (
