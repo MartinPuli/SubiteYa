@@ -55,6 +55,23 @@ function decryptToken(encryptedToken: string): string {
   return decrypted;
 }
 
+// Temporary storage for code verifiers (in production use Redis)
+const codeVerifiers = new Map<string, string>();
+
+// Generate PKCE code verifier and challenge
+function generatePKCE() {
+  // Generate code verifier (43-128 characters)
+  const codeVerifier = crypto.randomBytes(32).toString('base64url');
+
+  // Generate code challenge (SHA256 hash of verifier)
+  const codeChallenge = crypto
+    .createHash('sha256')
+    .update(codeVerifier)
+    .digest('base64url');
+
+  return { codeVerifier, codeChallenge };
+}
+
 // GET /auth/tiktok - Initiate OAuth flow
 router.get('/tiktok', authenticate, (req: AuthRequest, res: Response) => {
   try {
@@ -69,6 +86,9 @@ router.get('/tiktok', authenticate, (req: AuthRequest, res: Response) => {
     // Generate CSRF token
     const csrfState = crypto.randomBytes(16).toString('hex');
 
+    // Generate PKCE parameters
+    const { codeVerifier, codeChallenge } = generatePKCE();
+
     // Store state in session or temporary storage
     // For now, we'll pass user ID in state (in production use Redis/session)
     const state = Buffer.from(
@@ -77,6 +97,10 @@ router.get('/tiktok', authenticate, (req: AuthRequest, res: Response) => {
         userId: req.user!.userId,
       })
     ).toString('base64');
+
+    // Store code verifier temporarily (expires in 10 minutes)
+    codeVerifiers.set(state, codeVerifier);
+    setTimeout(() => codeVerifiers.delete(state), 10 * 60 * 1000);
 
     // Request user info and video publishing permissions
     // video.publish is required for Content Posting API (Direct Post)
@@ -89,6 +113,9 @@ router.get('/tiktok', authenticate, (req: AuthRequest, res: Response) => {
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('redirect_uri', TIKTOK_REDIRECT_URI);
     authUrl.searchParams.set('state', state);
+    // PKCE parameters
+    authUrl.searchParams.set('code_challenge', codeChallenge);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
     // Siempre mostrar pantalla de autorización para permitir múltiples cuentas
     authUrl.searchParams.set('disable_auto_auth', '1');
 
@@ -135,7 +162,20 @@ router.get('/tiktok/callback', async (req: Request, res: Response) => {
     const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
     const userId = stateData.userId;
 
-    // Exchange code for access token
+    // Retrieve code verifier
+    const codeVerifier = codeVerifiers.get(state);
+    if (!codeVerifier) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'Code verifier not found or expired',
+      });
+      return;
+    }
+
+    // Clean up code verifier
+    codeVerifiers.delete(state);
+
+    // Exchange code for access token with PKCE
     const tokenResponse = await fetch(
       'https://open.tiktokapis.com/v2/oauth/token/',
       {
@@ -149,6 +189,7 @@ router.get('/tiktok/callback', async (req: Request, res: Response) => {
           code,
           grant_type: 'authorization_code',
           redirect_uri: TIKTOK_REDIRECT_URI,
+          code_verifier: codeVerifier, // PKCE verifier
         }),
       }
     );
