@@ -252,8 +252,8 @@ export const BeforeAfterPreview: React.FC<BeforeAfterPreviewProps> = ({
     <div className="before-after-preview">
       <div className="preview-header">
         <div className="preview-labels">
-          <span className="label-after">DESPUÉS</span>
           <span className="label-before">ANTES</span>
+          <span className="label-after">DESPUÉS</span>
         </div>
         <div className="image-selector">
           {PREVIEW_IMAGES.map((img, index) => (
@@ -287,8 +287,16 @@ export const BeforeAfterPreview: React.FC<BeforeAfterPreviewProps> = ({
         aria-valuenow={Math.round(sliderPosition)}
         aria-label="Comparación antes y después"
       >
-        {/* After Image - Now on the left (full background) */}
-        <div className="image-after">
+        {/* Before Image (original) - on the left (full background) */}
+        <div className="image-before">
+          <img src={currentImage} alt="Original" draggable={false} />
+        </div>
+
+        {/* After Image (processed) - on the right (clipped to show only right portion) */}
+        <div
+          className="image-after"
+          style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
+        >
           <div className="image-content" style={getCropStyle()}>
             <img
               src={currentImage}
@@ -350,14 +358,6 @@ export const BeforeAfterPreview: React.FC<BeforeAfterPreviewProps> = ({
               </div>
             )}
           </div>
-        </div>
-
-        {/* Before Image - Now on the right (clipped) */}
-        <div
-          className="image-before"
-          style={{ clipPath: `inset(0 0 0 ${sliderPosition}%)` }}
-        >
-          <img src={currentImage} alt="Original" draggable={false} />
         </div>
 
         {/* Slider Handle */}
