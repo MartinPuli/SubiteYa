@@ -81,12 +81,21 @@ html {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent white background on overscroll */
+  overscroll-behavior: none;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  background-attachment: fixed;
 }
 
 body {
   background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
   color: var(--color-gray-900);
   min-height: 100vh;
+  /* Prevent white background on overscroll */
+  overscroll-behavior: none;
+  /* Ensure background is fixed and covers entire viewport */
+  background-attachment: fixed;
+  background-size: cover;
 }
 
 #root {
