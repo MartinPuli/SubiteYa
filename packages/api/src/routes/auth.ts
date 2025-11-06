@@ -127,7 +127,16 @@ router.post('/register', async (req: Request, res: Response) => {
       console.log(`✅ Email de verificación enviado a: ${email}`);
     } catch (emailError) {
       console.error('❌ Error enviando email de verificación:', emailError);
-      // Don't fail registration if email fails
+      // Delete user if email fails
+      await prisma.user.delete({
+        where: { id: user.id },
+      });
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message:
+          'No se pudo enviar el email de verificación. Por favor, intenta nuevamente.',
+      });
+      return;
     }
 
     // Generate token
