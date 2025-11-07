@@ -110,6 +110,25 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
+// Redis health check endpoint
+app.get('/health/redis', async (_req: Request, res: Response) => {
+  try {
+    const { getQueueStats } = await import('./lib/queues');
+    const stats = await getQueueStats();
+    res.json({
+      status: 'ok',
+      redis: 'connected',
+      queues: stats,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      redis: 'disconnected',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
 // Import routes
 import authRoutes from './routes/auth';
 import connectionsRoutes from './routes/connections';
