@@ -84,7 +84,15 @@ router.post(
       const userId = req.user!.userId;
       const file = req.file;
 
+      console.log('[POST /publish] User:', userId);
+      console.log(
+        '[POST /publish] File:',
+        file ? `${file.originalname} (${file.size} bytes)` : 'NO FILE'
+      );
+      console.log('[POST /publish] Body:', { ...req.body, video: undefined });
+
       if (!file) {
+        console.log('[POST /publish] ERROR: No file provided');
         res.status(400).json({
           error: 'Bad Request',
           message: 'Archivo de video requerido',
@@ -102,6 +110,12 @@ router.post(
         accountIds,
       } = req.body;
 
+      console.log('[POST /publish] Parsed params:', {
+        titleParam,
+        caption,
+        accountIds,
+      });
+
       // Convert string booleans to actual booleans (FormData sends strings)
       const disableComment =
         disableCommentRaw === 'true' || disableCommentRaw === true;
@@ -116,7 +130,10 @@ router.post(
       // Accept either title or caption
       const title = titleParam || caption;
 
+      console.log('[POST /publish] Final title:', title);
+
       if (!title || title.trim().length === 0) {
+        console.log('[POST /publish] ERROR: Title/caption is empty');
         res.status(400).json({
           error: 'Bad Request',
           message: 'El título/descripción es requerido',
@@ -125,6 +142,7 @@ router.post(
       }
 
       if (!accountIds || accountIds.length === 0) {
+        console.log('[POST /publish] ERROR: No accountIds provided');
         res.status(400).json({
           error: 'Bad Request',
           message: 'Debe seleccionar al menos una cuenta',
@@ -136,13 +154,18 @@ router.post(
       const parsedAccountIds =
         typeof accountIds === 'string' ? JSON.parse(accountIds) : accountIds;
 
+      console.log('[POST /publish] Parsed account IDs:', parsedAccountIds);
+
       if (!Array.isArray(parsedAccountIds) || parsedAccountIds.length === 0) {
+        console.log('[POST /publish] ERROR: Invalid accountIds format');
         res.status(400).json({
           error: 'Bad Request',
           message: 'accountIds debe ser un array con al menos un ID',
         });
         return;
       }
+
+      console.log('[POST /publish] Fetching connections for user...');
 
       // Verify all connections belong to user and get them
       const connections = await prisma.tikTokConnection.findMany({
