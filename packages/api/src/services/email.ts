@@ -8,15 +8,21 @@ console.log('📧 EMAIL CONFIG:', {
 });
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false, // true for 465, false for other ports
   auth: {
     user: process.env.EMAIL_USER || 'subiteyacontact@gmail.com',
     pass: process.env.EMAIL_PASSWORD, // App Password de Gmail
   },
-  connectionTimeout: 10000, // 10 segundos
-  greetingTimeout: 10000,
+  connectionTimeout: 30000, // 30 segundos
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
   logger: true, // Enable logging
   debug: true, // Enable debug output
+  tls: {
+    rejectUnauthorized: false, // Solo para desarrollo
+  },
 });
 
 export async function sendVerificationEmail(
