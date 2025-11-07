@@ -20,6 +20,21 @@ const writeFile = promisify(fs.writeFile);
 const unlink = promisify(fs.unlink);
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '';
+
+// Helper to cleanup files even if request is aborted
+async function safeCleanup(filePaths: string[]) {
+  for (const filePath of filePaths) {
+    try {
+      await unlink(filePath);
+      console.log(`✓ Cleaned up: ${filePath}`);
+    } catch (err) {
+      // File might already be deleted or not exist
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.warn(`⚠ Failed to cleanup ${filePath}:`, err);
+      }
+    }
+  }
+}
 // const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY || '';
 // const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET || '';
 
@@ -186,7 +201,8 @@ router.post(
         },
       });
 
-      const connectionVideoBuffers = new Map<string, Buffer>();
+      // Map: connectionId -> video file path (not buffer to save memory)
+      const connectionVideoPaths = new Map<string, string>();
 
       // Apply brand pattern per connection so each cuenta usa su diseño
       for (const connection of connections) {
@@ -201,10 +217,12 @@ router.post(
 
           const shouldApplyPattern =
             !!pattern &&
-            (pattern.logoUrl || pattern.enableEffects || pattern.enableSubtitles);
+            (pattern.logoUrl ||
+              pattern.enableEffects ||
+              pattern.enableSubtitles);
 
           if (!shouldApplyPattern) {
-            connectionVideoBuffers.set(connection.id, file.buffer);
+            connectionVideoPaths.set(connection.id, originalVideoPath);
             if (!pattern) {
               console.log(
                 `[${connection.displayName}] Sin patrón por defecto, se usa el video original`
@@ -243,37 +261,25 @@ router.post(
           });
 
           if (processResult.success && processResult.outputPath) {
-            const processedBuffer = await fs.promises.readFile(
-              processResult.outputPath
-            );
-            connectionVideoBuffers.set(connection.id, processedBuffer);
-            console.log(
-              `[${connection.displayName}] ✓ Patrón aplicado. Tamaño final: ${processedBuffer.length} bytes`
-            );
+            connectionVideoPaths.set(connection.id, processResult.outputPath);
+            processedFilesForCleanup.add(processResult.outputPath);
 
-            if (processResult.outputPath !== originalVideoPath) {
-              try {
-                await unlink(processResult.outputPath);
-              } catch (unlinkError) {
-                console.warn(
-                  `[${connection.displayName}] No se pudo borrar video procesado inmediatamente:`,
-                  unlinkError
-                );
-                processedFilesForCleanup.add(processResult.outputPath);
-              }
-            }
+            const stats = await fs.promises.stat(processResult.outputPath);
+            console.log(
+              `[${connection.displayName}] ✓ Patrón aplicado. Tamaño final: ${stats.size} bytes`
+            );
           } else {
             console.warn(
               `[${connection.displayName}] ⚠ Error al aplicar patrón: ${processResult.error}. Se usará el video original.`
             );
-            connectionVideoBuffers.set(connection.id, file.buffer);
+            connectionVideoPaths.set(connection.id, originalVideoPath);
           }
         } catch (patternError) {
           console.error(
             `[${connection.displayName}] Error procesando patrón:`,
             patternError
           );
-          connectionVideoBuffers.set(connection.id, file.buffer);
+          connectionVideoPaths.set(connection.id, originalVideoPath);
         }
       }
 
@@ -297,8 +303,15 @@ router.post(
       const publishResults: PublishResult[] = await Promise.all(
         connections.map(async connection => {
           try {
-            const finalVideoBuffer =
-              connectionVideoBuffers.get(connection.id) ?? file.buffer;
+            const videoPath =
+              connectionVideoPaths.get(connection.id) ?? originalVideoPath;
+
+            if (!videoPath) {
+              throw new Error('Video path not found');
+            }
+
+            // Read video only when needed for upload (reduces memory usage)
+            const finalVideoBuffer = await fs.promises.readFile(videoPath);
 
             // Decrypt access token
             const accessToken = decryptToken(connection.accessTokenEnc);
@@ -527,20 +540,12 @@ router.post(
       });
 
       // Cleanup temporary files
-      try {
-        if (originalVideoPath) {
-          await unlink(originalVideoPath);
-        }
-        for (const tempFile of processedFilesForCleanup) {
-          try {
-            await unlink(tempFile);
-          } catch (err) {
-            console.warn('Failed to cleanup processed temp file:', err);
-          }
-        }
-      } catch (cleanupError) {
-        console.warn('Failed to cleanup temp files:', cleanupError);
-      }
+      const filesToCleanup = originalVideoPath
+        ? [originalVideoPath, ...Array.from(processedFilesForCleanup)]
+        : Array.from(processedFilesForCleanup);
+
+      // Use safeCleanup to handle any errors gracefully
+      await safeCleanup(filesToCleanup);
 
       res.status(201).json({
         message: `Video publicado en ${successCount} de ${connections.length} cuenta(s)`,
@@ -554,20 +559,11 @@ router.post(
       console.error('Publish error:', error);
 
       // Cleanup on error
-      try {
-        if (originalVideoPath) {
-          await unlink(originalVideoPath);
-        }
-        for (const tempFile of processedFilesForCleanup) {
-          try {
-            await unlink(tempFile);
-          } catch (err) {
-            console.warn('Failed to cleanup processed temp file:', err);
-          }
-        }
-      } catch (cleanupError) {
-        console.warn('Failed to cleanup temp files on error:', cleanupError);
-      }
+      const filesToCleanup = originalVideoPath
+        ? [originalVideoPath, ...Array.from(processedFilesForCleanup)]
+        : Array.from(processedFilesForCleanup);
+
+      await safeCleanup(filesToCleanup);
 
       res.status(500).json({
         error: 'Internal Server Error',
