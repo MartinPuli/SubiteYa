@@ -29,5 +29,5 @@ RUN npm run build
 # Exponer puerto
 EXPOSE 3000
 
-# Comando de inicio
-CMD ["npm", "run", "start:migrate", "-w", "@subiteya/api"]
+# Comando de inicio (sin migraciones automáticas)
+CMD ["npm", "run", "start", "-w", "@subiteya/api"]
