@@ -2,7 +2,7 @@
 # Este archivo permite desplegar tu backend en Render con un solo click
 
 services:
-  # API Backend
+  # API Backend (sin workers para ahorrar memoria)
   - type: web
     name: subiteya-api
     runtime: docker # Cambiado a Docker para instalar FFmpeg
@@ -17,12 +17,66 @@ services:
       - key: PORT
         value: 3000
       # Estas las agregarás manualmente en Render Dashboard:
-      # - DB_URL (tu PostgreSQL/Supabase existente)
+      # - DATABASE_URL (tu PostgreSQL/Supabase existente)
       # - DIRECT_URL (tu PostgreSQL/Supabase existente)
       # - JWT_SECRET
+      # - ENCRYPTION_KEY
+      # - REDIS_URL (Upstash Redis)
+      # - AWS_ACCESS_KEY_ID
+      # - AWS_SECRET_ACCESS_KEY
+      # - AWS_REGION
+      # - AWS_S3_BUCKET
       # - TIKTOK_CLIENT_KEY
       # - TIKTOK_CLIENT_SECRET
       # - TIKTOK_REDIRECT_URI
       - key: ALLOWED_ORIGINS
         value: https://martinpuli.github.io
+    autoDeploy: true
+
+  # Edit Worker (procesa videos con FFmpeg)
+  - type: worker
+    name: subiteya-edit-worker
+    runtime: docker
+    region: oregon
+    plan: free # Necesitarás plan pago si usas mucho
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: npm run worker:edit -w @subiteya/api
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Comparte las mismas variables que el API
+      # - DATABASE_URL
+      # - DIRECT_URL
+      # - REDIS_URL
+      # - AWS_ACCESS_KEY_ID
+      # - AWS_SECRET_ACCESS_KEY
+      # - AWS_REGION
+      # - AWS_S3_BUCKET
+      # - ENCRYPTION_KEY
+    autoDeploy: true
+
+  # Upload Worker (sube videos a TikTok)
+  - type: worker
+    name: subiteya-upload-worker
+    runtime: docker
+    region: oregon
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: npm run worker:upload -w @subiteya/api
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Comparte las mismas variables que el API
+      # - DATABASE_URL
+      # - DIRECT_URL
+      # - REDIS_URL
+      # - TIKTOK_CLIENT_KEY
+      # - TIKTOK_CLIENT_SECRET
+      # - AWS_ACCESS_KEY_ID
+      # - AWS_SECRET_ACCESS_KEY
+      # - AWS_REGION
+      # - AWS_S3_BUCKET
+      # - ENCRYPTION_KEY
     autoDeploy: true
