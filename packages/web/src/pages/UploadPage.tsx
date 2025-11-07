@@ -70,7 +70,15 @@ export const UploadPage: React.FC = () => {
     file: File,
     index: number
   ): Promise<void> => {
-    if (!token) return;
+    if (!token) {
+      console.error('No token available');
+      throw new Error('No token');
+    }
+
+    console.log(
+      `[Upload ${index}] Starting upload of ${file.name} (${file.size} bytes)`
+    );
+    console.log(`[Upload ${index}] Selected accounts:`, selectedAccounts);
 
     // Update status to uploading
     setUploadStatuses(prev =>
@@ -91,6 +99,10 @@ export const UploadPage: React.FC = () => {
       formData.append('disableDuet', String(disableDuet));
       formData.append('disableStitch', String(disableStitch));
 
+      console.log(
+        `[Upload ${index}] FormData prepared, sending to ${API_ENDPOINTS.publish}`
+      );
+
       // Use XMLHttpRequest to track upload progress
       const data = await new Promise<{
         results?: Array<{ success: boolean; error?: string }>;
@@ -101,6 +113,9 @@ export const UploadPage: React.FC = () => {
         xhr.upload.addEventListener('progress', e => {
           if (e.lengthComputable) {
             const percentComplete = (e.loaded / e.total) * 100;
+            console.log(
+              `[Upload ${index}] Progress: ${Math.round(percentComplete)}%`
+            );
             setUploadStatuses(prev =>
               prev.map((status, i) =>
                 i === index
@@ -112,6 +127,9 @@ export const UploadPage: React.FC = () => {
         });
 
         xhr.addEventListener('load', () => {
+          console.log(`[Upload ${index}] Response status: ${xhr.status}`);
+          console.log(`[Upload ${index}] Response text:`, xhr.responseText);
+
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               resolve(JSON.parse(xhr.responseText));
@@ -189,27 +207,41 @@ export const UploadPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (files.length === 0 || selectedAccounts.length === 0 || !token) return;
+    if (files.length === 0 || selectedAccounts.length === 0 || !token) {
+      return;
+    }
 
     setLoading(true);
 
     try {
       // Upload all videos sequentially with visible progress
+      let successCount = 0;
+      let failCount = 0;
+
       for (let i = 0; i < files.length; i++) {
-        await uploadSingleVideo(files[i], i);
+        try {
+          await uploadSingleVideo(files[i], i);
+          successCount++;
+        } catch (error) {
+          failCount++;
+          console.error(`Failed to upload video ${i}:`, error);
+        }
+
         // Small delay between uploads to avoid overwhelming server
         if (i < files.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
 
-      // Check if all uploads succeeded
-      const allSuccess = uploadStatuses.every(s => s.status === 'success');
-
-      if (allSuccess) {
+      // Show result message
+      if (failCount === 0) {
         alert('✅ Videos subidos! Los verás publicándose en el historial.');
+      } else if (successCount > 0) {
+        alert(
+          `⚠️ ${successCount} video(s) subido(s), ${failCount} fallaron. Revisa el historial.`
+        );
       } else {
-        alert('⚠️ Algunos videos fallaron. Revisa el historial.');
+        alert('❌ Error al subir los videos. Intenta nuevamente.');
       }
 
       navigate('/history');
