@@ -13,6 +13,7 @@ import { promisify } from 'util';
 import { prisma } from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { applyBrandPattern } from '../lib/video-processor';
+import { videoQueue } from '../lib/video-queue';
 
 const router = Router();
 
@@ -201,7 +202,32 @@ router.post(
         },
       });
 
-      // Map: connectionId -> video file path (not buffer to save memory)
+      // Create jobs immediately in 'queued' state so they appear in history
+      const jobIdMap = new Map<string, string>();
+      for (const connection of connections) {
+        const job = await prisma.publishJob.create({
+          data: {
+            batchId: batch.id,
+            userId,
+            tiktokConnectionId: connection.id,
+            videoAssetId: videoAsset.id,
+            caption: title,
+            hashtags: [],
+            privacyStatus: privacyLevel,
+            allowDuet: !disableDuet,
+            allowStitch: !disableStitch,
+            allowComment: !disableComment,
+            scheduleTimeUtc: null,
+            state: 'queued',
+            idempotencyKey: crypto.randomBytes(16).toString('hex'),
+          },
+        });
+        jobIdMap.set(connection.id, job.id);
+        console.log(
+          `[${connection.displayName}] Job created: ${job.id} (queued)`
+        );
+      }
+
       const connectionVideoPaths = new Map<string, string>();
 
       // Apply brand pattern per connection so each cuenta usa su diseño
@@ -444,29 +470,24 @@ router.post(
               throw new Error('Video upload failed');
             }
 
-            // Create publish job record
-            const job = await prisma.publishJob.create({
-              data: {
-                batchId: batch.id,
-                userId,
-                tiktokConnectionId: connection.id,
-                videoAssetId: videoAsset.id,
-                caption: title,
-                hashtags: [],
-                privacyStatus: privacyLevel,
-                allowDuet: !disableDuet,
-                allowStitch: !disableStitch,
-                allowComment: !disableComment,
-                scheduleTimeUtc: null,
-                state: 'publishing',
-                idempotencyKey: crypto.randomBytes(16).toString('hex'),
-                tiktokVideoId: initData.data.publish_id,
-              },
-            });
+            // Update job to 'publishing' state with TikTok video ID
+            const jobId = jobIdMap.get(connection.id);
+            if (jobId) {
+              await prisma.publishJob.update({
+                where: { id: jobId },
+                data: {
+                  state: 'publishing',
+                  tiktokVideoId: initData.data.publish_id,
+                },
+              });
+              console.log(
+                `[${connection.displayName}] Job ${jobId} updated to publishing`
+              );
+            }
 
             return {
               success: true,
-              jobId: job.id,
+              jobId: jobId!,
               publishId: initData.data.publish_id,
               connectionId: connection.id,
               displayName: connection.displayName,
@@ -476,28 +497,26 @@ router.post(
               `Error publishing to ${connection.displayName}:`,
               error
             );
-            // Create failed job
-            const job = await prisma.publishJob.create({
-              data: {
-                batchId: batch.id,
-                userId,
-                tiktokConnectionId: connection.id,
-                videoAssetId: videoAsset.id,
-                caption: title,
-                hashtags: [],
-                privacyStatus: privacyLevel,
-                allowDuet: !disableDuet,
-                allowStitch: !disableStitch,
-                allowComment: !disableComment,
-                scheduleTimeUtc: null,
-                state: 'failed',
-                idempotencyKey: crypto.randomBytes(16).toString('hex'),
-              },
-            });
+
+            // Update job to 'failed' state
+            const jobId = jobIdMap.get(connection.id);
+            if (jobId) {
+              await prisma.publishJob.update({
+                where: { id: jobId },
+                data: {
+                  state: 'failed',
+                  errorMessage:
+                    error instanceof Error ? error.message : 'Unknown error',
+                },
+              });
+              console.log(
+                `[${connection.displayName}] Job ${jobId} marked as failed`
+              );
+            }
 
             return {
               success: false,
-              jobId: job.id,
+              jobId: jobId!,
               connectionId: connection.id,
               displayName: connection.displayName,
               error: error instanceof Error ? error.message : 'Unknown error',

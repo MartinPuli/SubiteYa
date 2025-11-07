@@ -91,20 +91,59 @@ export const UploadPage: React.FC = () => {
       formData.append('disableDuet', String(disableDuet));
       formData.append('disableStitch', String(disableStitch));
 
-      const response = await fetch(API_ENDPOINTS.publish, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        credentials: 'include',
-        body: formData,
+      // Use XMLHttpRequest to track upload progress
+      const data = await new Promise<{
+        results?: Array<{ success: boolean; error?: string }>;
+      }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        // Track upload progress
+        xhr.upload.addEventListener('progress', e => {
+          if (e.lengthComputable) {
+            const percentComplete = (e.loaded / e.total) * 100;
+            setUploadStatuses(prev =>
+              prev.map((status, i) =>
+                i === index
+                  ? { ...status, progress: Math.round(percentComplete) }
+                  : status
+              )
+            );
+          }
+        });
+
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolve(JSON.parse(xhr.responseText));
+            } catch {
+              reject(new Error('Invalid JSON response'));
+            }
+          } else {
+            try {
+              const errorData = JSON.parse(xhr.responseText);
+              reject(
+                new Error(
+                  errorData.message || errorData.error || 'Upload failed'
+                )
+              );
+            } catch {
+              reject(new Error(`Upload failed with status ${xhr.status}`));
+            }
+          }
+        });
+
+        xhr.addEventListener('error', () => {
+          reject(new Error('Network error'));
+        });
+
+        xhr.addEventListener('abort', () => {
+          reject(new Error('Upload cancelled'));
+        });
+
+        xhr.open('POST', API_ENDPOINTS.publish);
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.send(formData);
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || data.error || 'Error al publicar');
-      }
 
       // Extract results for each account
       const accountResults = selectedAccounts.map((accountId, idx) => {
@@ -155,22 +194,24 @@ export const UploadPage: React.FC = () => {
     setLoading(true);
 
     try {
-      // Start async upload - videos will continue uploading in the background
-      const uploadPromises = files.map((file, index) =>
-        uploadSingleVideo(file, index)
-      );
+      // Upload all videos sequentially with visible progress
+      for (let i = 0; i < files.length; i++) {
+        await uploadSingleVideo(files[i], i);
+        // Small delay between uploads to avoid overwhelming server
+        if (i < files.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
 
-      // Don't wait for all uploads - let them happen in background
-      Promise.all(uploadPromises)
-        .then(() => {
-          console.log('All uploads completed');
-        })
-        .catch(err => {
-          console.error('Some uploads failed:', err);
-        });
+      // Check if all uploads succeeded
+      const allSuccess = uploadStatuses.every(s => s.status === 'success');
 
-      // Immediately show success message and redirect to history
-      alert(`✅ Videos subidos! Los verás publicándose en el historial.`);
+      if (allSuccess) {
+        alert('✅ Videos subidos! Los verás publicándose en el historial.');
+      } else {
+        alert('⚠️ Algunos videos fallaron. Revisa el historial.');
+      }
+
       navigate('/history');
     } catch (error) {
       console.error('Upload error:', error);
@@ -434,10 +475,96 @@ export const UploadPage: React.FC = () => {
             disabled={files.length === 0 || selectedAccounts.length === 0}
           >
             {loading
-              ? `Publicando ${uploadStatuses.filter(s => s.status === 'uploading').length}/${files.length}...`
+              ? `Subiendo ${uploadStatuses.filter(s => s.status === 'uploading' || s.status === 'completed').length}/${files.length}...`
               : `Publicar ${files.length} video(s) en ${selectedAccounts.length} cuenta(s)`}
           </Button>
         </div>
+
+        {/* Upload Progress Overlay */}
+        {loading && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+            }}
+          >
+            <div
+              style={{
+                background: 'var(--color-bg-secondary)',
+                borderRadius: '12px',
+                padding: '32px',
+                maxWidth: '500px',
+                width: '90%',
+              }}
+            >
+              <h3 style={{ marginBottom: '24px', textAlign: 'center' }}>
+                📤 Subiendo videos...
+              </h3>
+
+              {uploadStatuses.map((status, index) => (
+                <div key={index} style={{ marginBottom: '16px' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '8px',
+                      fontSize: '14px',
+                    }}
+                  >
+                    <span>{status.file.name}</span>
+                    <span>
+                      {status.status === 'pending' && '⏳'}
+                      {status.status === 'uploading' && '📤'}
+                      {status.status === 'completed' && '✅'}
+                      {status.status === 'error' && '❌'}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      height: '4px',
+                      background: 'var(--color-border)',
+                      borderRadius: '2px',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: '100%',
+                        width: `${status.progress}%`,
+                        background:
+                          status.status === 'error'
+                            ? '#ef4444'
+                            : status.status === 'completed'
+                              ? '#10b981'
+                              : '#3b82f6',
+                        transition: 'width 0.3s ease',
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+
+              <p
+                style={{
+                  marginTop: '24px',
+                  textAlign: 'center',
+                  fontSize: '14px',
+                  color: 'var(--color-text-secondary)',
+                }}
+              >
+                No cierres esta ventana
+              </p>
+            </div>
+          </div>
+        )}
       </form>
     </div>
   );
