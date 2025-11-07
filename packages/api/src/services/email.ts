@@ -1,29 +1,12 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 // Debug logs
 console.log('📧 EMAIL CONFIG:', {
-  user: process.env.EMAIL_USER ? '✅ Set' : '❌ Missing',
-  password: process.env.EMAIL_PASSWORD ? '✅ Set' : '❌ Missing',
+  resendKey: process.env.RESEND_API_KEY ? '✅ Set' : '❌ Missing',
   frontend: process.env.FRONTEND_URL ? '✅ Set' : '❌ Missing',
 });
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL_USER || 'subiteyacontact@gmail.com',
-    pass: process.env.EMAIL_PASSWORD, // App Password de Gmail
-  },
-  connectionTimeout: 30000, // 30 segundos
-  greetingTimeout: 30000,
-  socketTimeout: 30000,
-  logger: true, // Enable logging
-  debug: true, // Enable debug output
-  tls: {
-    rejectUnauthorized: false, // Solo para desarrollo
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendVerificationEmail(
   email: string,
@@ -32,11 +15,12 @@ export async function sendVerificationEmail(
 ): Promise<void> {
   const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?email=${encodeURIComponent(email)}&code=${code}`;
 
-  const mailOptions = {
-    from: `"SubiteYa" <${process.env.EMAIL_USER || 'subiteyacontact@gmail.com'}>`,
-    to: email,
-    subject: '✨ Verifica tu email - SubiteYa',
-    html: `
+  try {
+    await resend.emails.send({
+      from: 'SubiteYa <onboarding@resend.dev>',
+      to: email,
+      subject: '✨ Verifica tu email - SubiteYa',
+      html: `
       <!DOCTYPE html>
       <html>
       <head>
@@ -85,10 +69,7 @@ export async function sendVerificationEmail(
       </body>
       </html>
     `,
-  };
-
-  try {
-    await transporter.sendMail(mailOptions);
+    });
     console.log(`✅ Email de verificación enviado a: ${email}`);
   } catch (error) {
     console.error('❌ Error al enviar email de verificación:', error);
@@ -103,11 +84,12 @@ export async function sendPasswordResetEmail(
 ): Promise<void> {
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password?email=${encodeURIComponent(email)}&code=${code}`;
 
-  const mailOptions = {
-    from: `"SubiteYa" <${process.env.EMAIL_USER || 'subiteyacontact@gmail.com'}>`,
-    to: email,
-    subject: '🔑 Recupera tu contraseña - SubiteYa',
-    html: `
+  try {
+    await resend.emails.send({
+      from: 'SubiteYa <onboarding@resend.dev>',
+      to: email,
+      subject: '🔑 Recupera tu contraseña - SubiteYa',
+      html: `
       <!DOCTYPE html>
       <html>
       <head>
@@ -161,10 +143,7 @@ export async function sendPasswordResetEmail(
       </body>
       </html>
     `,
-  };
-
-  try {
-    await transporter.sendMail(mailOptions);
+    });
     console.log(`✅ Email de recuperación enviado a: ${email}`);
   } catch (error) {
     console.error('❌ Error al enviar email de recuperación:', error);
@@ -176,11 +155,12 @@ export async function sendWelcomeEmail(
   email: string,
   name: string
 ): Promise<void> {
-  const mailOptions = {
-    from: `"SubiteYa" <${process.env.EMAIL_USER || 'subiteyacontact@gmail.com'}>`,
-    to: email,
-    subject: '🎉 ¡Bienvenido a SubiteYa!',
-    html: `
+  try {
+    await resend.emails.send({
+      from: 'SubiteYa <onboarding@resend.dev>',
+      to: email,
+      subject: '🎉 ¡Bienvenido a SubiteYa!',
+      html: `
       <!DOCTYPE html>
       <html>
       <head>
@@ -237,13 +217,10 @@ export async function sendWelcomeEmail(
       </body>
       </html>
     `,
-  };
-
-  try {
-    await transporter.sendMail(mailOptions);
+    });
     console.log(`✅ Email de bienvenida enviado a: ${email}`);
   } catch (error) {
     console.error('❌ Error al enviar email de bienvenida:', error);
-    // No throw error here, welcome email is not critical
+    // Don't throw error here, welcome email is not critical
   }
 }
