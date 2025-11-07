@@ -5,14 +5,27 @@
  */
 
 import ffmpeg from 'fluent-ffmpeg';
-import ffmpegPath from '@ffmpeg-installer/ffmpeg';
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
 import OpenAI from 'openai';
 
-// Set FFmpeg path
-ffmpeg.setFfmpegPath(ffmpegPath.path);
+// Lazy load FFmpeg path to avoid startup errors
+let ffmpegInitialized = false;
+async function ensureFfmpegPath() {
+  if (!ffmpegInitialized) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const ffmpegPath = require('@ffmpeg-installer/ffmpeg');
+      ffmpeg.setFfmpegPath(ffmpegPath.path);
+      ffmpegInitialized = true;
+      console.log('✅ FFmpeg path set:', ffmpegPath.path);
+    } catch (error) {
+      console.error('⚠️  FFmpeg installer not found, using system FFmpeg');
+      // Render should have ffmpeg in PATH
+    }
+  }
+}
 
 const writeFile = promisify(fs.writeFile);
 const unlink = promisify(fs.unlink);
@@ -48,6 +61,7 @@ export async function applyLogoToVideo(
   logoConfig: LogoConfig,
   outputPath?: string
 ): Promise<VideoProcessingResult> {
+  ensureFfmpegPath();
   let tempLogoPath: string | null = null;
 
   try {
