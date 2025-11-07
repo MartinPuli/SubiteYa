@@ -225,11 +225,10 @@ app.listen(PORT, () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔧 CORS configured for origins:`, allowedOrigins);
 
-  // Start background workers
-  console.log('🔄 Starting background workers...');
-  startEditWorker();
-  startUploadWorker();
-  console.log('✅ Workers started successfully');
+  // WORKERS DISABLED: Run them separately to avoid memory issues
+  // To start workers manually: node dist/workers/edit-worker-bullmq.js
+  //                            node dist/workers/upload-worker-bullmq.js
+  console.log('⚠️  Workers disabled (run separately to avoid memory issues)');
 });
 
 // Graceful shutdown

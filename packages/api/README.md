@@ -17,14 +17,45 @@ Provides HTTP endpoints for:
 
 ```
 src/
-├── index.ts              → Server bootstrap
+├── index.ts              → Server bootstrap (NO workers)
 ├── routes/               → Express route definitions
 ├── controllers/          → Request handlers
 ├── services/             → Business logic
 ├── repositories/         → Data access layer
 ├── middleware/           → Auth, validation, rate limiting
+├── workers/              → Background job processors (run separately)
+│   ├── edit-worker-bullmq.ts
+│   ├── upload-worker-bullmq.ts
+│   ├── start-edit-worker.ts    → Standalone edit worker
+│   └── start-upload-worker.ts  → Standalone upload worker
 └── utils/                → Helpers
 ```
+
+## Running Workers (Production)
+
+**IMPORTANT**: Workers are **disabled by default** in the main server to avoid memory issues on Render's free plan (512MB limit).
+
+To process videos, run workers **separately**:
+
+```bash
+# Terminal 1: Main server (handles API requests)
+npm run start
+
+# Terminal 2: Edit worker (processes video editing)
+node dist/workers/start-edit-worker.js
+
+# Terminal 3: Upload worker (uploads to TikTok)
+node dist/workers/start-upload-worker.js
+```
+
+Or in Render, create **separate Background Workers** services for each worker.
+
+### Why Separate Workers?
+
+- Main server uses ~200MB RAM
+- Each worker uses ~150-300MB RAM when processing
+- Running all together exceeds 512MB limit
+- Asynchronous processing: API responds immediately, workers process in background
 
 ## Database
 

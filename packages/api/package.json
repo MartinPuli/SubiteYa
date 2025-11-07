@@ -9,6 +9,8 @@
     "build": "prisma generate && tsc",
     "start": "node dist/index.js",
     "start:migrate": "prisma migrate deploy && node dist/index.js",
+    "worker:edit": "node dist/workers/start-edit-worker.js",
+    "worker:upload": "node dist/workers/start-upload-worker.js",
     "migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "seed": "tsx prisma/seed.ts",
