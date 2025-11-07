@@ -5,12 +5,11 @@ services:
   # API Backend
   - type: web
     name: subiteya-api
-    runtime: node
+    runtime: docker # Cambiado a Docker para instalar FFmpeg
     region: oregon # Puedes cambiarlo a: oregon, frankfurt, singapore
     plan: free # Opciones: free, starter, standard, pro
-    env: node
-    buildCommand: bash scripts/build.sh
-    startCommand: bash scripts/start.sh
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
