@@ -6,13 +6,22 @@ console.log('📧 EMAIL CONFIG:', {
   frontend: process.env.FRONTEND_URL ? '✅ Set' : '❌ Missing',
 });
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 export async function sendVerificationEmail(
   email: string,
   name: string,
   code: string
 ): Promise<void> {
+  if (!resend) {
+    console.warn(
+      '⚠️ Email service not configured (missing RESEND_API_KEY), skipping email'
+    );
+    return;
+  }
+
   const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?email=${encodeURIComponent(email)}&code=${code}`;
 
   try {
@@ -82,6 +91,13 @@ export async function sendPasswordResetEmail(
   name: string,
   code: string
 ): Promise<void> {
+  if (!resend) {
+    console.warn(
+      '⚠️ Email service not configured (missing RESEND_API_KEY), skipping email'
+    );
+    return;
+  }
+
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password?email=${encodeURIComponent(email)}&code=${code}`;
 
   try {
@@ -155,6 +171,13 @@ export async function sendWelcomeEmail(
   email: string,
   name: string
 ): Promise<void> {
+  if (!resend) {
+    console.warn(
+      '⚠️ Email service not configured (missing RESEND_API_KEY), skipping email'
+    );
+    return;
+  }
+
   try {
     await resend.emails.send({
       from: 'SubiteYa <onboarding@resend.dev>',

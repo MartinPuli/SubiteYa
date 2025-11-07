@@ -29,6 +29,11 @@ export const API_ENDPOINTS = {
   publish: `${API_BASE_URL}/publish`,
   publishBatch: `${API_BASE_URL}/publish/batch`,
 
+  // Queue System
+  videos: `${API_BASE_URL}/videos`,
+  me: `${API_BASE_URL}/me`,
+  events: `${API_BASE_URL}/events`,
+
   // Brand Patterns
   patterns: `${API_BASE_URL}/patterns`,
   uploadLogo: `${API_BASE_URL}/patterns/upload-logo`,

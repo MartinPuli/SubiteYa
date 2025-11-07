@@ -15,6 +15,7 @@ model User {
   passwordHash             String             @map("password_hash")
   passwordSalt             String             @map("password_salt")
   role                     String             @default("user")
+  tier                     String?            @default("free")
   language                 String             @default("es")
   timezone                 String             @default("UTC")
   createdAt                DateTime           @default(now()) @map("created_at")
@@ -34,6 +35,8 @@ model User {
   publishJobs              PublishJob[]
   tiktokConnections        TikTokConnection[]
   videoAssets              VideoAsset[]
+  videos                   Video[]
+  designProfiles           DesignProfile[]
 
   @@map("users")
 }
@@ -49,13 +52,17 @@ model TikTokConnection {
   refreshTokenEnc String         @map("refresh_token_enc")
   expiresAt       DateTime       @map("expires_at")
   isDefault       Boolean        @default(false) @map("is_default")
+  designId        String?        @map("design_id")
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
   patterns        BrandPattern[]
   publishJobs     PublishJob[]
+  videos          Video[]
+  design          DesignProfile? @relation(fields: [designId], references: [id])
   user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([designId])
   @@map("tiktok_connections")
 }
 
@@ -228,4 +235,90 @@ model BrandPattern {
   @@index([tiktokConnectionId])
   @@index([isDefault])
   @@map("brand_patterns")
+}
+
+// ========================================
+// NEW: Video Queue System
+// ========================================
+
+enum VideoStatus {
+  DRAFT
+  EDITING_QUEUED
+  EDITING
+  EDITED
+  UPLOAD_QUEUED
+  UPLOADING
+  POSTED
+  FAILED_EDIT
+  FAILED_UPLOAD
+}
+
+model DesignProfile {
+  id          String             @id @default(cuid())
+  userId      String             @map("user_id")
+  name        String
+  version     Int                @default(1)
+  specJson    Json               @map("spec_json")
+  active      Boolean            @default(true)
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts    TikTokConnection[]
+  videos      Video[]
+
+  @@index([userId])
+  @@index([active])
+  @@map("design_profiles")
+}
+
+model Video {
+  id           String       @id @default(cuid())
+  userId       String       @map("user_id")
+  accountId    String?      @map("account_id")
+  status       VideoStatus  @default(DRAFT)
+  srcUrl       String       @map("src_url")
+  editedUrl    String?      @map("edited_url")
+  postUrl      String?      @map("post_url")
+  designId     String?      @map("design_id")
+  editSpecJson Json?        @map("edit_spec_json")
+  thumbnailUrl String?      @map("thumbnail_url")
+  duration     Float?
+  title        String?
+  error        String?
+  progress     Int          @default(0)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      TikTokConnection? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  design       DesignProfile?    @relation(fields: [designId], references: [id], onDelete: SetNull)
+  jobs         Job[]
+
+  @@index([userId])
+  @@index([accountId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("videos")
+}
+
+model Job {
+  id         String    @id @default(cuid())
+  videoId    String    @map("video_id")
+  type       String    // "edit" | "upload"
+  status     String    @default("queued") // "queued" | "running" | "succeeded" | "failed"
+  attempts   Int       @default(0)
+  priority   Int       @default(5)
+  startedAt  DateTime? @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  log        String?
+  error      String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  video      Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([videoId])
+  @@index([type])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+  @@map("jobs")
 }

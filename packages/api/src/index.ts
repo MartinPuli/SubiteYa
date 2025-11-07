@@ -117,6 +117,18 @@ import publishRoutes from './routes/publish';
 import tiktokRoutes from './routes/tiktok';
 import patternsRoutes from './routes/patterns';
 import legalRoutes from './routes/legal';
+import videosRoutes from './routes/videos';
+import meRoutes from './routes/me';
+import designsRoutes from './routes/designs';
+import eventsRoutes from './routes/events';
+
+// Import BullMQ workers (production)
+import { startEditWorker, stopEditWorker } from './workers/edit-worker-bullmq';
+import {
+  startUploadWorker,
+  stopUploadWorker,
+} from './workers/upload-worker-bullmq';
+import { closeQueues } from './lib/queues';
 
 // API routes
 app.get('/api', (_req: Request, res: Response) => {
@@ -134,6 +146,10 @@ app.use('/api/publish', publishRoutes);
 app.use('/api/auth', tiktokRoutes);
 app.use('/api/patterns', patternsRoutes);
 app.use('/api/legal', legalRoutes);
+app.use('/api/videos', videosRoutes);
+app.use('/api/me', meRoutes);
+app.use('/api/accounts', designsRoutes);
+app.use('/api/events', eventsRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -189,11 +205,20 @@ app.listen(PORT, () => {
   console.log(`📝 Health check: http://localhost:${PORT}/health`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔧 CORS configured for origins:`, allowedOrigins);
+
+  // Start background workers
+  console.log('🔄 Starting background workers...');
+  startEditWorker();
+  startUploadWorker();
+  console.log('✅ Workers started successfully');
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully');
+  stopEditWorker();
+  stopUploadWorker();
+  closeQueues();
   process.exit(0);
 });
 
