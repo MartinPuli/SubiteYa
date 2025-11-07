@@ -59,6 +59,11 @@ export function startEditWorker() {
   });
 
   worker.on('error', (err: Error) => {
+    // Ignore ECONNRESET during shutdown/reconnection
+    if (err.message.includes('ECONNRESET')) {
+      console.warn('[Edit Worker] Redis connection reset, will reconnect...');
+      return;
+    }
     console.error('[Edit Worker] Worker error:', err);
   });
 

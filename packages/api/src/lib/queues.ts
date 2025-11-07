@@ -6,14 +6,38 @@
 import { Queue, QueueOptions } from 'bullmq';
 import Redis from 'ioredis';
 
-// Redis connection
+// Redis connection with better error handling
 const redisConnection = new Redis(
   process.env.REDIS_URL || 'redis://localhost:6379',
   {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
+    retryStrategy: (times: number) => {
+      const delay = Math.min(times * 50, 2000);
+      console.log(
+        `🔄 Redis reconnecting... attempt ${times}, delay ${delay}ms`
+      );
+      return delay;
+    },
   }
 );
+
+// Redis event handlers
+redisConnection.on('connect', () => {
+  console.log('✅ Connected to Redis successfully');
+});
+
+redisConnection.on('error', err => {
+  console.error('❌ Redis connection error:', err.message);
+});
+
+redisConnection.on('close', () => {
+  console.warn('⚠️  Redis connection closed');
+});
+
+redisConnection.on('reconnecting', () => {
+  console.log('🔄 Redis reconnecting...');
+});
 
 const queueOptions: QueueOptions = {
   connection: redisConnection,
