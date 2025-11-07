@@ -1,13 +1,22 @@
 import nodemailer from 'nodemailer';
 
+// Debug logs
+console.log('📧 EMAIL CONFIG:', {
+  user: process.env.EMAIL_USER ? '✅ Set' : '❌ Missing',
+  password: process.env.EMAIL_PASSWORD ? '✅ Set' : '❌ Missing',
+  frontend: process.env.FRONTEND_URL ? '✅ Set' : '❌ Missing',
+});
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER || 'subiteyacontact@gmail.com',
     pass: process.env.EMAIL_PASSWORD, // App Password de Gmail
   },
-  connectionTimeout: 5000, // 5 segundos
-  greetingTimeout: 5000,
+  connectionTimeout: 10000, // 10 segundos
+  greetingTimeout: 10000,
+  logger: true, // Enable logging
+  debug: true, // Enable debug output
 });
 
 export async function sendVerificationEmail(
