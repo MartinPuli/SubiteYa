@@ -26,7 +26,7 @@ export async function sendVerificationEmail(
 
   try {
     await resend.emails.send({
-      from: 'SubiteYa <onboarding@resend.dev>',
+      from: 'SubiteYa <noreply@subiteya.com.ar>',
       to: email,
       subject: '✨ Verifica tu email - SubiteYa',
       html: `
@@ -102,7 +102,7 @@ export async function sendPasswordResetEmail(
 
   try {
     await resend.emails.send({
-      from: 'SubiteYa <onboarding@resend.dev>',
+      from: 'SubiteYa <noreply@subiteya.com.ar>',
       to: email,
       subject: '🔑 Recupera tu contraseña - SubiteYa',
       html: `
@@ -180,7 +180,7 @@ export async function sendWelcomeEmail(
 
   try {
     await resend.emails.send({
-      from: 'SubiteYa <onboarding@resend.dev>',
+      from: 'SubiteYa <noreply@subiteya.com.ar>',
       to: email,
       subject: '🎉 ¡Bienvenido a SubiteYa!',
       html: `
