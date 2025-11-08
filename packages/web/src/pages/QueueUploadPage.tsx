@@ -28,7 +28,6 @@ export const QueueUploadPage: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
 
   // Queue states
-  const [drafts, setDrafts] = useState<Video[]>([]);
   const [editing, setEditing] = useState<Video[]>([]);
   const [edited, setEdited] = useState<Video[]>([]);
   const [uploading, setUploading] = useState<Video[]>([]);
@@ -62,7 +61,7 @@ export const QueueUploadPage: React.FC = () => {
     if (!token) return;
 
     try {
-      const response = await fetch(`${API_ENDPOINTS.me}/queues`, {
+      const response = await fetch(API_ENDPOINTS.meQueues, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -73,7 +72,6 @@ export const QueueUploadPage: React.FC = () => {
       }
 
       const data = await response.json();
-      setDrafts(data.drafts || []);
       setEditing(data.editing || []);
       setEdited(data.edited || []);
       setUploading(data.uploading || []);

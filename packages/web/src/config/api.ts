@@ -31,7 +31,7 @@ export const API_ENDPOINTS = {
 
   // Queue System
   videos: `${API_BASE_URL}/videos`,
-  me: `${API_BASE_URL}/me`,
+  meQueues: `${API_BASE_URL}/me/queues`,
   events: `${API_BASE_URL}/events`,
 
   // Brand Patterns
