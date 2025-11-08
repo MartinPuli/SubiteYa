@@ -48,5 +48,8 @@
   },
   "dependencies": {
     "@paralleldrive/cuid2": "^3.0.4"
+  },
+  "overrides": {
+    "rollup": "npm:@rollup/wasm-node@^4.53.1"
   }
 }
