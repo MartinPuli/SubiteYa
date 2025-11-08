@@ -1,8 +1,13 @@
 {
   "buildCommand": "npm run build --workspace=@subiteya/web",
   "outputDirectory": "packages/web/dist",
-  "installCommand": "npm ci",
+  "installCommand": "npm install",
   "framework": null,
+  "build": {
+    "env": {
+      "NODE_VERSION": "18"
+    }
+  },
   "routes": [
     {
       "handle": "filesystem"
