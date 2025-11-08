@@ -2,6 +2,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
+// Force Rollup to use JavaScript instead of native bindings
+process.env.VITE_ROLLUP_USE_NATIVE = 'false';
+
 export default defineConfig({
   plugins: [react()],
   base: '/',
