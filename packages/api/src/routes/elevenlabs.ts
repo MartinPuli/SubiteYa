@@ -157,9 +157,29 @@ router.post(
       });
     } catch (error) {
       console.error('Error cloning voice:', error);
+
+      // Check for specific ElevenLabs errors
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+
+      // Subscription error
+      if (errorMessage.includes('can_not_use_instant_voice_cloning')) {
+        return res.status(403).json({
+          error: 'Subscription Required',
+          message:
+            'La clonación de voz requiere el plan Starter ($5/mes) o superior de ElevenLabs. Tu plan actual no incluye esta funcionalidad.',
+          upgrade_url: 'https://elevenlabs.io/pricing',
+          details: {
+            current_plan: 'Free',
+            required_plan: 'Starter',
+            monthly_cost: '$5 USD',
+          },
+        });
+      }
+
       res.status(500).json({
         error: 'Failed to clone voice',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        message: errorMessage,
       });
     } finally {
       // Cleanup uploaded files
