@@ -56,25 +56,30 @@ export const VoicesPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
+      console.log('🔄 Loading voices from:', API_ENDPOINTS.elevenlabsVoices);
       const response = await fetch(API_ENDPOINTS.elevenlabsVoices, {
         headers: { Authorization: `Bearer ${authToken}` },
         credentials: 'include',
       });
 
+      console.log('📡 Response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Voices loaded:', data);
         setVoices(data.voices || []);
       } else {
         const errorData = await response.json();
+        console.error('❌ Error response:', errorData);
         setError(
           errorData.message ||
             'No se pudieron cargar las voces. Verifica tu conexión.'
         );
       }
     } catch (error) {
-      console.error('Error loading voices:', error);
+      console.error('❌ Error loading voices:', error);
       setError(
-        '❌ Error de conexión: No se pudo contactar con el servidor. Verifica que el backend esté activo y que CORS esté configurado correctamente.'
+        `❌ Error de conexión: No se pudo contactar con el servidor.\n\nEndpoint: ${API_ENDPOINTS.elevenlabsVoices}\n\nError: ${error instanceof Error ? error.message : 'Desconocido'}`
       );
     } finally {
       setLoading(false);
@@ -83,19 +88,27 @@ export const VoicesPage: React.FC = () => {
 
   const loadDefaultVoices = async (authToken: string) => {
     try {
+      console.log(
+        '🔄 Loading default voices from:',
+        API_ENDPOINTS.elevenlabsDefaultVoices
+      );
       const response = await fetch(API_ENDPOINTS.elevenlabsDefaultVoices, {
         headers: { Authorization: `Bearer ${authToken}` },
         credentials: 'include',
       });
 
+      console.log('📡 Default voices response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Default voices loaded:', data);
         setDefaultVoices(data.defaultVoices || []);
       } else {
-        console.error('Error loading default voices - response not ok');
+        const errorData = await response.json();
+        console.error('❌ Error loading default voices:', errorData);
       }
     } catch (error) {
-      console.error('Error loading default voices:', error);
+      console.error('❌ Error loading default voices:', error);
     }
   };
 

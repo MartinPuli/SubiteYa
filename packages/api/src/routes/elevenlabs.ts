@@ -248,8 +248,60 @@ router.get(
   authenticate,
   async (req: Request, res: Response) => {
     try {
+      // Convert DEFAULT_VOICES object to array format expected by frontend
+      const defaultVoicesArray = [
+        {
+          language: 'Inglés',
+          voice_id: elevenlabs.DEFAULT_VOICES.en,
+          name: 'Adam',
+          flag: '🇺🇸',
+        },
+        {
+          language: 'Español',
+          voice_id: elevenlabs.DEFAULT_VOICES.es,
+          name: 'Rachel',
+          flag: '🇪🇸',
+        },
+        {
+          language: 'Portugués',
+          voice_id: elevenlabs.DEFAULT_VOICES.pt,
+          name: 'Sam',
+          flag: '🇧🇷',
+        },
+        {
+          language: 'Francés',
+          voice_id: elevenlabs.DEFAULT_VOICES.fr,
+          name: 'Charlotte',
+          flag: '🇫🇷',
+        },
+        {
+          language: 'Alemán',
+          voice_id: elevenlabs.DEFAULT_VOICES.de,
+          name: 'Elli',
+          flag: '🇩🇪',
+        },
+        {
+          language: 'Italiano',
+          voice_id: elevenlabs.DEFAULT_VOICES.it,
+          name: 'Thomas',
+          flag: '🇮🇹',
+        },
+        {
+          language: 'Japonés',
+          voice_id: elevenlabs.DEFAULT_VOICES.ja,
+          name: 'Yuki',
+          flag: '🇯🇵',
+        },
+        {
+          language: 'Chino',
+          voice_id: elevenlabs.DEFAULT_VOICES.zh,
+          name: 'Matilda',
+          flag: '🇨🇳',
+        },
+      ];
+
       res.json({
-        default_voices: elevenlabs.DEFAULT_VOICES,
+        defaultVoices: defaultVoicesArray,
       });
     } catch (error) {
       console.error('Error getting default voices:', error);
