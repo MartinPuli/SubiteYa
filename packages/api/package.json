@@ -18,6 +18,7 @@
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {
+    "form-data": "^4.0.0",
     "@aws-sdk/client-s3": "^3.926.0",
     "@aws-sdk/s3-request-presigner": "^3.926.0",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
@@ -50,6 +51,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@types/form-data": "^2.5.5",
     "@types/nodemailer": "^7.0.3",
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",

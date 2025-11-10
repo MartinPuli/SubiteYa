@@ -229,14 +229,14 @@ model BrandPattern {
   transition_type      String           @default("none")
   vignette             Int              @default(0)
   
-  // Voice Narration (ElevenLabs)
+  // Voice Narration (ElevenLabs AI)
   enable_voice_narration Boolean        @default(false) @map("enable_voice_narration")
-  narration_language     String?         @map("narration_language") // 'es', 'en', 'pt', 'fr', etc.
-  narration_voice_id     String?         @map("narration_voice_id") // ElevenLabs voice ID
-  narration_style        String?         @map("narration_style") // 'documentary', 'casual', 'professional'
-  narration_volume       Int             @default(80) @map("narration_volume") // 0-100
-  narration_speed        Float           @default(1.0) @map("narration_speed") // 0.5-2.0
-  original_audio_volume  Int             @default(30) @map("original_audio_volume") // Volume of original video audio when narration is enabled
+  narration_language     String?         @map("narration_language")
+  narration_voice_id     String?         @map("narration_voice_id")
+  narration_style        String?         @map("narration_style")
+  narration_volume       Int             @default(80) @map("narration_volume")
+  narration_speed        Float           @default(1.0) @map("narration_speed")
+  original_audio_volume  Int             @default(30) @map("original_audio_volume")
   
   tiktokConnection     TikTokConnection @relation(fields: [tiktokConnectionId], references: [id], onDelete: Cascade)
   user                 User             @relation(fields: [userId], references: [id], onDelete: Cascade)

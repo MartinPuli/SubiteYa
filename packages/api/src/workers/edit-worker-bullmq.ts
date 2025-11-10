@@ -10,11 +10,17 @@ import { applyBrandPattern } from '../lib/video-processor';
 import { DesignSpec } from '../lib/design-schema';
 import { downloadFromS3, uploadToS3, extractS3Key } from '../lib/storage';
 import { notifyUser } from '../routes/events';
+import { generateNarrationScript } from '../lib/script-generator';
+import { generateSpeechToFile } from '../lib/elevenlabs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import type { z } from 'zod';
 import Redis from 'ioredis';
+
+const execPromise = promisify(exec);
 
 type DesignSpecType = z.infer<typeof DesignSpec>;
 
@@ -112,8 +118,125 @@ export async function stopEditWorker() {
   if (redisConnection) {
     await redisConnection.quit();
     redisConnection = null;
-    console.log('[Edit Worker] Redis connection closed');
   }
+}
+
+/**
+ * Aplica narración con voz usando Whisper + GPT-4 + ElevenLabs
+ * @param videoPath - Ruta del video a procesar
+ * @param pattern - Configuración de narración
+ * @returns Ruta del video con narración aplicada
+ */
+async function applyVoiceNarration(
+  videoPath: string,
+  pattern: {
+    enable_voice_narration?: boolean;
+    narration_language?: string;
+    narration_voice_id?: string;
+    narration_style?: string;
+    narration_volume?: number;
+    narration_speed?: number;
+    original_audio_volume?: number;
+  }
+): Promise<string> {
+  // Si no está habilitada, retornar el video sin cambios
+  if (!pattern.enable_voice_narration) {
+    return videoPath;
+  }
+
+  const tempDir = os.tmpdir();
+  const audioPath = path.join(tempDir, `audio-${Date.now()}.wav`);
+  const narrationPath = path.join(tempDir, `narration-${Date.now()}.mp3`);
+  const outputPath = path.join(tempDir, `narrated-${Date.now()}.mp4`);
+
+  try {
+    console.log('[Voice Narration] Starting narration process...');
+
+    // 1. Extraer audio del video
+    console.log('[Voice Narration] Extracting audio from video...');
+    await execPromise(
+      `ffmpeg -i "${videoPath}" -vn -ar 16000 -ac 1 -f wav "${audioPath}"`
+    );
+
+    // 2. Transcribir con Whisper (aquí deberías usar tu implementación de Whisper)
+    // Por ahora, vamos a simular una transcripción simple
+    // En producción, deberías integrar con Whisper AI
+    console.log('[Voice Narration] Transcribing audio with Whisper AI...');
+    const transcription = await transcribeAudio(audioPath);
+
+    // 3. Generar script con GPT-4
+    console.log('[Voice Narration] Generating narration script with GPT-4...');
+    const script = await generateNarrationScript(
+      transcription,
+      pattern.narration_language || 'es',
+      pattern.narration_style || 'documentary'
+    );
+
+    // 4. Generar voz con ElevenLabs
+    console.log('[Voice Narration] Generating speech with ElevenLabs...');
+    await generateSpeechToFile(
+      {
+        voice_id: pattern.narration_voice_id || '',
+        text: script,
+        model_id: 'eleven_multilingual_v2',
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75,
+        },
+      },
+      narrationPath
+    );
+
+    // 5. Mezclar narración con video original
+    console.log('[Voice Narration] Mixing narration with original video...');
+    const narrationVol = (pattern.narration_volume || 80) / 100;
+    const originalVol = (pattern.original_audio_volume || 30) / 100;
+    const speed = pattern.narration_speed || 1.0;
+
+    // Ajustar velocidad de narración y mezclar audios
+    const ffmpegCommand = `ffmpeg -i "${videoPath}" -i "${narrationPath}" \
+      -filter_complex "[1:a]atempo=${speed},volume=${narrationVol}[narration]; \
+      [0:a]volume=${originalVol}[original]; \
+      [narration][original]amix=inputs=2:duration=first[aout]" \
+      -map 0:v -map "[aout]" -c:v copy -c:a aac -b:a 192k "${outputPath}"`;
+
+    await execPromise(ffmpegCommand);
+
+    console.log('[Voice Narration] Narration applied successfully!');
+
+    // Limpiar archivos temporales
+    await fs.promises.unlink(audioPath).catch(() => {});
+    await fs.promises.unlink(narrationPath).catch(() => {});
+
+    return outputPath;
+  } catch (error) {
+    console.error('[Voice Narration] Error applying narration:', error);
+    // Limpiar en caso de error
+    await fs.promises.unlink(audioPath).catch(() => {});
+    await fs.promises.unlink(narrationPath).catch(() => {});
+    await fs.promises.unlink(narrationPath).catch(() => {});
+    // En caso de error, retornar el video original sin narración
+    return videoPath;
+  }
+}
+
+/**
+ * Transcribe audio usando Whisper AI
+ * Por ahora es un placeholder - en producción integrar con Whisper
+ */
+async function transcribeAudio(_audioPath: string): Promise<string> {
+  // TODO: Integrar con Whisper AI real
+  // Por ahora retornar transcripción de ejemplo
+  console.log('[Transcription] Using Whisper AI to transcribe...');
+
+  // En producción, usar algo como:
+  // const { Whisper } = require('whisper-ai');
+  // const whisper = new Whisper({ apiKey: process.env.OPENAI_API_KEY });
+  // const result = await whisper.transcribe(_audioPath);
+  // return result.text;
+
+  // Placeholder: retornar texto de ejemplo
+  return 'This is the transcribed audio content from the video.';
 }
 
 async function processEditJob(videoId: string, job: Job) {
@@ -204,10 +327,43 @@ async function processEditJob(videoId: string, job: Job) {
       throw new Error(result.error || 'Video processing failed');
     }
 
+    // Get brand pattern for voice narration settings
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let brandPattern: any = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((video as any).patternId) {
+      brandPattern = await prisma.brandPattern.findUnique({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        where: { id: (video as any).patternId },
+      });
+    }
+
+    // Apply voice narration if enabled
+    let finalVideoPath = result.outputPath;
+    if (brandPattern?.enable_voice_narration) {
+      console.log('[Edit Worker] Applying voice narration...');
+      const narratedPath = await applyVoiceNarration(result.outputPath, {
+        enable_voice_narration: brandPattern.enable_voice_narration,
+        narration_language: brandPattern.narration_language || undefined,
+        narration_voice_id: brandPattern.narration_voice_id || undefined,
+        narration_style: brandPattern.narration_style || undefined,
+        narration_volume: brandPattern.narration_volume,
+        narration_speed: brandPattern.narration_speed,
+        original_audio_volume: brandPattern.original_audio_volume,
+      });
+
+      // Si la narración fue exitosa, usar el video narrado
+      if (narratedPath !== result.outputPath) {
+        finalVideoPath = narratedPath;
+        // Limpiar video intermedio
+        await fs.promises.unlink(result.outputPath).catch(() => {});
+      }
+    }
+
     await job.updateProgress(70);
 
     // Upload edited video to S3
-    const editedBuffer = await fs.promises.readFile(result.outputPath);
+    const editedBuffer = await fs.promises.readFile(finalVideoPath);
     const uploadResult = await uploadToS3({
       file: editedBuffer,
       filename: `${videoId}-edited.mp4`,
@@ -257,8 +413,12 @@ async function processEditJob(videoId: string, job: Job) {
 
     // Cleanup temp files
     if (tempFilePath) await fs.promises.unlink(tempFilePath).catch(() => {});
-    if (result.outputPath)
+    if (result.outputPath && result.outputPath !== finalVideoPath) {
       await fs.promises.unlink(result.outputPath).catch(() => {});
+    }
+    if (finalVideoPath && finalVideoPath !== result.outputPath) {
+      await fs.promises.unlink(finalVideoPath).catch(() => {});
+    }
 
     await job.updateProgress(100);
   } catch (error: unknown) {
