@@ -6,6 +6,8 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Navigation } from './components/Navigation/Navigation';
 import { ProtectedRoute } from './components/ProtectedRoute/ProtectedRoute';
+import { ToastContainer } from './components/Toast/ToastContainer';
+import { useToastStore } from './store/toastStore';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { EmailVerificationPage } from './pages/EmailVerificationPage';
@@ -21,6 +23,8 @@ import { PatternEditorPage } from './pages/PatternEditorPage';
 
 export function App() {
   const location = useLocation();
+  const { toasts, removeToast } = useToastStore();
+
   const showNavigation =
     location.pathname !== '/login' &&
     location.pathname !== '/register' &&
@@ -32,6 +36,7 @@ export function App() {
   return (
     <div className="app">
       {showNavigation && <Navigation />}
+      <ToastContainer toasts={toasts} onClose={removeToast} />
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/login" element={<LoginPage />} />

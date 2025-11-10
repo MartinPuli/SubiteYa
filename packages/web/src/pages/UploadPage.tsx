@@ -4,6 +4,7 @@ import { Card } from '../components/Card/Card';
 import { Button } from '../components/Button/Button';
 import { useAuthStore } from '../store/authStore';
 import { useAppStore } from '../store/appStore';
+import { toast } from '../store/toastStore';
 import { API_ENDPOINTS } from '../config/api';
 import './UploadPage.css';
 
@@ -28,7 +29,6 @@ export const UploadPage: React.FC = () => {
   const [disableComment, setDisableComment] = useState(false);
   const [disableDuet, setDisableDuet] = useState(false);
   const [disableStitch, setDisableStitch] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -211,45 +211,58 @@ export const UploadPage: React.FC = () => {
       return;
     }
 
-    setLoading(true);
+    // Mostrar notificación inmediata
+    toast.info(
+      `📤 Subiendo ${files.length} video(s) a ${selectedAccounts.length} cuenta(s)...`,
+      3000
+    );
 
-    try {
-      // Upload all videos sequentially with visible progress
-      let successCount = 0;
-      let failCount = 0;
+    // Iniciar uploads en background (no esperar)
+    uploadVideosInBackground();
 
-      for (let i = 0; i < files.length; i++) {
-        try {
-          await uploadSingleVideo(files[i], i);
-          successCount++;
-        } catch (error) {
-          failCount++;
-          console.error(`Failed to upload video ${i}:`, error);
-        }
+    // Resetear formulario inmediatamente
+    setFiles([]);
+    setUploadStatuses([]);
+    setCaption('');
+    setSelectedAccounts([]);
 
-        // Small delay between uploads to avoid overwhelming server
-        if (i < files.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-
-      // Show result message
-      if (failCount === 0) {
-        alert('✅ Videos subidos! Los verás publicándose en el historial.');
-      } else if (successCount > 0) {
-        alert(
-          `⚠️ ${successCount} video(s) subido(s), ${failCount} fallaron. Revisa el historial.`
-        );
-      } else {
-        alert('❌ Error al subir los videos. Intenta nuevamente.');
-      }
-
+    // Navegar al historial inmediatamente
+    setTimeout(() => {
       navigate('/history');
-    } catch (error) {
-      console.error('Upload error:', error);
-      alert(error instanceof Error ? error.message : 'Error al publicar');
-    } finally {
-      setLoading(false);
+      toast.success(
+        '✅ Videos en cola! Verás el progreso en tiempo real aquí.',
+        4000
+      );
+    }, 500);
+  };
+
+  const uploadVideosInBackground = async () => {
+    if (!token) return;
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < files.length; i++) {
+      try {
+        await uploadSingleVideo(files[i], i);
+        successCount++;
+      } catch (error) {
+        failCount++;
+        console.error(`Failed to upload video ${i}:`, error);
+        toast.error(`❌ Error al subir ${files[i].name.slice(0, 20)}...`, 4000);
+      }
+
+      // Small delay between uploads
+      if (i < files.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    // Notificación final
+    if (failCount === 0) {
+      toast.success(`✅ ${successCount} video(s) subidos correctamente!`, 5000);
+    } else if (successCount > 0) {
+      toast.warning(`⚠️ ${successCount} subidos, ${failCount} fallaron`, 5000);
     }
   };
 
@@ -327,7 +340,7 @@ export const UploadPage: React.FC = () => {
                       )}
                     </div>
 
-                    {status.status === 'pending' && !loading && (
+                    {status.status === 'pending' && (
                       <Button
                         type="button"
                         variant="ghost"
@@ -352,7 +365,6 @@ export const UploadPage: React.FC = () => {
                 multiple
                 onChange={handleFileChange}
                 onClick={e => e.stopPropagation()}
-                disabled={loading}
                 hidden
               />
               <div className="upload-placeholder">
@@ -496,107 +508,18 @@ export const UploadPage: React.FC = () => {
             type="button"
             variant="ghost"
             onClick={() => navigate('/dashboard')}
-            disabled={loading}
           >
             Cancelar
           </Button>
           <Button
             type="submit"
             variant="primary"
-            loading={loading}
             disabled={files.length === 0 || selectedAccounts.length === 0}
           >
-            {loading
-              ? `Subiendo ${uploadStatuses.filter(s => s.status === 'uploading' || s.status === 'completed').length}/${files.length}...`
-              : `Publicar ${files.length} video(s) en ${selectedAccounts.length} cuenta(s)`}
+            Publicar {files.length} video(s) en {selectedAccounts.length}{' '}
+            cuenta(s)
           </Button>
         </div>
-
-        {/* Upload Progress Overlay */}
-        {loading && (
-          <div
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0, 0, 0, 0.8)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 9999,
-            }}
-          >
-            <div
-              style={{
-                background: 'var(--color-bg-secondary)',
-                borderRadius: '12px',
-                padding: '32px',
-                maxWidth: '500px',
-                width: '90%',
-              }}
-            >
-              <h3 style={{ marginBottom: '24px', textAlign: 'center' }}>
-                📤 Subiendo videos...
-              </h3>
-
-              {uploadStatuses.map((status, index) => (
-                <div key={index} style={{ marginBottom: '16px' }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      marginBottom: '8px',
-                      fontSize: '14px',
-                    }}
-                  >
-                    <span>{status.file.name}</span>
-                    <span>
-                      {status.status === 'pending' && '⏳'}
-                      {status.status === 'uploading' && '📤'}
-                      {status.status === 'completed' && '✅'}
-                      {status.status === 'error' && '❌'}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      height: '4px',
-                      background: 'var(--color-border)',
-                      borderRadius: '2px',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: '100%',
-                        width: `${status.progress}%`,
-                        background:
-                          status.status === 'error'
-                            ? '#ef4444'
-                            : status.status === 'completed'
-                              ? '#10b981'
-                              : '#3b82f6',
-                        transition: 'width 0.3s ease',
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-
-              <p
-                style={{
-                  marginTop: '24px',
-                  textAlign: 'center',
-                  fontSize: '14px',
-                  color: 'var(--color-text-secondary)',
-                }}
-              >
-                No cierres esta ventana
-              </p>
-            </div>
-          </div>
-        )}
       </form>
     </div>
   );
