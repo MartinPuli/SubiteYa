@@ -150,6 +150,9 @@ import {
 } from './workers/upload-worker-bullmq';
 import { closeQueues } from './lib/queues';
 
+const workersDisabled =
+  process.env.DISABLE_WORKERS === 'true' || process.env.NODE_ENV === 'test';
+
 // API routes
 app.get('/api', (_req: Request, res: Response) => {
   res.json({
@@ -220,6 +223,28 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
+let isShuttingDown = false;
+
+async function shutdown(signal: NodeJS.Signals) {
+  if (isShuttingDown) {
+    return;
+  }
+
+  isShuttingDown = true;
+  console.log(`${signal} received, shutting down gracefully`);
+
+  try {
+    if (!workersDisabled) {
+      await Promise.all([stopEditWorker(), stopUploadWorker()]);
+    }
+    await closeQueues();
+  } catch (error) {
+    console.error('Error during shutdown:', error);
+  } finally {
+    process.exit(0);
+  }
+}
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 SubiteYa API listening on port ${PORT}`);
@@ -227,22 +252,23 @@ app.listen(PORT, () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔧 CORS configured for origins:`, allowedOrigins);
 
-  // WORKERS DISABLED: Run them separately to avoid memory issues
-  // To start workers manually: node dist/workers/edit-worker-bullmq.js
-  //                            node dist/workers/upload-worker-bullmq.js
-  console.log('⚠️  Workers disabled (run separately to avoid memory issues)');
+  if (workersDisabled) {
+    console.log('⚠️  Background workers disabled via configuration');
+    console.log(
+      '   Set DISABLE_WORKERS=false to enable automatic worker startup.'
+    );
+  } else {
+    console.log('🧵 Starting background workers...');
+    startEditWorker();
+    startUploadWorker();
+  }
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  stopEditWorker();
-  stopUploadWorker();
-  closeQueues();
-  process.exit(0);
+  void shutdown('SIGTERM');
 });
 
 process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
-  process.exit(0);
+  void shutdown('SIGINT');
 });
