@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/Card/Card';
 import { Button } from '../components/Button/Button';
 import { Input } from '../components/Input/Input';
+import { AudioRecorder } from '../components/AudioRecorder/AudioRecorder';
+import { FileUploader } from '../components/FileUploader/FileUploader';
 import { useAuthStore } from '../store/authStore';
 import { API_ENDPOINTS } from '../config/api';
 import './VoicesPage.css';
@@ -84,11 +86,16 @@ export const VoicesPage: React.FC = () => {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files);
-      // Limitar a 5 archivos (ElevenLabs requirement)
-      setAudioFiles(files.slice(0, 5));
+  const handleFilesChange = (files: File[]) => {
+    setAudioFiles(files);
+  };
+
+  const handleAudioRecorded = (file: File) => {
+    // Add recorded audio to the list
+    if (audioFiles.length < 5) {
+      setAudioFiles([...audioFiles, file]);
+    } else {
+      alert('Ya tienes 5 archivos. Elimina alguno para agregar este.');
     }
   };
 
@@ -221,30 +228,29 @@ export const VoicesPage: React.FC = () => {
             </div>
 
             <div className="form-group">
-              <label>Archivos de Audio (2-5 archivos) *</label>
-              <input
-                type="file"
-                accept="audio/mp3,audio/wav,audio/ogg"
-                multiple
-                onChange={handleFileChange}
-                className="file-input"
+              <label>Opción 1: Grabar Audio Directamente 🎙️</label>
+              <AudioRecorder
+                onAudioRecorded={handleAudioRecorded}
+                maxDuration={180}
               />
-              {audioFiles.length > 0 && (
-                <div className="file-list">
-                  <p>✅ {audioFiles.length} archivo(s) seleccionado(s):</p>
-                  <ul>
-                    {audioFiles.map((file, idx) => (
-                      <li key={idx}>{file.name}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+            </div>
+
+            <div className="form-group">
+              <label>Opción 2: Subir Archivos de Audio 📁</label>
+              <FileUploader
+                accept="audio/mp3,audio/wav,audio/ogg,audio/webm"
+                multiple={true}
+                maxFiles={5}
+                maxSizeBytes={10 * 1024 * 1024}
+                files={audioFiles}
+                onFilesChange={handleFilesChange}
+              />
             </div>
 
             <div className="requirements">
               <h4>📋 Requisitos:</h4>
               <ul>
-                <li>Formato: MP3, WAV, o OGG</li>
+                <li>Formato: MP3, WAV, OGG o WebM</li>
                 <li>Máximo 10MB por archivo</li>
                 <li>Mínimo 2 archivos, máximo 5</li>
                 <li>Cada grabación debe tener al menos 30 segundos</li>

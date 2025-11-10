@@ -1,0 +1,162 @@
+.audio-recorder {
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+}
+
+.recorder-error {
+  background: #fee;
+  border: 1px solid #fcc;
+  color: #c33;
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.recorder-display {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.recording-indicator {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 1.1rem;
+}
+
+.recording-dot {
+  width: 16px;
+  height: 16px;
+  background: #ef4444;
+  border-radius: 50%;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.recording-dot.paused {
+  background: #f59e0b;
+  animation: none;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.1);
+  }
+}
+
+.recording-text {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.recording-time {
+  font-family: 'Courier New', monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.recording-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.preview-icon {
+  font-size: 2rem;
+}
+
+.audio-player {
+  width: 100%;
+  max-width: 400px;
+  height: 40px;
+}
+
+.preview-duration {
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+.recorder-idle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.mic-icon {
+  font-size: 3rem;
+  opacity: 0.5;
+}
+
+.recorder-idle p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.recorder-controls {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.recorder-info {
+  text-align: center;
+  color: var(--text-tertiary);
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.recorder-info small {
+  font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .audio-recorder {
+    padding: 1rem;
+  }
+
+  .recorder-display {
+    min-height: 100px;
+    padding: 1rem;
+  }
+
+  .recording-time {
+    font-size: 1.2rem;
+  }
+
+  .mic-icon {
+    font-size: 2rem;
+  }
+
+  .recorder-controls {
+    flex-direction: column;
+  }
+
+  .recorder-controls button {
+    width: 100%;
+  }
+}
