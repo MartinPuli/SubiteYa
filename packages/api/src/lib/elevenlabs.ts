@@ -77,15 +77,21 @@ export async function getVoice(voiceId: string): Promise<Voice> {
   return (await response.json()) as Voice;
 }
 
+export interface AudioFileInfo {
+  path: string;
+  mimetype: string;
+  originalname: string;
+}
+
 /**
  * Clone a voice from audio samples
  * @param name - Name for the cloned voice
- * @param audioFiles - Array of audio file paths (at least 1, max 25)
+ * @param audioFiles - Array of audio file info (at least 1, max 25)
  * @param description - Optional description
  */
 export async function cloneVoice(
   name: string,
-  audioFiles: string[],
+  audioFiles: AudioFileInfo[],
   description?: string
 ): Promise<Voice> {
   if (!ELEVENLABS_API_KEY) {
@@ -103,15 +109,18 @@ export async function cloneVoice(
     formData.append('description', description);
   }
 
-  // Add audio files - using buffer instead of stream
+  // Add audio files with correct mime types
   for (let i = 0; i < audioFiles.length; i++) {
-    const audioPath = audioFiles[i];
-    const audioBuffer = fs.readFileSync(audioPath);
-    const filename = `sample_${i}.mp3`;
+    const fileInfo = audioFiles[i];
+    const audioBuffer = fs.readFileSync(fileInfo.path);
+
+    // Use original extension or fallback to mp3
+    const ext = fileInfo.originalname.split('.').pop() || 'mp3';
+    const filename = `sample_${i}.${ext}`;
 
     formData.append('files', audioBuffer, {
       filename,
-      contentType: 'audio/mpeg',
+      contentType: fileInfo.mimetype,
     });
   }
 

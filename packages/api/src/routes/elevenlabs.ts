@@ -139,12 +139,16 @@ router.post(
         });
       }
 
-      // Get file paths
-      const filePaths = files.map(f => f.path);
-      uploadedFiles.push(...filePaths);
+      // Prepare file info with mimetype and original name
+      const fileInfos = files.map(f => ({
+        path: f.path,
+        mimetype: f.mimetype,
+        originalname: f.originalname,
+      }));
+      uploadedFiles.push(...files.map(f => f.path));
 
       // Clone voice
-      const voice = await elevenlabs.cloneVoice(name, filePaths, description);
+      const voice = await elevenlabs.cloneVoice(name, fileInfos, description);
 
       res.json({
         success: true,
