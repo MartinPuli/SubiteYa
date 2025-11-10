@@ -91,11 +91,41 @@ router.get(
 router.post(
   '/clone',
   authenticate,
-  upload.array('files', 10),
+  (req: Request, res: Response, next) => {
+    upload.array('files', 10)(req, res, err => {
+      if (err) {
+        console.error('❌ Multer error:', err);
+        return res.status(400).json({
+          error: 'File upload error',
+          message: err.message,
+          details:
+            err instanceof multer.MulterError
+              ? {
+                  code: err.code,
+                  field: err.field,
+                }
+              : undefined,
+        });
+      }
+      next();
+    });
+  },
   async (req: Request, res: Response) => {
     const uploadedFiles: string[] = [];
 
     try {
+      console.log('📥 Clone request body:', req.body);
+      console.log(
+        '📁 Files received:',
+        req.files
+          ? (req.files as Express.Multer.File[]).map(f => ({
+              originalname: f.originalname,
+              mimetype: f.mimetype,
+              size: f.size,
+            }))
+          : 'none'
+      );
+
       const { name, description } = req.body;
       const files = req.files as Express.Multer.File[];
 
