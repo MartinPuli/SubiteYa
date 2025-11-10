@@ -20,6 +20,7 @@ import { UploadPage } from './pages/UploadPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { PatternsPage } from './pages/PatternsPage';
 import { PatternEditorPage } from './pages/PatternEditorPage';
+import { VoicesPage } from './pages/VoicesPage';
 
 export function App() {
   const location = useLocation();
@@ -90,6 +91,14 @@ export function App() {
           element={
             <ProtectedRoute>
               <PatternEditorPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/voices"
+          element={
+            <ProtectedRoute>
+              <VoicesPage />
             </ProtectedRoute>
           }
         />

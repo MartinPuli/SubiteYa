@@ -83,9 +83,14 @@ export const DashboardPage: React.FC = () => {
           <p>Conecta o desconecta cuentas de TikTok</p>
         </Card>
 
+        <Card className="action-card" onClick={() => navigate('/voices')}>
+          <h3>🎙️ Gestionar Voces IA</h3>
+          <p>Clona tu voz o explora voces para narración</p>
+        </Card>
+
         <Card className="action-card" onClick={() => navigate('/patterns')}>
           <h3>🎨 Patrones de Marca</h3>
-          <p>Configura logo, efectos, subtítulos y voz IA</p>
+          <p>Configura logo, efectos, subtítulos y voz</p>
         </Card>
 
         <Card className="action-card" onClick={() => navigate('/upload')}>
