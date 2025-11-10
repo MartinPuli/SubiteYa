@@ -7,6 +7,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Navigation } from './components/Navigation/Navigation';
 import { ProtectedRoute } from './components/ProtectedRoute/ProtectedRoute';
 import { ToastContainer } from './components/Toast/ToastContainer';
+import { NotificationCenter } from './components/NotificationCenter/NotificationCenter';
 import { useToastStore } from './store/toastStore';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -37,6 +38,7 @@ export function App() {
   return (
     <div className="app">
       {showNavigation && <Navigation />}
+      <NotificationCenter />
       <ToastContainer toasts={toasts} onClose={removeToast} />
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
