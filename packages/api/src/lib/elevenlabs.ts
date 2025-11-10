@@ -5,6 +5,7 @@
 
 import FormData from 'form-data';
 import fs from 'node:fs';
+import axios from 'axios';
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_BASE_URL = 'https://api.elevenlabs.io/v1';
@@ -128,23 +129,34 @@ export async function cloneVoice(
     });
   }
 
-  const response = await fetch(`${ELEVENLABS_BASE_URL}/voices/add`, {
-    method: 'POST',
-    headers: {
-      'xi-api-key': ELEVENLABS_API_KEY,
-      ...formData.getHeaders(),
-    },
-    body: formData as any, // Cast to any because FormData type mismatch
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(
-      `ElevenLabs voice cloning error: ${response.status} - ${error}`
+  try {
+    // Use axios for better multipart/form-data support
+    const response = await axios.post(
+      `${ELEVENLABS_BASE_URL}/voices/add`,
+      formData,
+      {
+        headers: {
+          'xi-api-key': ELEVENLABS_API_KEY,
+          ...formData.getHeaders(),
+        },
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+      }
     );
-  }
 
-  return (await response.json()) as Voice;
+    return response.data as Voice;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      const errorData =
+        typeof error.response.data === 'string'
+          ? error.response.data
+          : JSON.stringify(error.response.data);
+      throw new Error(
+        `ElevenLabs voice cloning error: ${error.response.status} - ${errorData}`
+      );
+    }
+    throw error;
+  }
 }
 
 /**
