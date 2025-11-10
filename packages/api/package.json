@@ -51,7 +51,6 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@types/form-data": "^2.5.5",
     "@types/nodemailer": "^7.0.3",
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",
