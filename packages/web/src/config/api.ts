@@ -37,6 +37,12 @@ export const API_ENDPOINTS = {
   // Brand Patterns
   patterns: `${API_BASE_URL}/patterns`,
   uploadLogo: `${API_BASE_URL}/patterns/upload-logo`,
+
+  // ElevenLabs Voice
+  elevenlabsVoices: `${API_BASE_URL}/elevenlabs/voices`,
+  elevenlabsClone: `${API_BASE_URL}/elevenlabs/clone`,
+  elevenlabsGenerate: `${API_BASE_URL}/elevenlabs/generate`,
+  elevenlabsDefaultVoices: `${API_BASE_URL}/elevenlabs/default-voices`,
 };
 
 // Helper function to build URLs with query params

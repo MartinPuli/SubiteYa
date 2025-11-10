@@ -88,6 +88,15 @@ interface Pattern {
 
   // Transitions (1 field)
   transitionType: string;
+
+  // Voice Narration (ElevenLabs) - 7 fields
+  enable_voice_narration?: boolean;
+  narration_language?: string;
+  narration_voice_id?: string;
+  narration_style?: string;
+  narration_volume?: number;
+  narration_speed?: number;
+  original_audio_volume?: number;
 }
 
 const LOGO_POSITIONS = [
@@ -238,6 +247,18 @@ export const PatternEditorPage: React.FC = () => {
   // Transitions (1 field)
   const [transitionType, setTransitionType] = useState('none');
 
+  // Voice Narration (ElevenLabs) - 6 fields
+  const [enableVoiceNarration, setEnableVoiceNarration] = useState(false);
+  const [narrationLanguage, setNarrationLanguage] = useState('es');
+  const [narrationVoiceId, setNarrationVoiceId] = useState('');
+  const [narrationStyle, setNarrationStyle] = useState('documentary');
+  const [narrationVolume, setNarrationVolume] = useState(80);
+  const [narrationSpeed, setNarrationSpeed] = useState(1.0);
+  const [originalAudioVolume, setOriginalAudioVolume] = useState(30);
+  const [availableVoices, setAvailableVoices] = useState<
+    Array<{ voice_id: string; name: string }>
+  >([]);
+
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
@@ -249,6 +270,8 @@ export const PatternEditorPage: React.FC = () => {
       if (id && id !== 'new') {
         loadPattern(token, id);
       }
+      // Load available voices
+      loadAvailableVoices(token);
     }
   }, [isAuthenticated, token, id, navigate, fetchConnections]);
 
@@ -350,11 +373,38 @@ export const PatternEditorPage: React.FC = () => {
 
         // Transitions
         setTransitionType(pattern.transitionType || 'none');
+
+        // Voice Narration (ElevenLabs)
+        setEnableVoiceNarration(pattern.enable_voice_narration || false);
+        setNarrationLanguage(pattern.narration_language || 'es');
+        setNarrationVoiceId(pattern.narration_voice_id || '');
+        setNarrationStyle(pattern.narration_style || 'documentary');
+        setNarrationVolume(pattern.narration_volume || 80);
+        setNarrationSpeed(pattern.narration_speed || 1.0);
+        setOriginalAudioVolume(pattern.original_audio_volume || 30);
       }
     } catch (error) {
       console.error('Error loading pattern:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAvailableVoices = async (authToken: string) => {
+    try {
+      const response = await fetch(API_ENDPOINTS.elevenlabsVoices, {
+        headers: { Authorization: `Bearer ${authToken}` },
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableVoices(data.voices || []);
+      }
+    } catch (error) {
+      console.error('Error loading voices:', error);
+      // Set default empty array on error
+      setAvailableVoices([]);
     }
   };
 
@@ -560,6 +610,15 @@ export const PatternEditorPage: React.FC = () => {
 
         // Transitions
         transitionType,
+
+        // Voice Narration (ElevenLabs)
+        enable_voice_narration: enableVoiceNarration,
+        narration_language: narrationLanguage,
+        narration_voice_id: narrationVoiceId,
+        narration_style: narrationStyle,
+        narration_volume: narrationVolume,
+        narration_speed: narrationSpeed,
+        original_audio_volume: originalAudioVolume,
       };
 
       const url =
@@ -604,6 +663,7 @@ export const PatternEditorPage: React.FC = () => {
     { id: 'speed', label: 'Velocidad', icon: '⚡' },
     { id: 'crop', label: 'Recorte', icon: '✂️' },
     { id: 'audio', label: 'Audio', icon: '🎵' },
+    { id: 'voiceNarration', label: 'Voz IA', icon: '🎙️' },
     { id: 'subtitles', label: 'Subtítulos', icon: '💬' },
     { id: 'quality', label: 'Calidad', icon: '⚙️' },
   ];
@@ -1077,6 +1137,187 @@ export const PatternEditorPage: React.FC = () => {
                     description="Balance entre la música y el audio original"
                   />
                 </Section>
+              )}
+            </TabPanel>
+
+            {/* Voice Narration Tab - ElevenLabs AI Narration */}
+            <TabPanel id="voiceNarration" activeTab={activeTab}>
+              <Section
+                title="🎙️ Narración con Voz IA (ElevenLabs)"
+                description="Crea narraciones profesionales estilo National Geographic en cualquier idioma"
+                columns={1}
+              >
+                <Toggle
+                  label="Habilitar Narración con IA"
+                  description="Genera una voz narradora que traduce y narra el contenido del video"
+                  checked={enableVoiceNarration}
+                  onChange={setEnableVoiceNarration}
+                />
+              </Section>
+
+              {enableVoiceNarration && (
+                <>
+                  <Section title="Configuración de Idioma y Voz" columns={2}>
+                    <Select
+                      label="Idioma de Narración"
+                      value={narrationLanguage}
+                      onChange={setNarrationLanguage}
+                      options={[
+                        { value: 'es', label: '🇪🇸 Español' },
+                        { value: 'en', label: '🇬🇧 English' },
+                        { value: 'pt', label: '🇧🇷 Português' },
+                        { value: 'fr', label: '🇫🇷 Français' },
+                        { value: 'de', label: '🇩🇪 Deutsch' },
+                        { value: 'it', label: '🇮🇹 Italiano' },
+                        { value: 'ja', label: '🇯🇵 日本語' },
+                        { value: 'zh', label: '🇨🇳 中文' },
+                      ]}
+                    />
+
+                    <Select
+                      label="Voz del Narrador"
+                      value={narrationVoiceId}
+                      onChange={setNarrationVoiceId}
+                      options={[
+                        { value: '', label: '🎙️ Selecciona una voz...' },
+                        ...availableVoices.map(voice => ({
+                          value: voice.voice_id,
+                          label: voice.name,
+                        })),
+                      ]}
+                    />
+                  </Section>
+
+                  <Section title="Estilo de Narración" columns={1}>
+                    <Select
+                      label="Estilo de Contenido"
+                      value={narrationStyle}
+                      onChange={setNarrationStyle}
+                      options={[
+                        {
+                          value: 'documentary',
+                          label: '🎬 Documental (National Geographic)',
+                        },
+                        {
+                          value: 'educational',
+                          label: '📚 Educativo (explicativo)',
+                        },
+                        { value: 'news', label: '📰 Noticias (formal)' },
+                        {
+                          value: 'storytelling',
+                          label: '📖 Narrativo (historia)',
+                        },
+                        { value: 'casual', label: '😊 Casual (amigable)' },
+                        {
+                          value: 'professional',
+                          label: '💼 Profesional (corporativo)',
+                        },
+                      ]}
+                    />
+                    <div className="narration-style-info">
+                      <p
+                        style={{
+                          fontSize: '14px',
+                          color: '#666',
+                          marginTop: '8px',
+                        }}
+                      >
+                        {narrationStyle === 'documentary' &&
+                          '🎥 Voz grave y autorizada, perfecta para documentales de naturaleza y viajes'}
+                        {narrationStyle === 'educational' &&
+                          '👨‍🏫 Tono claro y explicativo, ideal para tutoriales y contenido educativo'}
+                        {narrationStyle === 'news' &&
+                          '📺 Voz profesional y neutral, similar a noticieros y reportajes'}
+                        {narrationStyle === 'storytelling' &&
+                          '✨ Narración emotiva, perfecta para contar historias y experiencias'}
+                        {narrationStyle === 'casual' &&
+                          '🗣️ Tono conversacional y amigable, ideal para vlogs y contenido informal'}
+                        {narrationStyle === 'professional' &&
+                          '🎓 Voz seria y confiable, ideal para presentaciones corporativas'}
+                      </p>
+                    </div>
+                  </Section>
+
+                  <Section title="Ajustes de Audio de Narración" columns={1}>
+                    <EnhancedSlider
+                      label="Volumen de Narración"
+                      value={narrationVolume}
+                      onChange={setNarrationVolume}
+                      min={0}
+                      max={100}
+                      step={5}
+                      unit="%"
+                      type="volume"
+                      description="Nivel de volumen de la voz narradora"
+                    />
+
+                    <EnhancedSlider
+                      label="Velocidad de Narración"
+                      value={narrationSpeed}
+                      onChange={setNarrationSpeed}
+                      min={0.5}
+                      max={2.0}
+                      step={0.1}
+                      unit="x"
+                      description="1.0 = Normal, <1.0 = Más lento, >1.0 = Más rápido"
+                    />
+
+                    <EnhancedSlider
+                      label="Volumen del Audio Original"
+                      value={originalAudioVolume}
+                      onChange={setOriginalAudioVolume}
+                      min={0}
+                      max={100}
+                      step={5}
+                      unit="%"
+                      type="volume"
+                      description="Volumen del audio original del video cuando la narración está activa (0% = silenciado)"
+                    />
+                  </Section>
+
+                  <Section title="ℹ️ Cómo Funciona" columns={1}>
+                    <div
+                      className="info-box"
+                      style={{
+                        background: '#f0f9ff',
+                        border: '1px solid #0ea5e9',
+                        padding: '16px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        lineHeight: '1.6',
+                      }}
+                    >
+                      <p>
+                        <strong>🎤 Proceso Automático:</strong>
+                      </p>
+                      <ol style={{ paddingLeft: '20px', marginTop: '8px' }}>
+                        <li>
+                          Se extrae el audio del video y se transcribe con
+                          Whisper AI
+                        </li>
+                        <li>
+                          El contenido se traduce al idioma seleccionado con
+                          GPT-4
+                        </li>
+                        <li>
+                          Se genera un script profesional según el estilo
+                          elegido
+                        </li>
+                        <li>
+                          ElevenLabs crea la narración con la voz seleccionada
+                        </li>
+                        <li>
+                          El audio se mezcla con el video ajustando volúmenes
+                        </li>
+                      </ol>
+                      <p style={{ marginTop: '12px', color: '#0369a1' }}>
+                        <strong>💡 Tip:</strong> Para mejores resultados, usa
+                        videos con contenido claro y define bien el estilo de
+                        narración que deseas.
+                      </p>
+                    </div>
+                  </Section>
+                </>
               )}
             </TabPanel>
 

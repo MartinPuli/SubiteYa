@@ -140,6 +140,7 @@ import videosRoutes from './routes/videos';
 import meRoutes from './routes/me';
 import designsRoutes from './routes/designs';
 import eventsRoutes from './routes/events';
+import elevenlabsRoutes from './routes/elevenlabs';
 
 // Import BullMQ workers (production)
 import { startEditWorker, stopEditWorker } from './workers/edit-worker-bullmq';
@@ -169,6 +170,7 @@ app.use('/api/videos', videosRoutes);
 app.use('/api/me', meRoutes);
 app.use('/api/accounts', designsRoutes);
 app.use('/api/events', eventsRoutes);
+app.use('/api/elevenlabs', elevenlabsRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
