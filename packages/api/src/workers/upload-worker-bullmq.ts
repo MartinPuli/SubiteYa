@@ -9,6 +9,7 @@ import { VideoStatus } from '@prisma/client';
 import { downloadFromS3, extractS3Key } from '../lib/storage';
 import { notifyUser } from '../routes/events';
 import crypto from 'node:crypto';
+import Redis from 'ioredis';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const CONCURRENCY = Number.parseInt(
@@ -22,6 +23,7 @@ const lastUploadTime = new Map<string, number>();
 const RATE_LIMIT_PER_ACCOUNT = 5 * 60 * 1000; // 5 minutes
 
 let worker: Worker | null = null;
+let redisConnection: Redis | null = null;
 
 // Decrypt token helper
 function decryptToken(encryptedToken: string): string {
@@ -43,9 +45,25 @@ export function startUploadWorker() {
     return worker;
   }
 
-  const redisUrl = new URL(REDIS_URL);
-  const isUpstash = redisUrl.protocol === 'rediss:';
+  // Create Redis connection for BullMQ Worker
+  redisConnection = new Redis(REDIS_URL, {
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+    retryStrategy: (times: number) => {
+      const delay = Math.min(times * 50, 2000);
+      return delay;
+    },
+  });
 
+  redisConnection.on('error', (err: Error) => {
+    if (err.message.includes('ECONNRESET')) {
+      console.warn('[Upload Worker] Redis connection reset, will reconnect...');
+      return;
+    }
+    console.error('[Upload Worker] Redis error:', err);
+  });
+
+  // Use direct REDIS_URL string for ioredis - it parses credentials automatically
   worker = new Worker(
     'video-upload',
     async (job: Job) => {
@@ -53,21 +71,7 @@ export function startUploadWorker() {
       await processUploadJob(videoId, job);
     },
     {
-      connection: {
-        host: redisUrl.hostname,
-        port: Number.parseInt(redisUrl.port || '6379', 10),
-        ...(isUpstash && {
-          username: redisUrl.username || 'default',
-          password: redisUrl.password,
-          tls: {},
-        }),
-        maxRetriesPerRequest: null,
-        enableReadyCheck: false,
-        retryStrategy: (times: number) => {
-          const delay = Math.min(times * 50, 2000);
-          return delay;
-        },
-      },
+      connection: redisConnection,
       concurrency: CONCURRENCY,
       limiter: {
         max: 3, // Max 3 uploads

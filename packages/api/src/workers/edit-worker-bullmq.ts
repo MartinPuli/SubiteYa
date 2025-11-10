@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { z } from 'zod';
+import Redis from 'ioredis';
 
 type DesignSpecType = z.infer<typeof DesignSpec>;
 
@@ -24,6 +25,7 @@ const CONCURRENCY = Number.parseInt(
 );
 
 let worker: Worker | null = null;
+let redisConnection: Redis | null = null;
 
 export function startEditWorker() {
   if (worker) {
@@ -31,9 +33,25 @@ export function startEditWorker() {
     return worker;
   }
 
-  const redisUrl = new URL(REDIS_URL);
-  const isUpstash = redisUrl.protocol === 'rediss:';
+  // Create Redis connection for BullMQ Worker
+  redisConnection = new Redis(REDIS_URL, {
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+    retryStrategy: (times: number) => {
+      const delay = Math.min(times * 50, 2000);
+      return delay;
+    },
+  });
 
+  redisConnection.on('error', (err: Error) => {
+    if (err.message.includes('ECONNRESET')) {
+      console.warn('[Edit Worker] Redis connection reset, will reconnect...');
+      return;
+    }
+    console.error('[Edit Worker] Redis error:', err);
+  });
+
+  // Use direct REDIS_URL string for ioredis - it parses credentials automatically
   worker = new Worker(
     'video-edit',
     async (job: Job) => {
@@ -41,21 +59,7 @@ export function startEditWorker() {
       await processEditJob(videoId, job);
     },
     {
-      connection: {
-        host: redisUrl.hostname,
-        port: Number.parseInt(redisUrl.port || '6379', 10),
-        ...(isUpstash && {
-          username: redisUrl.username || 'default',
-          password: redisUrl.password,
-          tls: {},
-        }),
-        maxRetriesPerRequest: null,
-        enableReadyCheck: false,
-        retryStrategy: (times: number) => {
-          const delay = Math.min(times * 50, 2000);
-          return delay;
-        },
-      },
+      connection: redisConnection,
       concurrency: CONCURRENCY,
       limiter: {
         max: 3,
