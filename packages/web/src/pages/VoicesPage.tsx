@@ -16,12 +16,21 @@ interface Voice {
   preview_url?: string;
 }
 
+interface DefaultVoice {
+  language: string;
+  voice_id: string;
+  name: string;
+  flag: string;
+}
+
 export const VoicesPage: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, token } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [voices, setVoices] = useState<Voice[]>([]);
+  const [defaultVoices, setDefaultVoices] = useState<DefaultVoice[]>([]);
   const [cloning, setCloning] = useState(false);
+  const [showCloneForm, setShowCloneForm] = useState(false);
 
   // Clone voice form
   const [voiceName, setVoiceName] = useState('');
@@ -36,6 +45,7 @@ export const VoicesPage: React.FC = () => {
 
     if (token) {
       loadVoices(token);
+      loadDefaultVoices(token);
     }
   }, [isAuthenticated, token, navigate]);
 
@@ -55,6 +65,22 @@ export const VoicesPage: React.FC = () => {
       console.error('Error loading voices:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadDefaultVoices = async (authToken: string) => {
+    try {
+      const response = await fetch(API_ENDPOINTS.elevenlabsDefaultVoices, {
+        headers: { Authorization: `Bearer ${authToken}` },
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDefaultVoices(data.defaultVoices || []);
+      }
+    } catch (error) {
+      console.error('Error loading default voices:', error);
     }
   };
 
@@ -123,7 +149,7 @@ export const VoicesPage: React.FC = () => {
         <div>
           <h1 className="voices-title">🎙️ Gestión de Voces IA</h1>
           <p className="voices-subtitle">
-            Clona tu voz o explora voces disponibles para narración
+            Usa voces por defecto o clona tu propia voz para narración
           </p>
         </div>
         <Button variant="ghost" onClick={() => navigate('/dashboard')}>
@@ -131,84 +157,116 @@ export const VoicesPage: React.FC = () => {
         </Button>
       </div>
 
+      {/* Default Voices Section - FIRST */}
+      {defaultVoices.length > 0 && (
+        <Card className="default-voices-card">
+          <h2 className="section-title">⭐ Voces Recomendadas por Idioma</h2>
+          <p className="section-description">
+            Voces profesionales listas para usar. Selecciónalas directamente en
+            tus patrones.
+          </p>
+
+          <div className="default-voices-grid">
+            {defaultVoices.map(voice => (
+              <Card key={voice.voice_id} className="default-voice-card">
+                <div className="voice-flag">{voice.flag}</div>
+                <h3>{voice.name}</h3>
+                <p className="voice-language">{voice.language}</p>
+                <span className="voice-id">ID: {voice.voice_id}</span>
+              </Card>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Clone Voice Section */}
       <Card className="clone-voice-card">
-        <h2 className="section-title">🎤 Clonar Tu Voz</h2>
-        <p className="section-description">
-          Sube grabaciones de tu voz para crear un clon personalizado. Se
-          recomienda subir 2-5 archivos de audio con diferentes tonos y
-          emociones.
-        </p>
-
-        <div className="clone-form">
-          <div className="form-group">
-            <label>Nombre de la Voz *</label>
-            <Input
-              type="text"
-              value={voiceName}
-              onChange={e => setVoiceName(e.target.value)}
-              placeholder="Ej: Mi Voz Profesional"
-            />
+        <div className="clone-header">
+          <div>
+            <h2 className="section-title">🎤 Clonar Tu Propia Voz</h2>
+            <p className="section-description">
+              Crea una voz personalizada con tu propio audio. Ideal para marca
+              personal.
+            </p>
           </div>
-
-          <div className="form-group">
-            <label>Descripción (opcional)</label>
-            <Input
-              type="text"
-              value={voiceDescription}
-              onChange={e => setVoiceDescription(e.target.value)}
-              placeholder="Ej: Voz para videos documentales"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Archivos de Audio (2-5 archivos) *</label>
-            <input
-              type="file"
-              accept="audio/mp3,audio/wav,audio/ogg"
-              multiple
-              onChange={handleFileChange}
-              className="file-input"
-            />
-            {audioFiles.length > 0 && (
-              <div className="file-list">
-                <p>✅ {audioFiles.length} archivo(s) seleccionado(s):</p>
-                <ul>
-                  {audioFiles.map((file, idx) => (
-                    <li key={idx}>{file.name}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-
-          <div className="requirements">
-            <h4>📋 Requisitos:</h4>
-            <ul>
-              <li>Formato: MP3, WAV, o OGG</li>
-              <li>Máximo 10MB por archivo</li>
-              <li>Mínimo 2 archivos, máximo 5</li>
-              <li>Cada grabación debe tener al menos 30 segundos</li>
-              <li>Audio claro, sin ruido de fondo</li>
-              <li>Varía tonos y emociones entre archivos</li>
-            </ul>
-          </div>
-
           <Button
-            variant="primary"
-            onClick={handleCloneVoice}
-            disabled={cloning || !voiceName || audioFiles.length === 0}
+            variant={showCloneForm ? 'ghost' : 'primary'}
+            onClick={() => setShowCloneForm(!showCloneForm)}
           >
-            {cloning ? '🔄 Clonando...' : '🎙️ Clonar Mi Voz'}
+            {showCloneForm ? '✕ Cerrar' : '+ Clonar Mi Voz'}
           </Button>
         </div>
+
+        {showCloneForm && (
+          <div className="clone-form">
+            {/* Clone Voice Section */}
+            <div className="form-group">
+              <label>Nombre de la Voz *</label>
+              <Input
+                type="text"
+                value={voiceName}
+                onChange={e => setVoiceName(e.target.value)}
+                placeholder="Ej: Mi Voz Profesional"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Descripción (opcional)</label>
+              <Input
+                type="text"
+                value={voiceDescription}
+                onChange={e => setVoiceDescription(e.target.value)}
+                placeholder="Ej: Voz para videos documentales"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Archivos de Audio (2-5 archivos) *</label>
+              <input
+                type="file"
+                accept="audio/mp3,audio/wav,audio/ogg"
+                multiple
+                onChange={handleFileChange}
+                className="file-input"
+              />
+              {audioFiles.length > 0 && (
+                <div className="file-list">
+                  <p>✅ {audioFiles.length} archivo(s) seleccionado(s):</p>
+                  <ul>
+                    {audioFiles.map((file, idx) => (
+                      <li key={idx}>{file.name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <div className="requirements">
+              <h4>📋 Requisitos:</h4>
+              <ul>
+                <li>Formato: MP3, WAV, o OGG</li>
+                <li>Máximo 10MB por archivo</li>
+                <li>Mínimo 2 archivos, máximo 5</li>
+                <li>Cada grabación debe tener al menos 30 segundos</li>
+                <li>Audio claro, sin ruido de fondo</li>
+                <li>Varía tonos y emociones entre archivos</li>
+              </ul>
+            </div>
+
+            <Button
+              variant="primary"
+              onClick={handleCloneVoice}
+              disabled={cloning || !voiceName || audioFiles.length === 0}
+            >
+              {cloning ? '🔄 Clonando...' : '🎙️ Clonar Mi Voz'}
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* Available Voices Section */}
       <Card className="voices-list-card">
-        <h2 className="section-title">
-          🌍 Voces Disponibles ({voices.length})
-        </h2>
+        <h2 className="section-title">🌍 Todas las Voces ({voices.length})</h2>
         <p className="section-description">
           Estas son todas las voces disponibles para usar en tus narraciones
         </p>
