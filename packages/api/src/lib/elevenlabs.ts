@@ -103,13 +103,13 @@ export async function cloneVoice(
     formData.append('description', description);
   }
 
-  // Add audio files with proper filenames and options
+  // Add audio files - using buffer instead of stream
   for (let i = 0; i < audioFiles.length; i++) {
     const audioPath = audioFiles[i];
-    const fileStream = fs.createReadStream(audioPath);
-    const filename = `sample_${i}.mp3`; // ElevenLabs expects named files
+    const audioBuffer = fs.readFileSync(audioPath);
+    const filename = `sample_${i}.mp3`;
 
-    formData.append('files', fileStream, {
+    formData.append('files', audioBuffer, {
       filename,
       contentType: 'audio/mpeg',
     });
