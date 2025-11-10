@@ -53,6 +53,11 @@ export function startUploadWorker() {
       const delay = Math.min(times * 50, 2000);
       return delay;
     },
+    lazyConnect: true, // Don't connect immediately
+  });
+
+  redisConnection.on('connect', () => {
+    console.log('[Upload Worker] ✅ Connected to Redis');
   });
 
   redisConnection.on('error', (err: Error) => {
@@ -60,10 +65,19 @@ export function startUploadWorker() {
       console.warn('[Upload Worker] Redis connection reset, will reconnect...');
       return;
     }
-    console.error('[Upload Worker] Redis error:', err);
+    console.error('[Upload Worker] Redis error:', err.message);
   });
 
-  // Use direct REDIS_URL string for ioredis - it parses credentials automatically
+  redisConnection.on('close', () => {
+    console.warn('[Upload Worker] Redis connection closed');
+  });
+
+  // Connect explicitly
+  redisConnection.connect().catch(err => {
+    console.error('[Upload Worker] Failed to connect to Redis:', err.message);
+    process.exit(1);
+  });
+
   worker = new Worker(
     'video-upload',
     async (job: Job) => {
@@ -106,6 +120,11 @@ export async function stopUploadWorker() {
     await worker.close();
     worker = null;
     console.log('[Upload Worker] Stopped');
+  }
+  if (redisConnection) {
+    await redisConnection.quit();
+    redisConnection = null;
+    console.log('[Upload Worker] Redis connection closed');
   }
 }
 
