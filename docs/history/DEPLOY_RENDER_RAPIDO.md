@@ -40,7 +40,7 @@ TIKTOK_CLIENT_SECRET=tu_client_secret
 TIKTOK_REDIRECT_URI=https://subiteya-api.onrender.com/api/auth/tiktok/callback
 ```
 
-*(Obtén las credenciales en: https://developers.tiktok.com/)*
+_(Obtén las credenciales en: https://developers.tiktok.com/)_
 
 ### 5. Esperar el Deploy
 
@@ -53,6 +53,7 @@ TIKTOK_REDIRECT_URI=https://subiteya-api.onrender.com/api/auth/tiktok/callback
 ### 6. Obtener tu URL
 
 Tu API estará en:
+
 ```
 https://subiteya-api.onrender.com
 ```
@@ -68,9 +69,11 @@ Una vez desplegado el backend, actualiza tu frontend:
 ### 1. Crear configuración de API
 
 `packages/web/src/config/api.ts`:
+
 ```typescript
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.PROD 
+export const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD
     ? 'https://subiteya-api.onrender.com'
     : 'http://localhost:3000');
 ```
@@ -78,6 +81,7 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL ||
 ### 2. Crear .env.production
 
 `packages/web/.env.production`:
+
 ```
 VITE_API_URL=https://subiteya-api.onrender.com
 ```
@@ -95,6 +99,7 @@ git push origin main
 ## ⚠️ Importante: Plan Free
 
 El plan gratuito de Render:
+
 - ✅ Es completamente gratis
 - ⚠️ Se duerme después de 15 minutos sin uso
 - ⚠️ Tarda ~30 segundos en "despertar"
@@ -107,6 +112,7 @@ Para producción: Plan Starter ($7/mes) - sin sleep
 ## 📚 Documentación Completa
 
 Lee `DEPLOY_RENDER.md` para:
+
 - Despliegue manual paso a paso
 - Solución de problemas
 - Configuración avanzada

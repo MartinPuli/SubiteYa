@@ -5,10 +5,12 @@
 Tu proyecto ahora está configurado para funcionar automáticamente en:
 
 ### 🏠 Desarrollo Local
+
 - **Frontend**: http://localhost:5173
 - **Backend API**: http://localhost:3000/api
 
 ### 🌐 Producción
+
 - **Frontend**: https://martinpuli.github.io/SubiteYa/
 - **Backend API**: https://subiteya.onrender.com/api
 
@@ -33,6 +35,7 @@ Tu proyecto ahora está configurado para funcionar automáticamente en:
    - Define tipos para variables de entorno
 
 4. **`.env.development`** - Variables de desarrollo
+
    ```
    VITE_API_URL=http://localhost:3000/api
    ```
@@ -65,11 +68,11 @@ async function handleLogin(email: string, password: string) {
       body: JSON.stringify({ email, password }),
       credentials: 'include', // Importante para cookies
     });
-    
+
     if (!response.ok) {
       throw new Error('Login failed');
     }
-    
+
     const data = await response.json();
     console.log('Login exitoso:', data);
   } catch (error) {
@@ -87,7 +90,7 @@ async function getMyConnections() {
       method: 'GET',
       credentials: 'include',
     });
-    
+
     const connections = await response.json();
     return connections;
   } catch (error) {
@@ -176,6 +179,7 @@ El frontend automáticamente usará `https://subiteya.onrender.com/api`
 ## ✅ Checklist de Integración
 
 ### Frontend
+
 - [x] `src/config/api.ts` creado
 - [x] `.env.development` configurado
 - [x] `.env.production` configurado
@@ -185,6 +189,7 @@ El frontend automáticamente usará `https://subiteya.onrender.com/api`
 - [ ] Desplegar a GitHub Pages
 
 ### Backend
+
 - [ ] Servicio creado en Render
 - [ ] Variables de entorno configuradas
 - [ ] `ALLOWED_ORIGINS` incluye GitHub Pages
@@ -193,6 +198,7 @@ El frontend automáticamente usará `https://subiteya.onrender.com/api`
 - [ ] Health check funcionando
 
 ### TikTok Developer Portal
+
 - [ ] Redirect URI actualizado a producción
 - [ ] Redirect URI de desarrollo agregado (opcional)
 
@@ -213,6 +219,7 @@ npm run dev
 ```
 
 Abre http://localhost:5173 y prueba:
+
 - Login/Register
 - Conectar cuenta de TikTok
 - Ver conexiones
@@ -220,6 +227,7 @@ Abre http://localhost:5173 y prueba:
 ### 2. En Producción
 
 Una vez desplegado:
+
 1. Ve a https://martinpuli.github.io/SubiteYa/
 2. Prueba las mismas funcionalidades
 3. Verifica que OAuth redirige correctamente
@@ -234,6 +242,7 @@ Una vez desplegado:
 **Problema**: El backend bloquea requests del frontend
 
 **Solución**:
+
 1. Verifica que `ALLOWED_ORIGINS` en Render incluya tu URL de GitHub Pages
 2. Debe ser exacta: `https://martinpuli.github.io` (sin trailing slash)
 
@@ -242,6 +251,7 @@ Una vez desplegado:
 **Problema**: No puede conectarse a la API
 
 **Solución**:
+
 1. Verifica que el backend esté corriendo
 2. En producción: verifica que Render no esté dormido (plan free)
 3. Verifica la URL en `.env.production`
@@ -251,6 +261,7 @@ Una vez desplegado:
 **Problema**: Redirige pero da error
 
 **Solución**:
+
 1. Verifica `TIKTOK_REDIRECT_URI` en Render
 2. Verifica que coincida con TikTok Developer Portal
 3. Debe ser: `https://subiteya.onrender.com/api/auth/tiktok/callback`

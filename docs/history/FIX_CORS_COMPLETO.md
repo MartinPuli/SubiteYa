@@ -13,6 +13,7 @@
    - ✅ `preflightContinue: false` (termina el preflight aquí)
 
 2. **Manejo explícito de preflight:**
+
    ```typescript
    app.options('*', cors());
    ```
@@ -51,6 +52,7 @@ curl -i -X OPTIONS https://subiteya.onrender.com/api/auth/login \
 ```
 
 **Respuesta esperada:**
+
 ```
 HTTP/1.1 204 No Content
 Access-Control-Allow-Origin: https://martinpuli.github.io
@@ -70,6 +72,7 @@ curl -i -X POST https://subiteya.onrender.com/api/auth/login \
 ```
 
 **Respuesta esperada (headers):**
+
 ```
 Access-Control-Allow-Origin: https://martinpuli.github.io
 Access-Control-Allow-Credentials: true
@@ -79,6 +82,7 @@ Vary: Origin
 ## 📋 Pasos para Desplegar
 
 1. **Commitear cambios:**
+
    ```bash
    git add .
    git commit -m "fix: configuración completa CORS con preflight y credentials"
@@ -94,6 +98,7 @@ Vary: Origin
 3. **Esperar redeploy automático** (1-2 minutos)
 
 4. **Verificar en logs de Render:**
+
    ```
    🔧 CORS allowed origins: [ 'https://martinpuli.github.io', 'https://martinpuli.github.io/' ]
    🚀 SubiteYa API listening on port 3000
@@ -108,6 +113,7 @@ Vary: Origin
 ## 🔍 Qué Buscar en DevTools
 
 ### Request Headers (del navegador):
+
 ```
 Origin: https://martinpuli.github.io
 Access-Control-Request-Method: POST
@@ -115,6 +121,7 @@ Access-Control-Request-Headers: content-type
 ```
 
 ### Response Headers (del servidor):
+
 ```
 Access-Control-Allow-Origin: https://martinpuli.github.io
 Access-Control-Allow-Credentials: true
@@ -144,6 +151,7 @@ Vary: Origin
 ## 🎉 Éxito
 
 Cuando funcione, deberías ver en los logs:
+
 ```
 ✅ CORS allowed origin: https://martinpuli.github.io
 [uuid] POST /api/auth/login - IP: xxx.xxx.xxx.xxx

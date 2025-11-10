@@ -62,6 +62,7 @@ https://martinpuli.github.io/SubiteYa/
 ### Error: "Resource not accessible by integration"
 
 **Solución:**
+
 1. Ve a Settings → Actions → General
 2. Cambia a "Read and write permissions"
 3. Guarda y re-ejecuta el workflow
@@ -69,12 +70,14 @@ https://martinpuli.github.io/SubiteYa/
 ### Error: "Page build failed"
 
 **Solución:**
+
 1. Verifica que en Settings → Pages, Source esté en "GitHub Actions"
 2. NO debe estar en "Deploy from a branch"
 
 ### El workflow no aparece
 
 **Solución:**
+
 1. Verifica que el archivo exista: `.github/workflows/deploy.yml`
 2. Verifica que esté en la rama `main`
 3. Ve a Actions y busca si hay errores de sintaxis
@@ -82,6 +85,7 @@ https://martinpuli.github.io/SubiteYa/
 ### La página muestra 404
 
 **Causas posibles:**
+
 1. El workflow aún no terminó (espera 2-3 minutos)
 2. GitHub Pages no está habilitado correctamente
 3. El build falló (revisa los logs en Actions)

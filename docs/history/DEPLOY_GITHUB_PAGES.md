@@ -37,6 +37,7 @@ npm run build -w @subiteya/web
 El archivo `.github/workflows/deploy.yml` ya está configurado. Simplemente:
 
 1. Haz commit de tus cambios:
+
 ```bash
 git add .
 git commit -m "feat: configurar GitHub Pages deployment"
@@ -51,12 +52,14 @@ git push origin main
 Si prefieres desplegar manualmente:
 
 1. Instala las dependencias:
+
 ```bash
 cd packages/web
 npm install
 ```
 
 2. Ejecuta el script de deploy:
+
 ```bash
 npm run deploy
 ```
@@ -72,15 +75,18 @@ Esto construirá la aplicación y la desplegará en la rama `gh-pages`.
 ## ⚙️ Configuración Realizada
 
 ### 1. `vite.config.ts`
+
 - Se configuró el `base` para que funcione con la ruta de GitHub Pages (`/SubiteYa/`)
 - Se optimizó el build con chunks manuales para mejor rendimiento
 
 ### 2. GitHub Actions Workflow
+
 - Se creó `.github/workflows/deploy.yml`
 - Automatiza el build y despliegue en cada push a `main`
 - Usa las GitHub Actions oficiales para Pages
 
 ### 3. Scripts de Deploy
+
 - Se agregó el script `deploy` en `packages/web/package.json`
 - Se instaló `gh-pages` como dependencia de desarrollo
 
@@ -89,6 +95,7 @@ Esto construirá la aplicación y la desplegará en la rama `gh-pages`.
 ### Error: "No se puede acceder a la API"
 
 Si tu aplicación frontend intenta conectarse a la API del backend, recuerda que:
+
 - GitHub Pages solo sirve contenido estático (HTML, CSS, JS)
 - No puede ejecutar código de backend (Node.js, Express)
 - Necesitarás desplegar tu API en otro lugar (Vercel, Railway, Render, etc.)
@@ -103,6 +110,7 @@ Para apps React con React Router, necesitas manejar las rutas del lado del clien
 ### Error: "Permisos denegados en GitHub Actions"
 
 Verifica que el repositorio tenga los permisos correctos:
+
 1. Settings → Actions → General
 2. En "Workflow permissions", selecciona "Read and write permissions"
 
@@ -127,6 +135,7 @@ Si tu aplicación usa variables de entorno:
 Para que tu aplicación funcione completamente, necesitarás desplegar también el backend:
 
 **Opciones recomendadas:**
+
 - **Railway**: Fácil despliegue de apps Node.js con PostgreSQL
 - **Render**: Plan gratuito con soporte para PostgreSQL
 - **Vercel**: Excelente para APIs serverless

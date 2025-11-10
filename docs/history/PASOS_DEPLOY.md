@@ -31,7 +31,7 @@ git push origin main
    - Click en **Settings**
    - Busca **Pages** en el menú lateral
    - En **Build and deployment**, selecciona:
-     - **Source**: GitHub Actions ⚠️ *(IMPORTANTE)*
+     - **Source**: GitHub Actions ⚠️ _(IMPORTANTE)_
 
 3. **Verifica el despliegue**:
    - Ve a la pestaña **Actions**
@@ -39,7 +39,7 @@ git push origin main
    - Espera a que termine (tarda 2-3 minutos)
 
 4. **Accede a tu app**:
-   - Una vez completado, tu app estará en: 
+   - Una vez completado, tu app estará en:
    - `https://martinpuli.github.io/SubiteYa/`
 
 ## ⚠️ IMPORTANTE: Backend
@@ -47,8 +47,9 @@ git push origin main
 Recuerda que GitHub Pages **solo sirve el frontend** (HTML, CSS, JS estáticos).
 
 Tu API de backend NO estará disponible. Necesitarás desplegarla por separado en:
+
 - Railway
-- Render  
+- Render
 - Vercel
 - Fly.io
 

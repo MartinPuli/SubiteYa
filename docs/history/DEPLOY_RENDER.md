@@ -13,6 +13,7 @@ Esta guía te llevará paso a paso para desplegar tu API de SubiteYa en Render.
 ### Opción 1: Despliegue Automático con render.yaml (Recomendado)
 
 El archivo `render.yaml` ya está configurado. Incluye:
+
 - ✅ Web Service (tu API)
 - ✅ PostgreSQL Database (base de datos)
 - ✅ Variables de entorno configuradas
@@ -46,6 +47,7 @@ Configuración paso a paso desde la interfaz web de Render.
 ### Paso 3: Configurar Variables de Entorno Adicionales
 
 Render creará automáticamente:
+
 - ✅ `DB_URL` - URL de PostgreSQL
 - ✅ `DIRECT_URL` - URL directa de PostgreSQL
 - ✅ `JWT_SECRET` - Generado automáticamente
@@ -62,7 +64,7 @@ TIKTOK_CLIENT_SECRET=tu_client_secret_aqui
 TIKTOK_REDIRECT_URI=https://subiteya-api.onrender.com/api/auth/tiktok/callback
 ```
 
-*(Obtén estas credenciales en: https://developers.tiktok.com/)*
+_(Obtén estas credenciales en: https://developers.tiktok.com/)_
 
 ### Paso 4: Esperar el Despliegue
 
@@ -80,11 +82,13 @@ TIKTOK_REDIRECT_URI=https://subiteya-api.onrender.com/api/auth/tiktok/callback
 ### Paso 5: Obtener la URL de tu API
 
 Una vez completado:
+
 ```
 https://subiteya-api.onrender.com
 ```
 
 Prueba el health check:
+
 ```
 https://subiteya-api.onrender.com/health
 ```
@@ -138,6 +142,7 @@ TIKTOK_REDIRECT_URI=https://subiteya-api.onrender.com/api/auth/tiktok/callback
 ```
 
 **Para `DB_URL` y `DIRECT_URL`:**
+
 - Usa la "Internal Database URL" de tu base de datos PostgreSQL
 - Cópiala desde el dashboard de la base de datos
 
@@ -158,8 +163,8 @@ Una vez desplegada tu API, actualiza el frontend:
 Crea `packages/web/src/config/api.ts`:
 
 ```typescript
-const API_BASE_URL = import.meta.env.VITE_API_URL || 
-  import.meta.env.PROD 
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || import.meta.env.PROD
     ? 'https://subiteya-api.onrender.com'
     : 'http://localhost:3000';
 
@@ -195,6 +200,7 @@ curl https://subiteya-api.onrender.com/health
 ```
 
 Debería devolver:
+
 ```json
 {
   "status": "ok",
@@ -212,6 +218,7 @@ curl https://subiteya-api.onrender.com/api
 ### 3. Verificar Base de Datos
 
 En el dashboard de Render, ve a tu base de datos:
+
 - Click en **"Connect"** para ver las credenciales
 - Puedes conectarte con herramientas como TablePlus, pgAdmin, etc.
 
@@ -223,6 +230,7 @@ En el dashboard de Render, ve a tu base de datos:
 
 **Problema**: Falló la construcción
 **Solución**:
+
 1. Revisa los logs de build en Render
 2. Verifica que `scripts/build.sh` y `scripts/start.sh` existan
 3. Asegúrate de que `packages/api/tsconfig.json` esté correctamente configurado
@@ -231,6 +239,7 @@ En el dashboard de Render, ve a tu base de datos:
 
 **Problema**: El servidor no responde
 **Solución**:
+
 1. Verifica que la variable `PORT` esté configurada
 2. Revisa los logs de runtime
 3. Asegúrate de que el servidor escuche en `0.0.0.0`, no `localhost`
@@ -239,6 +248,7 @@ En el dashboard de Render, ve a tu base de datos:
 
 **Problema**: No puede conectarse a PostgreSQL
 **Solución**:
+
 1. Verifica que `DB_URL` y `DIRECT_URL` estén correctamente configuradas
 2. Asegúrate de usar la "Internal Database URL"
 3. Verifica que incluya `?sslmode=require` al final
@@ -247,6 +257,7 @@ En el dashboard de Render, ve a tu base de datos:
 
 **Problema**: Las migraciones no se aplicaron
 **Solución**:
+
 1. Ve a tu servicio → Shell
 2. Ejecuta manualmente:
    ```bash
@@ -258,6 +269,7 @@ En el dashboard de Render, ve a tu base de datos:
 
 **Problema**: En el plan gratuito, Render apaga tu servicio después de 15 minutos de inactividad
 **Soluciones**:
+
 1. **Actualizar a plan pagado** ($7/mes) - sin sleep
 2. **Usar un ping service** (UptimeRobot, cron-job.org)
 3. **Aceptar el cold start** - Primera request tarda ~30 segundos
@@ -267,12 +279,14 @@ En el dashboard de Render, ve a tu base de datos:
 ## 💰 Costos
 
 ### Plan Free (Gratis)
+
 - ✅ 750 horas/mes de servicio web
 - ✅ PostgreSQL con 1GB de almacenamiento
 - ⚠️ Se duerme después de 15 minutos sin uso
 - ⚠️ Tarda ~30 segundos en "despertar"
 
 ### Plan Starter ($7/mes por servicio)
+
 - ✅ Sin sleep (siempre activo)
 - ✅ 0.5 CPU / 512 MB RAM
 - ✅ Mejor para producción

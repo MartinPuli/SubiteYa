@@ -35,11 +35,13 @@ Si Auto-Deploy estaba desactivado:
 ## Paso 5: Probar el Health Check
 
 Abre esta URL en tu navegador:
+
 ```
 https://subiteya.onrender.com/health
 ```
 
 Debería devolver algo como:
+
 ```json
 {
   "status": "ok",
@@ -84,6 +86,7 @@ curl -H "Origin: https://martinpuli.github.io" \
 ```
 
 Busca en la respuesta:
+
 ```
 < access-control-allow-origin: https://martinpuli.github.io
 ```

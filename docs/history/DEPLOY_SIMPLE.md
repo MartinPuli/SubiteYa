@@ -76,6 +76,7 @@ ALLOWED_ORIGINS=https://martinpuli.github.io
 6. Úsalo para `DIRECT_URL`
 
 **Ejemplo de URL de Supabase:**
+
 ```
 postgresql://postgres.abc123:password@aws-0-us-west-1.pooler.supabase.com:5432/postgres
 ```
@@ -83,6 +84,7 @@ postgresql://postgres.abc123:password@aws-0-us-west-1.pooler.supabase.com:5432/p
 ### Si usas **PostgreSQL normal**:
 
 Tu URL debería verse así:
+
 ```
 postgresql://usuario:contraseña@host:5432/nombre_base_datos?sslmode=require
 ```
@@ -106,10 +108,11 @@ Una vez desplegado:
 ### 1. Crear archivo de config
 
 `packages/web/src/config/api.ts`:
+
 ```typescript
-export const API_BASE_URL = 
-  import.meta.env.VITE_API_URL || 
-  (import.meta.env.PROD 
+export const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD
     ? 'https://subiteya-api.onrender.com/api'
     : 'http://localhost:3000/api');
 ```
@@ -150,12 +153,14 @@ git push origin main
 ## ⚠️ Importante
 
 ### Plan Free de Render:
+
 - ✅ Completamente gratis
 - ⚠️ Se duerme tras 15 min sin uso
 - ⚠️ Tarda ~30 seg en despertar
 - ✅ Perfecto para desarrollo
 
 ### Tu PostgreSQL:
+
 - ✅ Ya lo tienes configurado
 - ✅ Render solo se conecta a él
 - ✅ No hay costos adicionales
@@ -167,6 +172,7 @@ git push origin main
 ### "Database connection failed"
 
 **Solución:**
+
 1. Verifica que `DB_URL` tenga el formato correcto
 2. Asegúrate de incluir `?sslmode=require` al final
 3. Si es Supabase, usa el connection string en modo "Session"
@@ -174,6 +180,7 @@ git push origin main
 ### "Build failed"
 
 **Solución:**
+
 1. Revisa los logs en Render
 2. Verifica que los scripts existan: `scripts/build.sh` y `scripts/start.sh`
 
@@ -182,6 +189,7 @@ git push origin main
 ## 💡 Tips
 
 1. **Genera JWT_SECRET seguro:**
+
    ```bash
    # En tu terminal local:
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
