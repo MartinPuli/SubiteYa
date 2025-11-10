@@ -66,165 +66,46 @@ export const UploadPage: React.FC = () => {
     );
   };
 
-  const uploadSingleVideo = async (
-    file: File,
-    index: number
-  ): Promise<void> => {
-    if (!token) {
-      console.error('No token available');
-      throw new Error('No token');
-    }
-
-    console.log(
-      `[Upload ${index}] Starting upload of ${file.name} (${file.size} bytes)`
-    );
-    console.log(`[Upload ${index}] Selected accounts:`, selectedAccounts);
-
-    // Update status to uploading
-    setUploadStatuses(prev =>
-      prev.map((status, i) =>
-        i === index
-          ? { ...status, status: 'uploading' as const, progress: 0 }
-          : status
-      )
-    );
-
-    try {
-      const formData = new FormData();
-      formData.append('video', file);
-      formData.append('caption', caption);
-      formData.append('accountIds', JSON.stringify(selectedAccounts));
-      formData.append('privacyLevel', privacyLevel);
-      formData.append('disableComment', String(disableComment));
-      formData.append('disableDuet', String(disableDuet));
-      formData.append('disableStitch', String(disableStitch));
-
-      console.log(
-        `[Upload ${index}] FormData prepared, sending to ${API_ENDPOINTS.publish}`
-      );
-
-      // Use XMLHttpRequest to track upload progress
-      const data = await new Promise<{
-        results?: Array<{ success: boolean; error?: string }>;
-      }>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-
-        // Track upload progress
-        xhr.upload.addEventListener('progress', e => {
-          if (e.lengthComputable) {
-            const percentComplete = (e.loaded / e.total) * 100;
-            console.log(
-              `[Upload ${index}] Progress: ${Math.round(percentComplete)}%`
-            );
-            setUploadStatuses(prev =>
-              prev.map((status, i) =>
-                i === index
-                  ? { ...status, progress: Math.round(percentComplete) }
-                  : status
-              )
-            );
-          }
-        });
-
-        xhr.addEventListener('load', () => {
-          console.log(`[Upload ${index}] Response status: ${xhr.status}`);
-          console.log(`[Upload ${index}] Response text:`, xhr.responseText);
-
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              resolve(JSON.parse(xhr.responseText));
-            } catch {
-              reject(new Error('Invalid JSON response'));
-            }
-          } else {
-            try {
-              const errorData = JSON.parse(xhr.responseText);
-              reject(
-                new Error(
-                  errorData.message || errorData.error || 'Upload failed'
-                )
-              );
-            } catch {
-              reject(new Error(`Upload failed with status ${xhr.status}`));
-            }
-          }
-        });
-
-        xhr.addEventListener('error', () => {
-          reject(new Error('Network error'));
-        });
-
-        xhr.addEventListener('abort', () => {
-          reject(new Error('Upload cancelled'));
-        });
-
-        xhr.open('POST', API_ENDPOINTS.publish);
-        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-        xhr.send(formData);
-      });
-
-      // Extract results for each account
-      const accountResults = selectedAccounts.map((accountId, idx) => {
-        const connection = connections.find(c => c.id === accountId);
-        const result = data.results?.[idx];
-        return {
-          accountName: connection?.displayName || 'Cuenta desconocida',
-          success: result?.success || false,
-          error: result?.error,
-        };
-      });
-
-      // Update status to completed
-      setUploadStatuses(prev =>
-        prev.map((status, i) =>
-          i === index
-            ? {
-                ...status,
-                status: 'completed' as const,
-                progress: 100,
-                results: accountResults,
-              }
-            : status
-        )
-      );
-    } catch (error) {
-      // Update status to error
-      setUploadStatuses(prev =>
-        prev.map((status, i) =>
-          i === index
-            ? {
-                ...status,
-                status: 'error' as const,
-                progress: 0,
-                error:
-                  error instanceof Error ? error.message : 'Error desconocido',
-              }
-            : status
-        )
-      );
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (files.length === 0 || selectedAccounts.length === 0 || !token) {
+      toast.warning('⚠️ Selecciona al menos un video y una cuenta');
       return;
     }
 
+    // Capturar valores en variables locales ANTES de resetear el estado
+    const filesToUpload = [...files];
+    const accountsToUse = [...selectedAccounts];
+    const captionToUse = caption;
+    const tokenToUse = token;
+    const privacyLevelToUse = privacyLevel;
+    const disableCommentToUse = disableComment;
+    const disableDuetToUse = disableDuet;
+    const disableStitchToUse = disableStitch;
+
     // Mostrar notificación inmediata
     toast.info(
-      `📤 Subiendo ${files.length} video(s) a ${selectedAccounts.length} cuenta(s)...`,
+      `📤 Subiendo ${filesToUpload.length} video(s) a ${accountsToUse.length} cuenta(s)...`,
       3000
     );
-
-    // Iniciar uploads en background (no esperar)
-    uploadVideosInBackground();
 
     // Resetear formulario inmediatamente
     setFiles([]);
     setUploadStatuses([]);
     setCaption('');
     setSelectedAccounts([]);
+
+    // Iniciar uploads en background con valores capturados
+    uploadVideosInBackground(
+      filesToUpload,
+      accountsToUse,
+      captionToUse,
+      tokenToUse,
+      privacyLevelToUse,
+      disableCommentToUse,
+      disableDuetToUse,
+      disableStitchToUse
+    );
 
     // Navegar al historial inmediatamente
     setTimeout(() => {
@@ -236,24 +117,57 @@ export const UploadPage: React.FC = () => {
     }, 500);
   };
 
-  const uploadVideosInBackground = async () => {
-    if (!token) return;
-
+  const uploadVideosInBackground = async (
+    filesToUpload: File[],
+    accountsToUse: string[],
+    captionToUse: string,
+    tokenToUse: string,
+    privacyLevelToUse: string,
+    disableCommentToUse: boolean,
+    disableDuetToUse: boolean,
+    disableStitchToUse: boolean
+  ) => {
     let successCount = 0;
     let failCount = 0;
 
-    for (let i = 0; i < files.length; i++) {
+    for (let i = 0; i < filesToUpload.length; i++) {
       try {
-        await uploadSingleVideo(files[i], i);
+        // Construir FormData con los valores capturados
+        const formData = new FormData();
+        formData.append('video', filesToUpload[i]);
+        formData.append('caption', captionToUse);
+        formData.append('accountIds', JSON.stringify(accountsToUse));
+        formData.append('privacyLevel', privacyLevelToUse);
+        formData.append('disableComment', String(disableCommentToUse));
+        formData.append('disableDuet', String(disableDuetToUse));
+        formData.append('disableStitch', String(disableStitchToUse));
+
+        // Hacer request directamente aquí
+        const response = await fetch(API_ENDPOINTS.publish, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${tokenToUse}`,
+          },
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `HTTP ${response.status}`);
+        }
+
         successCount++;
       } catch (error) {
         failCount++;
         console.error(`Failed to upload video ${i}:`, error);
-        toast.error(`❌ Error al subir ${files[i].name.slice(0, 20)}...`, 4000);
+        toast.error(
+          `❌ Error al subir ${filesToUpload[i].name.slice(0, 20)}...`,
+          4000
+        );
       }
 
       // Small delay between uploads
-      if (i < files.length - 1) {
+      if (i < filesToUpload.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
