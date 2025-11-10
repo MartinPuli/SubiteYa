@@ -136,6 +136,7 @@
   transition: all 0.2s;
   cursor: pointer;
   border: 2px solid transparent;
+  text-align: center;
 }
 
 .default-voice-card:hover {
@@ -145,31 +146,35 @@
 }
 
 .voice-flag {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+  display: block;
 }
 
-.default-voice-card h4 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-primary);
+.default-voice-card h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1f2937;
   margin: 0.5rem 0;
 }
 
-.voice-language {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  margin-bottom: 0.5rem;
+.default-voice-card .voice-language {
+  font-size: 0.95rem;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
 }
 
-.voice-id {
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
-  font-family: monospace;
-  background: var(--bg-secondary);
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
+.default-voice-card .voice-id {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  font-family: 'Courier New', monospace;
+  background: #f3f4f6;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
   word-break: break-all;
+  display: block;
+  margin-top: 0.5rem;
 }
 
 .section-title {
@@ -281,35 +286,42 @@
 .voice-card {
   padding: 1.5rem;
   transition: all 0.2s;
+  background: var(--bg-primary, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
 }
 
 .voice-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  border-color: var(--primary-color, #667eea);
 }
 
 .voice-info h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.75rem 0;
 }
 
 .voice-category {
   display: inline-block;
-  padding: 0.25rem 0.75rem;
-  background: var(--primary-color);
+  padding: 0.35rem 0.85rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
 }
 
 .voice-info p {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
+  color: #6b7280;
+  font-size: 0.95rem;
   margin: 0.75rem 0;
+  line-height: 1.5;
 }
 
 .voice-labels {
@@ -320,12 +332,13 @@
 }
 
 .voice-labels .label {
-  padding: 0.25rem 0.5rem;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+  padding: 0.35rem 0.65rem;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: #374151;
+  font-weight: 500;
 }
 
 .voice-preview {
