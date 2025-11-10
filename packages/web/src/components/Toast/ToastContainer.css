@@ -1,12 +1,13 @@
 .toast-container {
   position: fixed;
-  top: 24px;
+  top: 80px; /* Debajo de la navegación para mejor visibilidad */
   right: 24px;
-  z-index: 10000;
+  z-index: 99999; /* Máxima prioridad */
   display: flex;
   flex-direction: column;
   gap: 12px;
   pointer-events: none;
+  max-width: 420px;
 }
 
 .toast-container > * {
@@ -17,6 +18,7 @@
   .toast-container {
     left: 16px;
     right: 16px;
-    top: 16px;
+    top: 70px;
+    max-width: none;
   }
 }
