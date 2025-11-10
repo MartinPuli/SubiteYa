@@ -112,15 +112,19 @@ export async function cloneVoice(
   // Add audio files with correct mime types
   for (let i = 0; i < audioFiles.length; i++) {
     const fileInfo = audioFiles[i];
-    const audioBuffer = fs.readFileSync(fileInfo.path);
 
-    // Use original extension or fallback to mp3
+    // Create a readable stream instead of reading the whole file
+    const fileStream = fs.createReadStream(fileInfo.path);
+
+    // Get file extension
     const ext = fileInfo.originalname.split('.').pop() || 'mp3';
     const filename = `sample_${i}.${ext}`;
 
-    formData.append('files', audioBuffer, {
+    // Append stream with metadata
+    formData.append('files', fileStream, {
       filename,
       contentType: fileInfo.mimetype,
+      knownLength: fs.statSync(fileInfo.path).size,
     });
   }
 
@@ -130,7 +134,7 @@ export async function cloneVoice(
       'xi-api-key': ELEVENLABS_API_KEY,
       ...formData.getHeaders(),
     },
-    body: formData,
+    body: formData as any, // Cast to any because FormData type mismatch
   });
 
   if (!response.ok) {
