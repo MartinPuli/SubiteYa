@@ -6,21 +6,24 @@
 import { Queue, QueueOptions } from 'bullmq';
 import Redis from 'ioredis';
 
+// Parse Redis URL and configure connection
+const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+const redisUrl = new URL(REDIS_URL);
+const isUpstash = redisUrl.protocol === 'rediss:';
+
 // Redis connection with better error handling
-const redisConnection = new Redis(
-  process.env.REDIS_URL || 'redis://localhost:6379',
-  {
-    maxRetriesPerRequest: null,
-    enableReadyCheck: false,
-    retryStrategy: (times: number) => {
-      const delay = Math.min(times * 50, 2000);
-      console.log(
-        `🔄 Redis reconnecting... attempt ${times}, delay ${delay}ms`
-      );
-      return delay;
-    },
-  }
-);
+const redisConnection = new Redis(REDIS_URL, {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+  retryStrategy: (times: number) => {
+    const delay = Math.min(times * 50, 2000);
+    console.log(`🔄 Redis reconnecting... attempt ${times}, delay ${delay}ms`);
+    return delay;
+  },
+  ...(isUpstash && {
+    tls: {},
+  }),
+});
 
 // Redis event handlers
 redisConnection.on('connect', () => {

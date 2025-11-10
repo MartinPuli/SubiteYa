@@ -31,6 +31,9 @@ export function startEditWorker() {
     return worker;
   }
 
+  const redisUrl = new URL(REDIS_URL);
+  const isUpstash = redisUrl.protocol === 'rediss:';
+
   worker = new Worker(
     'video-edit',
     async (job: Job) => {
@@ -39,13 +42,24 @@ export function startEditWorker() {
     },
     {
       connection: {
-        host: new URL(REDIS_URL).hostname,
-        port: Number.parseInt(new URL(REDIS_URL).port || '6379', 10),
+        host: redisUrl.hostname,
+        port: Number.parseInt(redisUrl.port || '6379', 10),
+        ...(isUpstash && {
+          username: redisUrl.username || 'default',
+          password: redisUrl.password,
+          tls: {},
+        }),
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+        retryStrategy: (times: number) => {
+          const delay = Math.min(times * 50, 2000);
+          return delay;
+        },
       },
       concurrency: CONCURRENCY,
       limiter: {
-        max: 10, // Max 10 jobs
-        duration: 60000, // per minute
+        max: 3,
+        duration: 60000, // 3 jobs per minute
       },
     }
   );
