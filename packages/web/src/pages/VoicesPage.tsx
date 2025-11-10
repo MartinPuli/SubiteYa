@@ -33,6 +33,7 @@ export const VoicesPage: React.FC = () => {
   const [defaultVoices, setDefaultVoices] = useState<DefaultVoice[]>([]);
   const [cloning, setCloning] = useState(false);
   const [showCloneForm, setShowCloneForm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Clone voice form
   const [voiceName, setVoiceName] = useState('');
@@ -53,6 +54,7 @@ export const VoicesPage: React.FC = () => {
 
   const loadVoices = async (authToken: string) => {
     setLoading(true);
+    setError(null);
     try {
       const response = await fetch(API_ENDPOINTS.elevenlabsVoices, {
         headers: { Authorization: `Bearer ${authToken}` },
@@ -62,9 +64,18 @@ export const VoicesPage: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         setVoices(data.voices || []);
+      } else {
+        const errorData = await response.json();
+        setError(
+          errorData.message ||
+            'No se pudieron cargar las voces. Verifica tu conexión.'
+        );
       }
     } catch (error) {
       console.error('Error loading voices:', error);
+      setError(
+        '❌ Error de conexión: No se pudo contactar con el servidor. Verifica que el backend esté activo y que CORS esté configurado correctamente.'
+      );
     } finally {
       setLoading(false);
     }
@@ -80,6 +91,8 @@ export const VoicesPage: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         setDefaultVoices(data.defaultVoices || []);
+      } else {
+        console.error('Error loading default voices - response not ok');
       }
     } catch (error) {
       console.error('Error loading default voices:', error);
@@ -101,11 +114,21 @@ export const VoicesPage: React.FC = () => {
 
   const handleCloneVoice = async () => {
     if (!token || !voiceName || audioFiles.length === 0) {
-      alert('Por favor completa el nombre y sube al menos un archivo de audio');
+      setError(
+        '⚠️ Por favor completa el nombre y sube al menos 2 archivos de audio'
+      );
+      return;
+    }
+
+    if (audioFiles.length < 2) {
+      setError(
+        '⚠️ Se requieren mínimo 2 archivos de audio para clonar una voz'
+      );
       return;
     }
 
     setCloning(true);
+    setError(null);
     try {
       const formData = new FormData();
       formData.append('name', voiceName);
@@ -127,20 +150,29 @@ export const VoicesPage: React.FC = () => {
       });
 
       if (response.ok) {
-        alert('✅ Voz clonada exitosamente!');
+        const data = await response.json();
+        setError(null);
+        alert(
+          `✅ Voz clonada exitosamente!\n\nNombre: ${voiceName}\nID: ${data.voice_id || 'N/A'}`
+        );
         // Reset form
         setVoiceName('');
         setVoiceDescription('');
         setAudioFiles([]);
+        setShowCloneForm(false);
         // Reload voices
         await loadVoices(token);
       } else {
-        const error = await response.json();
-        alert(`Error: ${error.message || 'No se pudo clonar la voz'}`);
+        const errorData = await response.json();
+        setError(
+          `❌ Error al clonar la voz: ${errorData.message || errorData.error || 'Error desconocido'}`
+        );
       }
     } catch (error) {
       console.error('Error cloning voice:', error);
-      alert('Error al clonar la voz');
+      setError(
+        '❌ Error de conexión: No se pudo contactar con el servidor. Verifica:\n• El backend está activo\n• CORS está configurado para https://subiteya.com.ar\n• Los archivos de audio son válidos'
+      );
     } finally {
       setCloning(false);
     }
@@ -163,6 +195,23 @@ export const VoicesPage: React.FC = () => {
           ← Volver
         </Button>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="error-alert">
+          <div className="error-content">
+            <span className="error-icon">⚠️</span>
+            <div className="error-text">
+              {error.split('\n').map((line, i) => (
+                <p key={i}>{line}</p>
+              ))}
+            </div>
+            <button className="error-close" onClick={() => setError(null)}>
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Default Voices Section - FIRST */}
       {defaultVoices.length > 0 && (
