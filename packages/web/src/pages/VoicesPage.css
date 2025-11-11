@@ -130,51 +130,53 @@
 }
 
 .default-voice-card {
-  background: rgba(255, 255, 255, 0.95);
-  padding: 1.25rem;
-  border-radius: 12px;
-  transition: all 0.2s;
-  cursor: pointer;
-  border: 2px solid transparent;
-  text-align: center;
+  background: rgba(255, 255, 255, 0.95) !important;
+  padding: 1.25rem !important;
+  border-radius: 12px !important;
+  transition: all 0.2s !important;
+  cursor: pointer !important;
+  border: 2px solid transparent !important;
+  text-align: center !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
 }
 
 .default-voice-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
 }
 
 .voice-flag {
-  font-size: 2.5rem;
-  margin-bottom: 0.75rem;
-  display: block;
+  font-size: 2.5rem !important;
+  margin-bottom: 0.75rem !important;
+  display: block !important;
 }
 
 .default-voice-card h3 {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0.5rem 0;
+  font-size: 1.2rem !important;
+  font-weight: 700 !important;
+  color: #1f2937 !important;
+  margin: 0.5rem 0 !important;
 }
 
 .default-voice-card .voice-language {
-  font-size: 0.95rem;
-  color: #6b7280;
-  margin-bottom: 0.75rem;
-  font-weight: 500;
+  font-size: 0.95rem !important;
+  color: #6b7280 !important;
+  margin-bottom: 0.75rem !important;
+  font-weight: 500 !important;
+  display: block !important;
 }
 
 .default-voice-card .voice-id {
-  font-size: 0.7rem;
-  color: #9ca3af;
-  font-family: 'Courier New', monospace;
-  background: #f3f4f6;
-  padding: 0.35rem 0.6rem;
-  border-radius: 6px;
-  word-break: break-all;
-  display: block;
-  margin-top: 0.5rem;
+  font-size: 0.7rem !important;
+  color: #9ca3af !important;
+  font-family: 'Courier New', monospace !important;
+  background: #f3f4f6 !important;
+  padding: 0.35rem 0.6rem !important;
+  border-radius: 6px !important;
+  word-break: break-all !important;
+  display: inline-block !important;
+  margin-top: 0.5rem !important;
 }
 
 .section-title {
@@ -284,67 +286,86 @@
 }
 
 .voice-card {
-  padding: 1.5rem;
-  transition: all 0.2s;
-  background: var(--bg-primary, #ffffff);
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 12px;
+  padding: 1.5rem !important;
+  transition: all 0.2s !important;
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
 }
 
 .voice-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-  border-color: var(--primary-color, #667eea);
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+  border-color: #667eea !important;
 }
 
 .voice-info h3 {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0 0 0.75rem 0;
+  font-size: 1.2rem !important;
+  font-weight: 700 !important;
+  color: #1f2937 !important;
+  margin: 0 0 0.75rem 0 !important;
 }
 
 .voice-category {
-  display: inline-block;
-  padding: 0.35rem 0.85rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-radius: 14px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+  display: inline-block !important;
+  padding: 0.35rem 0.85rem !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  border-radius: 14px !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3) !important;
 }
 
 .voice-info p {
-  color: #6b7280;
-  font-size: 0.95rem;
-  margin: 0.75rem 0;
-  line-height: 1.5;
+  color: #6b7280 !important;
+  font-size: 0.95rem !important;
+  margin: 0.75rem 0 !important;
+  line-height: 1.5 !important;
 }
 
 .voice-labels {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 0.5rem !important;
+  margin-top: 0.75rem !important;
 }
 
 .voice-labels .label {
-  padding: 0.35rem 0.65rem;
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  color: #374151;
-  font-weight: 500;
+  padding: 0.35rem 0.65rem !important;
+  background: #f3f4f6 !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 8px !important;
+  font-size: 0.8rem !important;
+  color: #374151 !important;
+  font-weight: 500 !important;
 }
 
 .voice-preview {
-  width: 100%;
-  margin-top: 1rem;
-  border-radius: 8px;
+  width: 100% !important;
+  margin-top: 1rem !important;
+  border-radius: 8px !important;
+  height: 48px !important;
+  background: #f9fafb !important;
+  border: 1px solid #e5e7eb !important;
+  outline: none !important;
+}
+
+.voice-preview::-webkit-media-controls-panel {
+  background-color: #ffffff !important;
+}
+
+.voice-preview::-webkit-media-controls-play-button {
+  background-color: #667eea !important;
+  border-radius: 50% !important;
+}
+
+.voice-preview::-webkit-media-controls-current-time-display,
+.voice-preview::-webkit-media-controls-time-remaining-display {
+  color: #1f2937 !important;
 }
 
 .loading-page {
