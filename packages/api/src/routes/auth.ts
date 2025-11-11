@@ -6,7 +6,12 @@
 
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
-import { signToken } from '../lib/jwt';
+import {
+  signToken,
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+} from '../lib/jwt';
 import crypto from 'crypto';
 import { logAuditEvent } from '../services/audit';
 import { TERMS_VERSION, PRIVACY_VERSION } from '../constants/legal';
@@ -139,11 +144,27 @@ router.post('/register', async (req: Request, res: Response) => {
       return;
     }
 
-    // Generate token
-    const token = signToken({
+    // Generate tokens
+    const accessToken = signAccessToken({
       userId: user.id,
       email: user.email,
       role: user.role,
+    });
+
+    const { token: refreshToken, tokenId } = signRefreshToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    // Store refresh token in database
+    const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 días
+    await prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        tokenId,
+        expiresAt,
+      },
     });
 
     res.status(201).json({
@@ -154,7 +175,9 @@ router.post('/register', async (req: Request, res: Response) => {
         name: user.name,
         role: user.role,
       },
-      token,
+      token: accessToken, // Backward compatibility
+      accessToken,
+      refreshToken,
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -218,11 +241,27 @@ router.post('/login', async (req: Request, res: Response) => {
       },
     });
 
-    // Generate token
-    const token = signToken({
+    // Generate tokens
+    const accessToken = signAccessToken({
       userId: user.id,
       email: user.email,
       role: user.role,
+    });
+
+    const { token: refreshToken, tokenId } = signRefreshToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    // Store refresh token in database
+    const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 días
+    await prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        tokenId,
+        expiresAt,
+      },
     });
 
     res.json({
@@ -233,7 +272,9 @@ router.post('/login', async (req: Request, res: Response) => {
         name: user.name,
         role: user.role,
       },
-      token,
+      token: accessToken, // Backward compatibility
+      accessToken,
+      refreshToken,
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -605,6 +646,85 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     res.status(500).json({
       error: 'Internal Server Error',
       message: 'Error al restablecer contraseña',
+    });
+  }
+});
+
+// POST /auth/refresh - Refresh access token
+router.post('/refresh', async (req: Request, res: Response) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'Refresh token requerido',
+      });
+      return;
+    }
+
+    // Verify refresh token
+    let payload;
+    try {
+      payload = verifyRefreshToken(refreshToken);
+    } catch (error) {
+      res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Refresh token inválido o expirado',
+      });
+      return;
+    }
+
+    // Check if token exists in database and is not revoked
+    const storedToken = await prisma.refreshToken.findUnique({
+      where: { tokenId: payload.tokenId },
+      include: { user: true },
+    });
+
+    if (!storedToken || storedToken.revokedAt) {
+      res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Refresh token revocado o no encontrado',
+      });
+      return;
+    }
+
+    // Check if token is expired
+    if (storedToken.expiresAt < new Date()) {
+      res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Refresh token expirado',
+      });
+      return;
+    }
+
+    // Generate new access token
+    const newAccessToken = signAccessToken({
+      userId: storedToken.user.id,
+      email: storedToken.user.email,
+      role: storedToken.user.role,
+    });
+
+    // Create audit event
+    await prisma.auditEvent.create({
+      data: {
+        userId: storedToken.user.id,
+        type: 'token.refreshed',
+        detailsJson: { tokenId: payload.tokenId },
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    });
+
+    res.json({
+      accessToken: newAccessToken,
+      message: 'Token renovado exitosamente',
+    });
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Error al renovar token',
     });
   }
 });
