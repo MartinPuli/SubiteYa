@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { startUploadWorker, stopUploadWorker } from './upload-worker-bullmq';
+import http from 'http';
 
 console.log('📤 Starting Upload Worker (standalone)...');
 
@@ -35,23 +36,43 @@ try {
   process.exit(1);
 }
 
-// Keep process alive - wait for worker events
-if (worker) {
-  console.log('✅ Upload Worker is running and waiting for jobs...');
-}
+// Create a minimal HTTP server for health checks
+const PORT = process.env.PORT || 3002;
+const server = http.createServer((req, res) => {
+  if (req.url === '/health' || req.url === '/') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        status: 'healthy',
+        service: 'upload-worker',
+        uptime: process.uptime(),
+      })
+    );
+  } else {
+    res.writeHead(404);
+    res.end('Not Found');
+  }
+});
 
-// Prevent process from exiting
-process.stdin.resume();
+server.listen(PORT, () => {
+  console.log(`✅ Health check server listening on port ${PORT}`);
+});
+
+server.listen(PORT, () => {
+  console.log(`✅ Health check server listening on port ${PORT}`);
+});
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down upload worker...');
+  server.close();
   await stopUploadWorker();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down upload worker...');
+  server.close();
   await stopUploadWorker();
   process.exit(0);
 });
