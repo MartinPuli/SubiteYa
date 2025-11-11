@@ -58,10 +58,6 @@ server.listen(PORT, () => {
   console.log(`✅ Health check server listening on port ${PORT}`);
 });
 
-server.listen(PORT, () => {
-  console.log(`✅ Health check server listening on port ${PORT}`);
-});
-
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down upload worker...');
