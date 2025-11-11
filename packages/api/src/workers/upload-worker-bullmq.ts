@@ -45,12 +45,23 @@ export function startUploadWorker() {
     return worker;
   }
 
+  console.log('[Upload Worker] Initializing...');
+  console.log('[Upload Worker] REDIS_URL:', REDIS_URL ? 'Set' : 'Not set');
+  console.log(
+    '[Upload Worker] ENCRYPTION_KEY:',
+    ENCRYPTION_KEY ? 'Set' : 'Not set'
+  );
+  console.log('[Upload Worker] CONCURRENCY:', CONCURRENCY);
+
   // Create Redis connection for BullMQ Worker
   redisConnection = new Redis(REDIS_URL, {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
     retryStrategy: (times: number) => {
       const delay = Math.min(times * 50, 2000);
+      console.log(
+        `[Upload Worker] Redis retry attempt ${times}, waiting ${delay}ms`
+      );
       return delay;
     },
     lazyConnect: true, // Don't connect immediately
