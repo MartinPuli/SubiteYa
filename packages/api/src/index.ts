@@ -32,8 +32,31 @@ console.log('✅ Encryption test passed');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Security middleware
-app.use(helmet());
+// Security middleware with enhanced configuration
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for React
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'", process.env.FRONTEND_URL || '*'],
+      },
+    },
+    hsts: {
+      maxAge: 31536000, // 1 year
+      includeSubDomains: true,
+      preload: true,
+    },
+    frameguard: {
+      action: 'deny', // Prevent clickjacking
+    },
+  })
+);
+
+// Rate limiting headers
+app.set('trust proxy', 1);
 
 // CORS configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o =>

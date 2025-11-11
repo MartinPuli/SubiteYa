@@ -51,6 +51,7 @@ export const LoginPage: React.FC = () => {
             onChange={e => setFormData({ ...formData, email: e.target.value })}
             required
             fullWidth
+            autoComplete="email"
           />
 
           <PasswordInput

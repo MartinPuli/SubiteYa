@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
 import { Input } from '../components/Input/Input';
 import { API_ENDPOINTS } from '../config/api';
 import './ForgotPasswordPage.css';
 
 export const ForgotPasswordPage: React.FC = () => {
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -36,10 +35,6 @@ export const ForgotPasswordPage: React.FC = () => {
       }
 
       setSuccess(true);
-      // Redirigir a la página de reset después de 3 segundos
-      setTimeout(() => {
-        navigate('/reset-password', { state: { email } });
-      }, 3000);
     } catch (err) {
       if (err instanceof TypeError && err.message.includes('fetch')) {
         setError(
@@ -73,13 +68,10 @@ export const ForgotPasswordPage: React.FC = () => {
               Si existe una cuenta con el email <strong>{email}</strong>,
               recibirás un código de restablecimiento.
             </p>
-            <p className="redirect-message">Redirigiendo en 3 segundos...</p>
-            <Button
-              variant="primary"
-              onClick={() => navigate('/reset-password', { state: { email } })}
-            >
-              Ir a restablecer contraseña
-            </Button>
+            <p className="info-message">
+              Revisa tu email y haz clic en el botón para restablecer tu
+              contraseña.
+            </p>
           </div>
         ) : (
           <form className="forgot-password-form" onSubmit={handleSubmit}>

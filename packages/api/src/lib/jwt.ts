@@ -7,8 +7,21 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
-const REFRESH_SECRET = process.env.REFRESH_SECRET || 'fallback-refresh-secret';
+// Validación de seguridad: JWT_SECRET es OBLIGATORIO
+if (!process.env.JWT_SECRET) {
+  throw new Error(
+    '🚨 CRITICAL: JWT_SECRET is not set in environment variables. Application cannot start.'
+  );
+}
+
+if (!process.env.REFRESH_SECRET) {
+  throw new Error(
+    '🚨 CRITICAL: REFRESH_SECRET is not set in environment variables. Application cannot start.'
+  );
+}
+
+const JWT_SECRET = process.env.JWT_SECRET;
+const REFRESH_SECRET = process.env.REFRESH_SECRET;
 const ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutos (seguro)
 const REFRESH_TOKEN_EXPIRY = '90d'; // 90 días (sesión "infinita")
 
