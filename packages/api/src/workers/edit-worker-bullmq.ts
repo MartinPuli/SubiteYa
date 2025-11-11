@@ -85,6 +85,9 @@ export function startEditWorker() {
         max: 3,
         duration: 60000, // 3 jobs per minute
       },
+      lockDuration: 30000, // 30 seconds
+      stalledInterval: 60000, // Check for stalled jobs every 60s (reduces Redis polling)
+      maxStalledCount: 2,
     }
   );
 

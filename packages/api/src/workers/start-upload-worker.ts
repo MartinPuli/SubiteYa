@@ -3,7 +3,7 @@
  * @fileoverview Upload Worker Standalone Runner
  * Purpose: Run upload worker separately from main server to save memory
  * Usage: node dist/workers/start-upload-worker.js
- * Version: 1.1
+ * Version: 1.0.1
  */
 
 import dotenv from 'dotenv';
