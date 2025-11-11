@@ -8,7 +8,13 @@ import './ResetPasswordPage.css';
 export const ResetPasswordPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Get email and code from either location.state or URL params
+  const urlParams = new URLSearchParams(location.search);
+  const emailFromUrl = urlParams.get('email');
+  const codeFromUrl = urlParams.get('code');
   const emailFromState = location.state?.email;
+  const email = emailFromUrl || emailFromState;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -17,18 +23,18 @@ export const ResetPasswordPage: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [formData, setFormData] = useState({
-    email: emailFromState || '',
-    code: '',
+    email: email || '',
+    code: codeFromUrl || '',
     newPassword: '',
     confirmPassword: '',
   });
 
   useEffect(() => {
-    if (!emailFromState) {
-      // Si no hay email en el state, redirigir a forgot-password
+    if (!email && !codeFromUrl) {
+      // Si no hay email ni code, redirigir a forgot-password
       navigate('/forgot-password');
     }
-  }, [emailFromState, navigate]);
+  }, [email, codeFromUrl, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -94,7 +100,7 @@ export const ResetPasswordPage: React.FC = () => {
     }
   };
 
-  if (!emailFromState) {
+  if (!email && !codeFromUrl) {
     return null;
   }
 
@@ -103,9 +109,13 @@ export const ResetPasswordPage: React.FC = () => {
       <div className="reset-password-container">
         <div className="reset-password-header">
           <div className="key-icon">🔑</div>
-          <h1 className="reset-password-title">Restablecer contraseña</h1>
+          <h1 className="reset-password-title">
+            {codeFromUrl ? 'Nueva Contraseña' : 'Restablecer Contraseña'}
+          </h1>
           <p className="reset-password-subtitle">
-            Ingresa el código que recibiste por email y tu nueva contraseña
+            {codeFromUrl
+              ? 'Ingresa tu nueva contraseña'
+              : 'Ingresa el código que recibiste por email y tu nueva contraseña'}
           </p>
         </div>
 
@@ -136,25 +146,28 @@ export const ResetPasswordPage: React.FC = () => {
                 onChange={handleChange}
                 required
                 autoComplete="email"
+                disabled={!!emailFromUrl}
               />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="code">Código de verificación</label>
-              <Input
-                id="code"
-                name="code"
-                type="text"
-                placeholder="Código de 64 caracteres"
-                value={formData.code}
-                onChange={handleChange}
-                required
-                autoComplete="off"
-              />
-              <p className="form-hint">
-                El código es válido por 1 hora desde que lo solicitaste
-              </p>
-            </div>
+            {!codeFromUrl && (
+              <div className="form-group">
+                <label htmlFor="code">Código de verificación</label>
+                <Input
+                  id="code"
+                  name="code"
+                  type="text"
+                  placeholder="Código de 64 caracteres"
+                  value={formData.code}
+                  onChange={handleChange}
+                  required
+                  autoComplete="off"
+                />
+                <p className="form-hint">
+                  El código es válido por 1 hora desde que lo solicitaste
+                </p>
+              </div>
+            )}
 
             <div className="form-group">
               <label htmlFor="newPassword">Nueva contraseña</label>

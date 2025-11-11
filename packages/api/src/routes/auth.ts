@@ -323,9 +323,11 @@ router.get('/me', async (req: Request, res: Response) => {
 });
 
 // POST /auth/verify-email - Verify email with code
-router.post('/verify-email', async (req: Request, res: Response) => {
+// GET /auth/verify-email?email=...&code=... - Verify email via URL
+router.all('/verify-email', async (req: Request, res: Response) => {
   try {
-    const { email, code } = req.body;
+    // Support both POST body and GET query params
+    const { email, code } = req.method === 'GET' ? req.query : req.body;
 
     if (!email || !code) {
       res.status(400).json({
