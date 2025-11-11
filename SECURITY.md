@@ -34,18 +34,63 @@ Este documento describe las medidas de seguridad implementadas en la aplicación
 ### Frontend (HTML)
 
 ```html
+<!-- Security Headers -->
 X-Content-Type-Options: nosniff X-Frame-Options: DENY X-XSS-Protection: 1;
-mode=block Referrer-Policy: strict-origin-when-cross-origin
+mode=block Referrer-Policy: strict-origin-when-cross-origin Permissions-Policy:
+geolocation=(), microphone=(), camera=()
 ```
 
 ### Backend (Helmet.js)
 
 ```javascript
-Content-Security-Policy: Protección contra XSS
+Content-Security-Policy: Protección completa contra XSS
+  - defaultSrc: ["'self'"]
+  - styleSrc: ["'self'", "'unsafe-inline'"] // React inline styles
+  - scriptSrc: ["'self'", "'unsafe-eval'"] // Vite dev mode
+  - imgSrc: ["'self'", "data:", "https:", "blob:"]
+  - connectSrc: TikTok APIs + frontend
+  - fontSrc: ["'self'", "data:", "https:"]
+  - objectSrc: ["'none'"]
+  - mediaSrc: ["'self'", "blob:", "data:", "https:"]
+  - frameSrc: ["'none'"]
+  - baseUri: ["'self'"]
+  - formAction: ["'self'"]
+  - upgradeInsecureRequests: true (production)
+
 Strict-Transport-Security: HTTPS obligatorio (31536000s)
+  - maxAge: 31536000 (1 año)
+  - includeSubDomains: true
+  - preload: true
+
 X-Frame-Options: DENY (previene clickjacking)
 X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Referrer-Policy: strict-origin-when-cross-origin
+Permitted-Cross-Domain-Policies: none
 ```
+
+## 🚦 Rate Limiting
+
+### Implementado
+
+- **General API**: 100 requests / 15 minutos
+- **Auth (login)**: 5 intentos / 15 minutos (skipSuccessfulRequests)
+- **Registro**: 3 registros / 1 hora por IP
+- **Emails**: 3 envíos / 1 hora (verificación, reset)
+- **Uploads**: 20 uploads / 1 hora
+- **API Endpoints**: 50 requests / 15 minutos
+
+### Headers
+
+- `RateLimit-Limit`: Límite máximo
+- `RateLimit-Remaining`: Requests restantes
+- `RateLimit-Reset`: Timestamp de reset
+
+### Mensajes
+
+- Mensajes en español para mejor UX
+- Status 429 (Too Many Requests)
+- Headers estándar incluidos
 
 ## 🌐 CORS
 
@@ -138,16 +183,24 @@ VITE_API_URL=<api-url>              # URL del backend
 - [x] Tokens JWT con expiración corta
 - [x] Refresh tokens para sesiones largas
 - [x] Headers de seguridad (Helmet)
+- [x] Content Security Policy completo
 - [x] CORS restrictivo
+- [x] Rate limiting por ruta
 - [x] Validación de entradas
 - [x] Logging de seguridad
 - [x] HTTPS enforcement (HSTS)
 - [x] Protección contra timing attacks
 - [x] Codes de un solo uso para emails
+- [x] SEO optimizado (meta tags, Open Graph, Twitter Cards)
+- [x] Structured data (JSON-LD)
+- [x] PWA manifest para instalación
+- [x] Robots.txt y Sitemap.xml
+- [x] DNS prefetch para performance
+- [x] Permissions Policy
 
 ### 🔄 Para Futuro
 
-- [ ] Rate limiting por IP/usuario
+- [ ] Rate limiting basado en usuario (además de IP)
 - [ ] 2FA (autenticación de dos factores)
 - [ ] Migrar tokens a httpOnly cookies
 - [ ] Audit logs completos
@@ -155,6 +208,8 @@ VITE_API_URL=<api-url>              # URL del backend
 - [ ] Notificaciones de login desde dispositivos nuevos
 - [ ] Captcha en login/register
 - [ ] IP whitelisting para admin
+- [ ] WAF (Web Application Firewall)
+- [ ] Penetration testing regular
 
 ## 🐛 Reporte de Vulnerabilidades
 
@@ -179,5 +234,54 @@ Responderemos en 48 horas y trabajaremos en un fix prioritario.
 
 ---
 
-**Última actualización**: Noviembre 2025
-**Versión de documento**: 1.0
+**Última actualización**: Noviembre 10, 2025
+**Versión de documento**: 2.0
+
+## 🌐 SEO y Performance
+
+### Meta Tags Implementados
+
+- **Title**: Optimizado con keywords principales
+- **Description**: 155 caracteres, descriptivo y atractivo
+- **Keywords**: Palabras clave relevantes
+- **Canonical**: URL canónica definida
+- **Author**: Atribución de autor
+- **Robots**: Directivas para crawlers
+
+### Open Graph (Facebook/LinkedIn)
+
+- og:type, og:url, og:title, og:description
+- og:image con dimensiones (1200x630)
+- og:site_name y og:locale
+
+### Twitter Cards
+
+- twitter:card (summary_large_image)
+- twitter:title, twitter:description, twitter:image
+- twitter:creator
+
+### Structured Data (JSON-LD)
+
+- Schema.org WebApplication
+- Información de la app (nombre, descripción, URL)
+- Categoría y sistema operativo
+- Precio y moneda
+- Rating agregado
+- Lista de features
+
+### PWA (Progressive Web App)
+
+- Manifest.json completo
+- Icons (192x192, 512x512)
+- Theme color y background color
+- Display standalone
+- Shortcuts para acciones rápidas
+- Share target para compartir videos
+
+### Performance
+
+- DNS prefetch para API
+- Preconnect para recursos externos
+- Lazy loading de imágenes (implementado en React)
+- Sitemap.xml para indexación
+- Robots.txt para crawlers

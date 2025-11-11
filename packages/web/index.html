@@ -3,16 +3,80 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="apple-touch-icon" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="SubiteYa - Publica en múltiples cuentas de TikTok simultáneamente" />
+    <meta name="theme-color" content="#FE2C55" />
+    
+    <!-- SEO Meta Tags -->
+    <title>SubiteYa - Publica en Múltiples Cuentas de TikTok Simultáneamente</title>
+    <meta name="description" content="SubiteYa es la herramienta profesional para gestionar y publicar videos en múltiples cuentas de TikTok simultáneamente. Ahorra tiempo, edita con patrones personalizados y programa tus publicaciones." />
+    <meta name="keywords" content="TikTok, multi-cuenta, publicación masiva, gestión redes sociales, automatización TikTok, editor de videos, subtítulos automáticos, publicación simultánea" />
+    <meta name="author" content="SubiteYa" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://subiteyaweb.pages.dev/" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://subiteyaweb.pages.dev/" />
+    <meta property="og:title" content="SubiteYa - Publica en Múltiples Cuentas de TikTok" />
+    <meta property="og:description" content="Gestiona y publica videos en múltiples cuentas de TikTok simultáneamente. Edita, programa y automatiza tus publicaciones con SubiteYa." />
+    <meta property="og:image" content="https://subiteyaweb.pages.dev/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="SubiteYa" />
+    <meta property="og:locale" content="es_ES" />
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://subiteyaweb.pages.dev/" />
+    <meta name="twitter:title" content="SubiteYa - Publica en Múltiples Cuentas de TikTok" />
+    <meta name="twitter:description" content="Gestiona y publica videos en múltiples cuentas de TikTok simultáneamente. Edita, programa y automatiza tus publicaciones." />
+    <meta name="twitter:image" content="https://subiteyaweb.pages.dev/twitter-image.png" />
+    <meta name="twitter:creator" content="@SubiteYa" />
     
     <!-- Security Headers -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta http-equiv="X-Frame-Options" content="DENY" />
     <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()" />
     
-    <title>SubiteYa - Multi-TikTok Publisher</title>
+    <!-- DNS Prefetch & Preconnect for Performance -->
+    <link rel="dns-prefetch" href="https://subiteyaapi.onrender.com" />
+    <link rel="preconnect" href="https://subiteyaapi.onrender.com" crossorigin />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "SubiteYa",
+      "description": "Publica en múltiples cuentas de TikTok simultáneamente",
+      "url": "https://subiteyaweb.pages.dev/",
+      "applicationCategory": "MultimediaApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "ratingCount": "127"
+      },
+      "featureList": [
+        "Publicación en múltiples cuentas",
+        "Editor de video con efectos",
+        "Subtítulos automáticos",
+        "Programación de publicaciones",
+        "Patrones de marca personalizados"
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

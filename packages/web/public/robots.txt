@@ -1,0 +1,32 @@
+# SubiteYa - Robots.txt
+# https://subiteyaweb.pages.dev/robots.txt
+
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /upload
+Disallow: /connections
+Disallow: /patterns
+Disallow: /history
+Disallow: /voices
+
+# Sitemaps
+Sitemap: https://subiteyaweb.pages.dev/sitemap.xml
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 1
+
+# Block specific bots if needed
+User-agent: AhrefsBot
+Crawl-delay: 10
+
+User-agent: SemrushBot
+Crawl-delay: 10
+
+# Allow Google Images
+User-agent: Googlebot-Image
+Allow: /
+
+# Allow Google Mobile
+User-agent: Googlebot-Mobile
+Allow: /

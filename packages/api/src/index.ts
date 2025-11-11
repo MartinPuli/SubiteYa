@@ -39,9 +39,22 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for React
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", 'data:', 'https:'],
-        connectSrc: ["'self'", process.env.FRONTEND_URL || '*'],
+        scriptSrc: ["'self'", "'unsafe-eval'"], // Required for Vite dev mode
+        imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
+        connectSrc: [
+          "'self'",
+          process.env.FRONTEND_URL || '*',
+          'https://open-api.tiktok.com',
+          'https://*.tiktok.com',
+        ],
+        fontSrc: ["'self'", 'data:', 'https:'],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'", 'blob:', 'data:', 'https:'],
+        frameSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        upgradeInsecureRequests:
+          process.env.NODE_ENV === 'production' ? [] : null,
       },
     },
     hsts: {
@@ -51,6 +64,14 @@ app.use(
     },
     frameguard: {
       action: 'deny', // Prevent clickjacking
+    },
+    noSniff: true, // Prevent MIME type sniffing
+    xssFilter: true, // Enable XSS filter
+    referrerPolicy: {
+      policy: 'strict-origin-when-cross-origin',
+    },
+    permittedCrossDomainPolicies: {
+      permittedPolicies: 'none',
     },
   })
 );
@@ -165,6 +186,9 @@ import designsRoutes from './routes/designs';
 import eventsRoutes from './routes/events';
 import elevenlabsRoutes from './routes/elevenlabs';
 
+// Import rate limiters
+import { generalLimiter, apiLimiter } from './middleware/rate-limit';
+
 // Import BullMQ workers (production)
 import { startEditWorker, stopEditWorker } from './workers/edit-worker-bullmq';
 import {
@@ -176,6 +200,9 @@ import { closeQueues } from './lib/queues';
 const workersDisabled =
   process.env.DISABLE_WORKERS === 'true' || process.env.NODE_ENV === 'test';
 
+// Apply general rate limiter to all routes
+app.use(generalLimiter);
+
 // API routes
 app.get('/api', (_req: Request, res: Response) => {
   res.json({
@@ -185,18 +212,18 @@ app.get('/api', (_req: Request, res: Response) => {
   });
 });
 
-// Mount routes
-app.use('/api/auth', authRoutes);
-app.use('/api/connections', connectionsRoutes);
-app.use('/api/publish', publishRoutes);
+// Mount routes with appropriate rate limiters
+app.use('/api/auth', authRoutes); // Auth routes have their own specific limiters inside
+app.use('/api/connections', apiLimiter, connectionsRoutes);
+app.use('/api/publish', apiLimiter, publishRoutes);
 app.use('/api/auth', tiktokRoutes);
-app.use('/api/patterns', patternsRoutes);
-app.use('/api/legal', legalRoutes);
-app.use('/api/videos', videosRoutes);
-app.use('/api/me', meRoutes);
-app.use('/api/accounts', designsRoutes);
-app.use('/api/events', eventsRoutes);
-app.use('/api/elevenlabs', elevenlabsRoutes);
+app.use('/api/patterns', apiLimiter, patternsRoutes);
+app.use('/api/legal', legalRoutes); // No rate limiting for legal documents
+app.use('/api/videos', apiLimiter, videosRoutes);
+app.use('/api/me', apiLimiter, meRoutes);
+app.use('/api/accounts', apiLimiter, designsRoutes);
+app.use('/api/events', apiLimiter, eventsRoutes);
+app.use('/api/elevenlabs', apiLimiter, elevenlabsRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

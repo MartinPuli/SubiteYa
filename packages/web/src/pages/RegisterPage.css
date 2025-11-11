@@ -69,10 +69,12 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  margin-bottom: 0px !important;
 }
 
 .form-group label {
   font-size: 0.9375rem;
+  margin-bottom: 0px !important;
   font-weight: 600;
   color: #334155;
 }
