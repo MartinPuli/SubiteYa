@@ -253,7 +253,14 @@ router.get('/tiktok/callback', async (req: Request, res: Response) => {
     // Save connection to database
     const expiresAt = new Date(Date.now() + expires_in * 1000);
 
-    await prisma.tikTokConnection.upsert({
+    console.log(
+      '💾 Guardando conexión para userId:',
+      userId,
+      'openId:',
+      open_id
+    );
+
+    const savedConnection = await prisma.tikTokConnection.upsert({
       where: { openId: open_id },
       create: {
         userId,
@@ -267,6 +274,7 @@ router.get('/tiktok/callback', async (req: Request, res: Response) => {
         isDefault: false,
       },
       update: {
+        userId, // IMPORTANTE: actualizar también el userId en caso de reconexión
         displayName: userData.display_name || 'TikTok User',
         avatarUrl: avatarUrl,
         scopeGranted: scope.split(','),
@@ -274,6 +282,12 @@ router.get('/tiktok/callback', async (req: Request, res: Response) => {
         refreshTokenEnc: encryptToken(refresh_token),
         expiresAt,
       },
+    });
+
+    console.log('✅ Conexión guardada exitosamente:', {
+      id: savedConnection.id,
+      userId: savedConnection.userId,
+      displayName: savedConnection.displayName,
     });
 
     // Create audit event

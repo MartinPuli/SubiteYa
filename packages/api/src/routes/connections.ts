@@ -18,6 +18,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
 
+    console.log('📋 Obteniendo conexiones para userId:', userId);
+
     const connections = await prisma.tikTokConnection.findMany({
       where: { userId },
       select: {
@@ -31,6 +33,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       },
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
     });
+
+    console.log('✅ Conexiones encontradas:', connections.length);
 
     res.json({ connections });
   } catch (error) {
