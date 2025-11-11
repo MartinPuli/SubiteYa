@@ -18,8 +18,7 @@ const TIKTOK_REDIRECT_URI =
   'http://localhost:3000/api/auth/tiktok/callback';
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '';
 const FRONTEND_URL =
-  process.env.FRONTEND_URL ||
-  'https://martinpuli.github.io/SubiteYa/connections';
+  process.env.FRONTEND_URL || 'https://subite-ya-web.vercel.app';
 
 // Encrypt token using AES-256-GCM
 function encryptToken(token: string): string {
@@ -293,11 +292,11 @@ router.get('/tiktok/callback', async (req: Request, res: Response) => {
       },
     });
 
-    // Redirect to frontend
-    res.redirect(`${FRONTEND_URL}/connections`);
+    // Redirect to frontend with success parameter
+    res.redirect(`${FRONTEND_URL}/connections?success=true`);
   } catch (error) {
     console.error('TikTok callback error:', error);
-    res.redirect(`${FRONTEND_URL}/connections`);
+    res.redirect(`${FRONTEND_URL}/connections?error=callback_failed`);
   }
 });
 
