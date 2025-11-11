@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
 import { Input } from '../components/Input/Input';
+import { PasswordInput } from '../components/PasswordInput/PasswordInput';
 import { useAuthStore } from '../store/authStore';
 import './LoginPage.css';
 
@@ -52,16 +53,17 @@ export const LoginPage: React.FC = () => {
             fullWidth
           />
 
-          <Input
+          <PasswordInput
+            id="password"
+            name="password"
             label="Contraseña"
-            type="password"
             placeholder="••••••••"
             value={formData.password}
             onChange={e =>
               setFormData({ ...formData, password: e.target.value })
             }
             required
-            fullWidth
+            autoComplete="current-password"
           />
 
           {error && <div className="login-error">{error}</div>}
