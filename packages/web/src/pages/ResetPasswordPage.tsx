@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
-import { Input } from '../components/Input/Input';
+import { PasswordInput } from '../components/PasswordInput/PasswordInput';
 import { API_ENDPOINTS } from '../config/api';
 import './ResetPasswordPage.css';
 
@@ -9,32 +9,28 @@ export const ResetPasswordPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Get email and code from either location.state or URL params
+  // Only get email and code from URL params (no manual entry)
   const urlParams = new URLSearchParams(location.search);
   const emailFromUrl = urlParams.get('email');
   const codeFromUrl = urlParams.get('code');
-  const emailFromState = location.state?.email;
-  const email = emailFromUrl || emailFromState;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [formData, setFormData] = useState({
-    email: email || '',
-    code: codeFromUrl || '',
     newPassword: '',
     confirmPassword: '',
   });
 
   useEffect(() => {
-    if (!email && !codeFromUrl) {
-      // Si no hay email ni code, redirigir a forgot-password
-      navigate('/forgot-password');
+    if (!emailFromUrl || !codeFromUrl) {
+      // Si no hay email ni code en la URL, mostrar error
+      setError(
+        'Enlace de recuperación inválido. Por favor, solicita un nuevo enlace de recuperación desde la página de login.'
+      );
     }
-  }, [email, codeFromUrl, navigate]);
+  }, [emailFromUrl, codeFromUrl]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -47,6 +43,11 @@ export const ResetPasswordPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!emailFromUrl || !codeFromUrl) {
+      setError('Enlace de recuperación inválido');
+      return;
+    }
 
     // Validaciones
     if (formData.newPassword !== formData.confirmPassword) {
@@ -68,8 +69,8 @@ export const ResetPasswordPage: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: formData.email,
-          code: formData.code.trim(),
+          email: emailFromUrl,
+          code: codeFromUrl.trim(),
           newPassword: formData.newPassword,
         }),
       });
@@ -100,8 +101,29 @@ export const ResetPasswordPage: React.FC = () => {
     }
   };
 
-  if (!email && !codeFromUrl) {
-    return null;
+  // Si no hay email o code, mostrar error
+  if (!emailFromUrl || !codeFromUrl) {
+    return (
+      <div className="reset-password-page">
+        <div className="reset-password-container">
+          <div className="reset-password-header">
+            <div className="key-icon">❌</div>
+            <h1 className="reset-password-title">Enlace inválido</h1>
+            <p className="reset-password-subtitle">
+              {error || 'El enlace de recuperación no es válido o ha expirado'}
+            </p>
+          </div>
+          <div className="error-actions">
+            <Link to="/forgot-password" className="action-button">
+              Solicitar nuevo enlace
+            </Link>
+            <Link to="/login" className="back-link">
+              ← Volver al login
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -109,13 +131,9 @@ export const ResetPasswordPage: React.FC = () => {
       <div className="reset-password-container">
         <div className="reset-password-header">
           <div className="key-icon">🔑</div>
-          <h1 className="reset-password-title">
-            {codeFromUrl ? 'Nueva Contraseña' : 'Restablecer Contraseña'}
-          </h1>
+          <h1 className="reset-password-title">Nueva Contraseña</h1>
           <p className="reset-password-subtitle">
-            {codeFromUrl
-              ? 'Ingresa tu nueva contraseña'
-              : 'Ingresa el código que recibiste por email y tu nueva contraseña'}
+            Ingresa tu nueva contraseña para tu cuenta
           </p>
         </div>
 
@@ -136,91 +154,31 @@ export const ResetPasswordPage: React.FC = () => {
             {error && <div className="reset-error">{error}</div>}
 
             <div className="form-group">
-              <label htmlFor="email">Email</label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="tu@email.com"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                autoComplete="email"
-                disabled={!!emailFromUrl}
-              />
-            </div>
-
-            {!codeFromUrl && (
-              <div className="form-group">
-                <label htmlFor="code">Código de verificación</label>
-                <Input
-                  id="code"
-                  name="code"
-                  type="text"
-                  placeholder="Código de 64 caracteres"
-                  value={formData.code}
-                  onChange={handleChange}
-                  required
-                  autoComplete="off"
-                />
-                <p className="form-hint">
-                  El código es válido por 1 hora desde que lo solicitaste
-                </p>
-              </div>
-            )}
-
-            <div className="form-group">
               <label htmlFor="newPassword">Nueva contraseña</label>
-              <div className="password-input-wrapper">
-                <Input
-                  id="newPassword"
-                  name="newPassword"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Mínimo 8 caracteres"
-                  value={formData.newPassword}
-                  onChange={handleChange}
-                  required
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  className="password-toggle"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={
-                    showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'
-                  }
-                >
-                  {showPassword ? '👁️' : '👁️‍🗨️'}
-                </button>
-              </div>
+              <PasswordInput
+                id="newPassword"
+                name="newPassword"
+                label=""
+                placeholder="Mínimo 8 caracteres"
+                value={formData.newPassword}
+                onChange={handleChange}
+                autoComplete="new-password"
+                required
+              />
             </div>
 
             <div className="form-group">
               <label htmlFor="confirmPassword">Confirmar contraseña</label>
-              <div className="password-input-wrapper">
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="Repite tu nueva contraseña"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  required
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  className="password-toggle"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  aria-label={
-                    showConfirmPassword
-                      ? 'Ocultar contraseña'
-                      : 'Mostrar contraseña'
-                  }
-                >
-                  {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
-                </button>
-              </div>
+              <PasswordInput
+                id="confirmPassword"
+                name="confirmPassword"
+                label=""
+                placeholder="Repite tu nueva contraseña"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                autoComplete="new-password"
+                required
+              />
             </div>
 
             <Button

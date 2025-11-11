@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
 import { Input } from '../components/Input/Input';
+import { PasswordInput } from '../components/PasswordInput/PasswordInput';
 import { API_ENDPOINTS } from '../config/api';
 import './RegisterPage.css';
 
 export const RegisterPage: React.FC = () => {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -77,8 +77,9 @@ export const RegisterPage: React.FC = () => {
         throw new Error(data.message || data.error || 'Error al registrarse');
       }
 
-      // Registro exitoso, redirigir a verificación de email
-      navigate('/verify-email', { state: { email: formData.email } });
+      // Registro exitoso, mostrar mensaje para revisar email
+      setSuccess(true);
+      setRegisteredEmail(formData.email);
     } catch (err) {
       if (err instanceof TypeError && err.message.includes('fetch')) {
         setError(
@@ -95,156 +96,161 @@ export const RegisterPage: React.FC = () => {
   return (
     <div className="register-page">
       <div className="register-container">
-        <div className="register-header">
-          <h1 className="register-title">Crear cuenta</h1>
-          <p className="register-subtitle">
-            Únete a SubiteYa y publica en múltiples cuentas de TikTok
-          </p>
-        </div>
-
-        <form className="register-form" onSubmit={handleSubmit}>
-          {error && <div className="register-error">{error}</div>}
-
-          <div className="form-group">
-            <label htmlFor="name">Nombre</label>
-            <Input
-              id="name"
-              name="name"
-              type="text"
-              placeholder="Tu nombre"
-              value={formData.name}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="tu@email.com"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password">Contraseña</label>
-            <div className="password-input-wrapper">
-              <Input
-                id="password"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Mínimo 8 caracteres"
-                value={formData.password}
-                onChange={handleChange}
-                required
-              />
-              <button
-                type="button"
-                className="password-toggle"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={
-                  showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'
-                }
-              >
-                {showPassword ? '👁️' : '👁️‍🗨️'}
-              </button>
+        {success ? (
+          <>
+            <div className="register-header">
+              <div className="success-icon">📧</div>
+              <h1 className="register-title">¡Cuenta creada!</h1>
+              <p className="register-subtitle">
+                Revisa tu email para verificar tu cuenta
+              </p>
             </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="confirmPassword">Confirmar contraseña</label>
-            <div className="password-input-wrapper">
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type={showConfirmPassword ? 'text' : 'password'}
-                placeholder="Repite tu contraseña"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-              />
-              <button
-                type="button"
-                className="password-toggle"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                aria-label={
-                  showConfirmPassword
-                    ? 'Ocultar contraseña'
-                    : 'Mostrar contraseña'
-                }
-              >
-                {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
-              </button>
+            <div className="success-message">
+              <p>
+                Hemos enviado un email de verificación a{' '}
+                <strong>{registeredEmail}</strong>
+              </p>
+              <p>
+                Haz clic en el botón del email para activar tu cuenta y poder
+                iniciar sesión.
+              </p>
+              <div className="success-actions">
+                <Link to="/login" className="login-button">
+                  Ir al login
+                </Link>
+              </div>
             </div>
-          </div>
+          </>
+        ) : (
+          <>
+            <div className="register-header">
+              <h1 className="register-title">Crear cuenta</h1>
+              <p className="register-subtitle">
+                Únete a SubiteYa y publica en múltiples cuentas de TikTok
+              </p>
+            </div>
 
-          <div className="checkbox-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                name="acceptedTerms"
-                checked={formData.acceptedTerms}
-                onChange={handleChange}
-                required
-              />
-              <span>
-                Acepto los{' '}
-                <Link
-                  to="/legal/terms"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Términos y Condiciones
+            <form className="register-form" onSubmit={handleSubmit}>
+              {error && <div className="register-error">{error}</div>}
+
+              <div className="form-group">
+                <label htmlFor="name">Nombre</label>
+                <Input
+                  id="name"
+                  name="name"
+                  type="text"
+                  placeholder="Tu nombre"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="tu@email.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="password">Contraseña</label>
+                <PasswordInput
+                  id="password"
+                  name="password"
+                  label=""
+                  placeholder="Mínimo 8 caracteres"
+                  value={formData.password}
+                  onChange={handleChange}
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="confirmPassword">Confirmar contraseña</label>
+                <PasswordInput
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  label=""
+                  placeholder="Repite tu contraseña"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
+
+              <div className="checkbox-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    name="acceptedTerms"
+                    checked={formData.acceptedTerms}
+                    onChange={handleChange}
+                    required
+                  />
+                  <span>
+                    Acepto los{' '}
+                    <Link
+                      to="/legal/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Términos y Condiciones
+                    </Link>
+                  </span>
+                </label>
+              </div>
+
+              <div className="checkbox-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    name="acceptedPrivacy"
+                    checked={formData.acceptedPrivacy}
+                    onChange={handleChange}
+                    required
+                  />
+                  <span>
+                    Acepto la{' '}
+                    <Link
+                      to="/legal/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Política de Privacidad
+                    </Link>
+                  </span>
+                </label>
+              </div>
+
+              <Button
+                type="submit"
+                variant="primary"
+                className="register-button"
+                disabled={loading}
+              >
+                {loading ? 'Creando cuenta...' : 'Crear cuenta'}
+              </Button>
+            </form>
+
+            <div className="register-footer">
+              <p>
+                ¿Ya tienes cuenta?{' '}
+                <Link to="/login" className="register-link">
+                  Inicia sesión
                 </Link>
-              </span>
-            </label>
-          </div>
-
-          <div className="checkbox-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                name="acceptedPrivacy"
-                checked={formData.acceptedPrivacy}
-                onChange={handleChange}
-                required
-              />
-              <span>
-                Acepto la{' '}
-                <Link
-                  to="/legal/privacy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Política de Privacidad
-                </Link>
-              </span>
-            </label>
-          </div>
-
-          <Button
-            type="submit"
-            variant="primary"
-            className="register-button"
-            disabled={loading}
-          >
-            {loading ? 'Creando cuenta...' : 'Crear cuenta'}
-          </Button>
-        </form>
-
-        <div className="register-footer">
-          <p>
-            ¿Ya tienes cuenta?{' '}
-            <Link to="/login" className="register-link">
-              Inicia sesión
-            </Link>
-          </p>
-        </div>
+              </p>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

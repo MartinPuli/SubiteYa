@@ -62,7 +62,7 @@
 .register-form {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1.25rem;
 }
 
 .form-group {
@@ -72,24 +72,26 @@
 }
 
 .form-group label {
-  font-size: 0.9rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: #334155;
 }
 
 .register-error {
-  padding: 0.75rem;
+  padding: 0.875rem 1rem;
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid var(--color-error);
   border-radius: var(--radius-md);
   color: var(--color-error);
   font-size: var(--font-size-sm);
+  margin-bottom: 0.5rem;
 }
 
 .checkbox-group {
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
+  margin-top: 0.25rem;
 }
 
 .checkbox-label {
@@ -97,8 +99,9 @@
   align-items: flex-start;
   gap: 0.75rem;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.9375rem;
   color: #475569;
+  line-height: 1.5;
 }
 
 .checkbox-label input[type='checkbox'] {
@@ -121,43 +124,69 @@
 }
 
 .register-button {
-  margin-top: 0.5rem;
+  margin-top: 1rem;
   width: 100%;
   padding: 0.875rem;
   font-size: 1rem;
   font-weight: 600;
 }
 
-.password-input-wrapper {
-  position: relative;
-}
-
-.password-toggle {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1.25rem;
-  padding: 4px 8px;
-  color: #64748b;
-  transition: color 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.password-toggle:hover {
-  color: var(--color-tiktok-pink);
-}
-
 .register-footer {
-  margin-top: 2rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 0.9375rem;
   color: #64748b;
+}
+
+.success-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  animation: bounce 0.6s ease;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+.success-message {
+  background: #f0fdf4;
+  border: 2px solid #10b981;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  margin-top: 24px;
+}
+
+.success-message p {
+  margin: 0 0 16px 0;
+  color: #374151;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.success-actions {
+  margin-top: 24px;
+}
+
+.login-button {
+  display: inline-block;
+  background: linear-gradient(135deg, #fe2c55 0%, #ff5e7e 100%);
+  color: white;
+  padding: 14px 40px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(254, 44, 85, 0.3);
+}
+
+.login-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(254, 44, 85, 0.4);
 }
 
 .register-link {

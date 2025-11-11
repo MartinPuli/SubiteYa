@@ -33,15 +33,84 @@ export async function sendVerificationEmail(
       <!DOCTYPE html>
       <html>
       <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #fe2c55 0%, #00f2ea 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-          .code-box { background: white; border: 2px dashed #fe2c55; padding: 20px; margin: 20px 0; text-align: center; border-radius: 8px; }
-          .code { font-size: 14px; font-family: monospace; color: #fe2c55; word-break: break-all; }
-          .button { display: inline-block; background: #fe2c55; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
-          .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
+          body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f3f4f6;
+          }
+          .container { 
+            max-width: 600px; 
+            margin: 40px auto; 
+            background: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+          }
+          .header { 
+            background: linear-gradient(135deg, #fe2c55 0%, #00f2ea 100%); 
+            color: white; 
+            padding: 48px 32px; 
+            text-align: center;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+          }
+          .content { 
+            padding: 40px 32px;
+            background: #ffffff;
+          }
+          .content p {
+            margin: 0 0 16px 0;
+            color: #374151;
+            font-size: 16px;
+            line-height: 1.6;
+          }
+          .button-container {
+            text-align: center;
+            margin: 32px 0;
+          }
+          .button { 
+            display: inline-block;
+            background: linear-gradient(135deg, #fe2c55 0%, #ff5e7e 100%);
+            color: white !important;
+            padding: 16px 48px;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 18px;
+            box-shadow: 0 4px 14px rgba(254, 44, 85, 0.4);
+            transition: all 0.3s ease;
+          }
+          .info-box {
+            background: #f9fafb;
+            border-left: 4px solid #00f2ea;
+            padding: 20px;
+            margin: 24px 0;
+            border-radius: 8px;
+          }
+          .info-box p {
+            margin: 0;
+            font-size: 14px;
+            color: #6b7280;
+          }
+          .footer { 
+            text-align: center; 
+            color: #9ca3af; 
+            font-size: 13px; 
+            padding: 24px 32px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+          }
+          .footer p {
+            margin: 4px 0;
+          }
         </style>
       </head>
       <body>
@@ -52,27 +121,21 @@ export async function sendVerificationEmail(
           <div class="content">
             <p>¡Hola <strong>${name}</strong>!</p>
             
-            <p>Gracias por registrarte en SubiteYa. Para activar tu cuenta, necesitamos verificar tu dirección de email.</p>
+            <p>Gracias por registrarte en SubiteYa. Para activar tu cuenta y comenzar a publicar en múltiples cuentas de TikTok, haz clic en el botón de abajo.</p>
             
-            <div class="code-box">
-              <p style="margin: 0 0 10px 0;"><strong>Tu código de verificación es:</strong></p>
-              <div class="code">${code}</div>
+            <div class="button-container">
+              <a href="${verificationUrl}" class="button">✨ Verificar mi email</a>
             </div>
             
-            <p>O puedes hacer clic en el siguiente botón:</p>
-            
-            <div style="text-align: center;">
-              <a href="${verificationUrl}" class="button">Verificar mi email</a>
+            <div class="info-box">
+              <p><strong>⏰ Este enlace es válido por 24 horas</strong></p>
+              <p>🔒 Si no solicitaste este registro, puedes ignorar este email de forma segura</p>
             </div>
-            
-            <p style="font-size: 14px; color: #666;">
-              ⏰ Este código es válido por <strong>24 horas</strong><br>
-              🔒 Si no solicitaste este registro, ignora este email
-            </p>
           </div>
           <div class="footer">
-            <p>© 2025 SubiteYa - Automatiza tus publicaciones en TikTok</p>
-            <p>Este email fue enviado a ${email}</p>
+            <p><strong>© 2025 SubiteYa</strong></p>
+            <p>Automatiza tus publicaciones en TikTok</p>
+            <p style="margin-top: 12px;">Este email fue enviado a ${email}</p>
           </div>
         </div>
       </body>
@@ -109,51 +172,122 @@ export async function sendPasswordResetEmail(
       <!DOCTYPE html>
       <html>
       <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #fe2c55 0%, #00f2ea 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-          .code-box { background: white; border: 2px dashed #fe2c55; padding: 20px; margin: 20px 0; text-align: center; border-radius: 8px; }
-          .code { font-size: 14px; font-family: monospace; color: #fe2c55; word-break: break-all; }
-          .button { display: inline-block; background: #fe2c55; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
-          .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }
-          .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
+          body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f3f4f6;
+          }
+          .container { 
+            max-width: 600px; 
+            margin: 40px auto; 
+            background: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+          }
+          .header { 
+            background: linear-gradient(135deg, #fe2c55 0%, #00f2ea 100%); 
+            color: white; 
+            padding: 48px 32px; 
+            text-align: center;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+          }
+          .content { 
+            padding: 40px 32px;
+            background: #ffffff;
+          }
+          .content p {
+            margin: 0 0 16px 0;
+            color: #374151;
+            font-size: 16px;
+            line-height: 1.6;
+          }
+          .button-container {
+            text-align: center;
+            margin: 32px 0;
+          }
+          .button { 
+            display: inline-block;
+            background: linear-gradient(135deg, #fe2c55 0%, #ff5e7e 100%);
+            color: white !important;
+            padding: 16px 48px;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 18px;
+            box-shadow: 0 4px 14px rgba(254, 44, 85, 0.4);
+            transition: all 0.3s ease;
+          }
+          .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 24px 0;
+            border-radius: 8px;
+          }
+          .warning-box p {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #856404;
+          }
+          .warning-box ul {
+            margin: 8px 0 0 0;
+            padding-left: 20px;
+          }
+          .warning-box li {
+            color: #856404;
+            font-size: 14px;
+            margin: 4px 0;
+          }
+          .footer { 
+            text-align: center; 
+            color: #9ca3af; 
+            font-size: 13px; 
+            padding: 24px 32px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+          }
+          .footer p {
+            margin: 4px 0;
+          }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <h1>🔑 Recuperación de Contraseña</h1>
+            <h1>🔑 Recupera tu Contraseña</h1>
           </div>
           <div class="content">
             <p>Hola <strong>${name}</strong>,</p>
             
-            <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en SubiteYa.</p>
+            <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en SubiteYa. Haz clic en el botón de abajo para crear una nueva contraseña.</p>
             
-            <div class="code-box">
-              <p style="margin: 0 0 10px 0;"><strong>Tu código de recuperación es:</strong></p>
-              <div class="code">${code}</div>
+            <div class="button-container">
+              <a href="${resetUrl}" class="button">🔐 Restablecer contraseña</a>
             </div>
             
-            <p>O puedes hacer clic en el siguiente botón:</p>
-            
-            <div style="text-align: center;">
-              <a href="${resetUrl}" class="button">Restablecer mi contraseña</a>
-            </div>
-            
-            <div class="warning">
-              <p style="margin: 0;"><strong>⚠️ Importante:</strong></p>
-              <ul style="margin: 10px 0 0 0; padding-left: 20px;">
-                <li>Este código es válido por <strong>1 hora</strong></li>
+            <div class="warning-box">
+              <p><strong>⚠️ Información importante:</strong></p>
+              <ul>
+                <li>Este enlace es válido por <strong>1 hora</strong></li>
                 <li>Si no solicitaste este cambio, ignora este email</li>
                 <li>Tu contraseña actual sigue siendo válida hasta que la cambies</li>
               </ul>
             </div>
           </div>
           <div class="footer">
-            <p>© 2025 SubiteYa - Automatiza tus publicaciones en TikTok</p>
-            <p>Este email fue enviado a ${email}</p>
+            <p><strong>© 2025 SubiteYa</strong></p>
+            <p>Automatiza tus publicaciones en TikTok</p>
+            <p style="margin-top: 12px;">Este email fue enviado a ${email}</p>
           </div>
         </div>
       </body>
