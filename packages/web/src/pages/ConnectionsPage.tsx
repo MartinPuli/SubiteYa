@@ -10,12 +10,7 @@ import './ConnectionsPage.css';
 export const ConnectionsPage: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, token } = useAuthStore();
-  const {
-    connections,
-    fetchConnections,
-    deleteConnection,
-    setDefaultConnection,
-  } = useAppStore();
+  const { connections, fetchConnections, deleteConnection } = useAppStore();
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -89,17 +84,6 @@ export const ConnectionsPage: React.FC = () => {
     }
   };
 
-  const handleSetDefault = async (id: string) => {
-    if (!token) return;
-
-    try {
-      await setDefaultConnection(token, id);
-    } catch (error) {
-      console.error('Error setting default:', error);
-      alert('Error al establecer cuenta predeterminada');
-    }
-  };
-
   return (
     <div className="connections-page">
       <div className="connections-header">
@@ -159,15 +143,6 @@ export const ConnectionsPage: React.FC = () => {
               </div>
 
               <div className="connection-actions">
-                {!connection.isDefault && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleSetDefault(connection.id)}
-                  >
-                    Establecer por defecto
-                  </Button>
-                )}
                 <Button
                   variant="danger"
                   size="sm"

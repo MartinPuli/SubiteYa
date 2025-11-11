@@ -41,6 +41,17 @@ export const UploadPage: React.FC = () => {
     }
   }, [isAuthenticated, token, navigate, fetchConnections]);
 
+  // Auto-select default accounts when connections are loaded
+  useEffect(() => {
+    const defaultAccounts = connections
+      .filter(conn => conn.isDefault)
+      .map(conn => conn.id);
+
+    if (defaultAccounts.length > 0 && selectedAccounts.length === 0) {
+      setSelectedAccounts(defaultAccounts);
+    }
+  }, [connections]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
