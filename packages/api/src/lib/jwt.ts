@@ -14,14 +14,9 @@ if (!process.env.JWT_SECRET) {
   );
 }
 
-if (!process.env.REFRESH_SECRET) {
-  throw new Error(
-    '🚨 CRITICAL: REFRESH_SECRET is not set in environment variables. Application cannot start.'
-  );
-}
-
+// REFRESH_SECRET se valida solo cuando se usa (no en workers)
 const JWT_SECRET = process.env.JWT_SECRET;
-const REFRESH_SECRET = process.env.REFRESH_SECRET;
+const REFRESH_SECRET = process.env.REFRESH_SECRET || '';
 const ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutos (seguro)
 const REFRESH_TOKEN_EXPIRY = '90d'; // 90 días (sesión "infinita")
 
@@ -52,6 +47,9 @@ export function signRefreshToken(payload: JwtPayload): {
   token: string;
   tokenId: string;
 } {
+  if (!REFRESH_SECRET) {
+    throw new Error('🚨 REFRESH_SECRET is required to generate refresh tokens');
+  }
   const tokenId = crypto.randomBytes(32).toString('hex');
   const token = jwt.sign({ ...payload, tokenId }, REFRESH_SECRET, {
     expiresIn: REFRESH_TOKEN_EXPIRY,
@@ -83,6 +81,9 @@ export function verifyToken(token: string): JwtPayload {
  * Verify refresh token
  */
 export function verifyRefreshToken(token: string): RefreshTokenPayload {
+  if (!REFRESH_SECRET) {
+    throw new Error('🚨 REFRESH_SECRET is required to verify refresh tokens');
+  }
   try {
     const decoded = jwt.verify(token, REFRESH_SECRET, {
       issuer: 'subiteya-api',
