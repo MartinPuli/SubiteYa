@@ -9,29 +9,49 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { startEditWorker, stopEditWorker } from './edit-worker-bullmq';
+import http from 'http';
 
 console.log('🎬 Starting Edit Worker (standalone)...');
 
 // Start the worker
 const worker = startEditWorker();
 
-// Keep process alive - wait for worker events
-if (worker) {
-  console.log('✅ Edit Worker is running and waiting for jobs...');
-}
+// Create a minimal HTTP server for health checks
+const PORT = process.env.PORT || 3001;
+const server = http.createServer((req, res) => {
+  if (req.url === '/health' || req.url === '/') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        status: 'healthy',
+        service: 'edit-worker',
+        uptime: process.uptime(),
+      })
+    );
+  } else {
+    res.writeHead(404);
+    res.end('Not Found');
+  }
+});
 
-// Prevent process from exiting
-process.stdin.resume();
+server.listen(PORT, () => {
+  console.log(`✅ Health check server listening on port ${PORT}`);
+  if (worker) {
+    console.log('✅ Edit Worker is running and waiting for jobs...');
+  }
+});
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down edit worker...');
+  server.close();
   await stopEditWorker();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down edit worker...');
+  server.close();
   await stopEditWorker();
   process.exit(0);
 });

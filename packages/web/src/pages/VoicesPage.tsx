@@ -34,6 +34,7 @@ export const VoicesPage: React.FC = () => {
   const [cloning, setCloning] = useState(false);
   const [showCloneForm, setShowCloneForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [testingVoiceId, setTestingVoiceId] = useState<string | null>(null);
 
   // Clone voice form
   const [voiceName, setVoiceName] = useState('');
@@ -122,6 +123,47 @@ export const VoicesPage: React.FC = () => {
       setAudioFiles([...audioFiles, file]);
     } else {
       alert('Ya tienes 5 archivos. Elimina alguno para agregar este.');
+    }
+  };
+
+  const handleTestVoice = async (voiceId: string) => {
+    if (!token) return;
+
+    setTestingVoiceId(voiceId);
+    try {
+      const testText = 'Hola, esta es una prueba de mi voz. ¿Cómo suena?';
+
+      const response = await fetch(API_ENDPOINTS.elevenlabsGenerate, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: testText,
+          voice_id: voiceId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al generar audio de prueba');
+      }
+
+      // Get audio blob and play it
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      audio.play();
+
+      // Clean up after playing
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        setTestingVoiceId(null);
+      };
+    } catch (error) {
+      console.error('Error testing voice:', error);
+      alert('Error al probar la voz. Intenta nuevamente.');
+      setTestingVoiceId(null);
     }
   };
 
@@ -242,6 +284,17 @@ export const VoicesPage: React.FC = () => {
                 <h3>{voice.name}</h3>
                 <p className="voice-language">{voice.language}</p>
                 <span className="voice-id">ID: {voice.voice_id}</span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleTestVoice(voice.voice_id)}
+                  disabled={testingVoiceId === voice.voice_id}
+                  style={{ marginTop: '0.75rem', width: '100%' }}
+                >
+                  {testingVoiceId === voice.voice_id
+                    ? '▶️ Probando...'
+                    : '🎧 Probar Voz'}
+                </Button>
               </Card>
             ))}
           </div>
@@ -356,8 +409,29 @@ export const VoicesPage: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              <div
+                style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}
+              >
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => handleTestVoice(voice.voice_id)}
+                  disabled={testingVoiceId === voice.voice_id}
+                  style={{ flex: 1 }}
+                >
+                  {testingVoiceId === voice.voice_id
+                    ? '▶️ Probando...'
+                    : '🎧 Probar'}
+                </Button>
+              </div>
+
               {voice.preview_url && (
-                <audio controls className="voice-preview">
+                <audio
+                  controls
+                  className="voice-preview"
+                  style={{ marginTop: '0.5rem' }}
+                >
                   <source src={voice.preview_url} type="audio/mpeg" />
                 </audio>
               )}
