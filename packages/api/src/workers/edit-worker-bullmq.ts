@@ -34,6 +34,15 @@ let worker: Worker | null = null;
 let redisConnection: Redis | null = null;
 
 export function startEditWorker() {
+  // Check if Redis is disabled
+  const redisEnabled = process.env.ENABLE_REDIS !== 'false';
+  if (!redisEnabled) {
+    console.log(
+      '🚫 [Edit Worker] Redis is DISABLED (ENABLE_REDIS=false). Worker will not start.'
+    );
+    return null;
+  }
+
   if (worker) {
     console.log('[Edit Worker] Already running');
     return worker;

@@ -196,7 +196,7 @@ import {
   startUploadWorker,
   stopUploadWorker,
 } from './workers/upload-worker-bullmq';
-import { closeQueues } from './lib/queues';
+import { closeQueues } from './lib/queues-optimized';
 
 const workersDisabled =
   process.env.DISABLE_WORKERS === 'true' || process.env.NODE_ENV === 'test';

@@ -40,6 +40,15 @@ function decryptToken(encryptedToken: string): string {
 }
 
 export function startUploadWorker() {
+  // Check if Redis is disabled
+  const redisEnabled = process.env.ENABLE_REDIS !== 'false';
+  if (!redisEnabled) {
+    console.log(
+      '🚫 [Upload Worker] Redis is DISABLED (ENABLE_REDIS=false). Worker will not start.'
+    );
+    return null;
+  }
+
   if (worker) {
     console.log('[Upload Worker] Already running');
     return worker;

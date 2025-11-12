@@ -8,7 +8,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import { VideoStatus } from '@prisma/client';
 import { createId } from '@paralleldrive/cuid2';
-import { queueEditJob, queueUploadJob } from '../lib/queues';
+import { queueEditJob, queueUploadJob } from '../lib/queues-optimized';
 
 const router = Router();
 
