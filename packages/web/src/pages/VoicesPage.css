@@ -1,12 +1,10 @@
-/* Voices Page Redesigned - Modern UI */
+/* Voices Page Redesigned - Clean White Background */
 
 .voices-page-redesigned {
   max-width: 1400px;
   margin: 0 auto;
   padding: 2rem;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  background-attachment: fixed;
 }
 
 /* Loading State */
@@ -17,13 +15,14 @@
   justify-content: center;
   min-height: 100vh;
   gap: 1rem;
+  color: var(--color-gray-700);
 }
 
 .loading-spinner {
   width: 50px;
   height: 50px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
+  border: 4px solid var(--color-gray-200);
+  border-top-color: var(--color-tiktok-pink);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -39,9 +38,14 @@
   align-items: center;
   margin-bottom: 2rem;
   padding: 2rem;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 20px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  background: var(--color-white);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  transition: box-shadow var(--transition-base);
+}
+
+.voices-header-redesigned:hover {
+  box-shadow: var(--shadow-lg);
 }
 
 .header-content {
@@ -51,9 +55,9 @@
 .page-title {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--color-gray-900);
   margin: 0 0 0.5rem 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-tiktok-pink) 0%, var(--color-tiktok-cyan) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -61,7 +65,7 @@
 
 .page-subtitle {
   font-size: 1.125rem;
-  color: #6b7280;
+  color: var(--color-gray-600);
   margin: 0;
 }
 
@@ -71,11 +75,11 @@
   align-items: center;
   gap: 1rem;
   padding: 1rem 1.5rem;
-  background: #fee2e2;
-  border: 2px solid #ef4444;
-  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);
+  border: 2px solid var(--color-error);
+  border-radius: var(--radius-lg);
   margin-bottom: 2rem;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+  box-shadow: var(--shadow-sm);
 }
 
 .alert-icon {
@@ -84,7 +88,7 @@
 
 .alert-message {
   flex: 1;
-  color: #991b1b;
+  color: var(--color-error);
   font-weight: 500;
 }
 
@@ -93,7 +97,7 @@
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #991b1b;
+  color: var(--color-error);
   padding: 0;
   width: 30px;
   height: 30px;
@@ -101,11 +105,11 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: background 0.2s;
+  transition: background var(--transition-base);
 }
 
 .alert-close:hover {
-  background: rgba(153, 27, 27, 0.1);
+  background: rgba(239, 68, 68, 0.1);
 }
 
 /* Cloned Voices Section */
@@ -123,19 +127,18 @@
 .section-title {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-gray-900);
   margin: 0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .badge-cloned {
   padding: 0.375rem 0.875rem;
-  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
-  color: #fff;
-  border-radius: 20px;
+  background: linear-gradient(135deg, var(--color-tiktok-pink) 0%, var(--color-tiktok-cyan) 100%);
+  color: var(--color-white);
+  border-radius: var(--radius-xl);
   font-size: 0.875rem;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 2px 8px rgba(254, 44, 85, 0.25);
 }
 
 .voices-grid-compact {
@@ -145,20 +148,33 @@
 }
 
 .voice-card-cloned {
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  border: none;
-  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(254, 44, 85, 0.08) 0%, rgba(37, 244, 238, 0.08) 100%);
+  border: 2px solid rgba(254, 44, 85, 0.2);
+  border-radius: var(--radius-xl);
   padding: 1.5rem;
-  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.3);
-  transition: all 0.3s ease;
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-base);
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.voice-card-cloned::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-tiktok-pink) 0%, var(--color-tiktok-cyan) 100%);
 }
 
 .voice-card-cloned:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(245, 158, 11, 0.4);
+  box-shadow: var(--shadow-xl);
+  border-color: rgba(254, 44, 85, 0.4);
 }
 
 .voice-icon-large {
@@ -174,22 +190,21 @@
 .voice-name {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-gray-900);
   margin: 0 0 0.5rem 0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .voice-description {
   font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--color-gray-600);
   margin: 0 0 0.5rem 0;
   line-height: 1.5;
 }
 
 .voice-id-small {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.7);
-  font-family: monospace;
+  color: var(--color-gray-500);
+  font-family: var(--font-mono);
 }
 
 .test-voice-button {
@@ -205,36 +220,39 @@
   width: 100%;
   padding: 1.25rem;
   font-size: 1.125rem;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-tiktok-pink) 0%, var(--color-tiktok-cyan) 100%);
   border: none;
-  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
-  transition: all 0.3s ease;
+  color: var(--color-white);
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-base);
 }
 
 .clone-toggle-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(16, 185, 129, 0.4);
+  box-shadow: var(--shadow-lg);
 }
 
 .clone-form-card {
   margin-top: 1.5rem;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
+  background: var(--color-white);
+  border-radius: var(--radius-xl);
   padding: 2rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-gray-200);
 }
 
 .form-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--color-gray-900);
   margin: 0 0 0.5rem 0;
 }
 
 .form-subtitle {
   font-size: 0.938rem;
-  color: #6b7280;
+  color: var(--color-gray-600);
   margin: 0 0 1.5rem 0;
 }
 
@@ -246,14 +264,14 @@
   display: block;
   font-size: 0.938rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--color-gray-700);
   margin-bottom: 0.5rem;
 }
 
 .requirements-box {
-  background: #f3f4f6;
-  border-left: 4px solid #667eea;
-  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(254, 44, 85, 0.05) 0%, rgba(37, 244, 238, 0.05) 100%);
+  border-left: 4px solid var(--color-tiktok-pink);
+  border-radius: var(--radius-md);
   padding: 1rem 1.5rem;
   margin: 1.5rem 0;
 }
@@ -261,14 +279,14 @@
 .requirements-box h4 {
   font-size: 1rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--color-gray-900);
   margin: 0 0 0.75rem 0;
 }
 
 .requirements-box ul {
   margin: 0;
   padding-left: 1.25rem;
-  color: #6b7280;
+  color: var(--color-gray-600);
   font-size: 0.875rem;
   line-height: 1.8;
 }
@@ -281,11 +299,17 @@
 
 /* Filters Section */
 .filters-section {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
+  background: var(--color-white);
+  border-radius: var(--radius-xl);
   padding: 1.5rem 2rem;
   margin-bottom: 2rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-gray-200);
+  transition: box-shadow var(--transition-base);
+}
+
+.filters-section:hover {
+  box-shadow: var(--shadow-lg);
 }
 
 .filters-container {
@@ -305,23 +329,24 @@
   position: absolute;
   left: 1rem;
   font-size: 1.25rem;
-  color: #9ca3af;
+  color: var(--color-gray-400);
 }
 
 .search-input {
   width: 100%;
   padding: 0.875rem 1rem 0.875rem 3rem;
   font-size: 1rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  background: #fff;
-  transition: all 0.3s ease;
+  border: 2px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  background: var(--color-white);
+  transition: all var(--transition-base);
+  color: var(--color-gray-900);
 }
 
 .search-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: var(--color-tiktok-pink);
+  box-shadow: 0 0 0 3px rgba(254, 44, 85, 0.1);
 }
 
 .language-filter {
@@ -333,7 +358,7 @@
 .filter-label {
   font-size: 0.938rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--color-gray-700);
   white-space: nowrap;
 }
 
@@ -341,22 +366,23 @@
   flex: 1;
   padding: 0.875rem 1rem;
   font-size: 1rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  background: #fff;
+  border: 2px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  background: var(--color-white);
+  color: var(--color-gray-900);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
 }
 
 .filter-select:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: var(--color-tiktok-pink);
+  box-shadow: 0 0 0 3px rgba(254, 44, 85, 0.1);
 }
 
 .results-count {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--color-gray-600);
   margin: 0;
   text-align: right;
 }
@@ -369,9 +395,8 @@
 .section-title-main {
   font-size: 1.875rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-gray-900);
   margin: 0 0 1.5rem 0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .voices-grid-main {
@@ -381,20 +406,39 @@
 }
 
 .voice-card-main {
-  background: rgba(255, 255, 255, 0.98);
-  border: none;
-  border-radius: 16px;
+  background: var(--color-white);
+  border: 2px solid var(--color-gray-200);
+  border-radius: var(--radius-xl);
   padding: 1.5rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-base);
   display: flex;
   flex-direction: column;
   height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.voice-card-main::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-tiktok-pink) 0%, var(--color-tiktok-cyan) 100%);
+  opacity: 0;
+  transition: opacity var(--transition-base);
 }
 
 .voice-card-main:hover {
   transform: translateY(-6px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-xl);
+  border-color: rgba(254, 44, 85, 0.3);
+}
+
+.voice-card-main:hover::before {
+  opacity: 1;
 }
 
 .voice-header {
@@ -416,23 +460,24 @@
 .voice-name-main {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--color-gray-900);
   margin: 0 0 0.5rem 0;
 }
 
 .voice-language-badge {
   display: inline-block;
   padding: 0.25rem 0.75rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(254, 44, 85, 0.1) 0%, rgba(37, 244, 238, 0.1) 100%);
+  color: var(--color-tiktok-pink);
+  border: 1px solid rgba(254, 44, 85, 0.2);
+  border-radius: var(--radius-lg);
   font-size: 0.75rem;
   font-weight: 600;
 }
 
 .voice-description-main {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--color-gray-600);
   margin: 0 0 1rem 0;
   line-height: 1.6;
   flex: 1;
@@ -441,13 +486,14 @@
 .voice-id-display {
   display: block;
   font-size: 0.75rem;
-  color: #9ca3af;
-  font-family: monospace;
+  color: var(--color-gray-500);
+  font-family: var(--font-mono);
   margin-bottom: 1rem;
   padding: 0.5rem;
-  background: #f3f4f6;
-  border-radius: 6px;
+  background: var(--color-gray-50);
+  border-radius: var(--radius-md);
   text-align: center;
+  border: 1px solid var(--color-gray-200);
 }
 
 .test-button-main {
@@ -458,20 +504,23 @@
   gap: 0.5rem;
   padding: 0.875rem 1rem;
   font-size: 1rem;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-tiktok-pink) 0%, var(--color-tiktok-cyan) 100%);
   border: none;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-  transition: all 0.3s ease;
+  color: var(--color-white);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-base);
+  cursor: pointer;
 }
 
 .test-button-main:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-md);
 }
 
 .test-button-main:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
@@ -483,9 +532,10 @@
 .empty-state {
   text-align: center;
   padding: 4rem 2rem;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  background: var(--color-white);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  border: 2px dashed var(--color-gray-300);
 }
 
 .empty-icon {
@@ -493,11 +543,12 @@
   display: block;
   margin-bottom: 1rem;
   opacity: 0.5;
+  filter: grayscale(100%);
 }
 
 .empty-message {
   font-size: 1.125rem;
-  color: #6b7280;
+  color: var(--color-gray-600);
   margin: 0 0 1.5rem 0;
 }
 
