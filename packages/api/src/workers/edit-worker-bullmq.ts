@@ -8,7 +8,12 @@ import { prisma } from '../lib/prisma';
 import { VideoStatus } from '@prisma/client';
 import { applyBrandPattern } from '../lib/video-processor';
 import { DesignSpec } from '../lib/design-schema';
-import { downloadFromS3, uploadToS3, extractS3Key } from '../lib/storage';
+import {
+  downloadFromS3,
+  downloadStreamFromS3,
+  uploadToS3,
+  extractS3Key,
+} from '../lib/storage';
 import { notifyUser } from '../routes/events';
 import { generateNarrationScript } from '../lib/script-generator';
 import { generateSpeechToFile } from '../lib/elevenlabs';
@@ -112,7 +117,7 @@ export function startEditWorker() {
         duration: 60000, // 3 jobs per minute
       },
       lockDuration: 30000, // 30 seconds
-      stalledInterval: 300000, // Check for stalled jobs every 5 minutes (reduces Redis polling)
+      stalledInterval: 3000000, // Check for stalled jobs every 5 minutes (reduces Redis polling)
       maxStalledCount: 2,
     }
   );
@@ -315,17 +320,28 @@ async function processEditJob(videoId: string, job: Job) {
       `[Edit Worker] Processing video ${videoId} with design: ${video.design?.name || 'frozen spec'}`
     );
 
-    // Download video from S3 to temp file
+    // Download video from S3 directly to temp file (streaming to avoid memory issues)
     const s3Key = extractS3Key(video.srcUrl);
-    const videoBuffer = await downloadFromS3(s3Key);
-
-    await job.updateProgress(30);
-
-    // Save to temp file
     tempFilePath = path.join(os.tmpdir(), `video-${videoId}-${Date.now()}.mp4`);
-    await fs.promises.writeFile(tempFilePath, videoBuffer);
+
+    console.log(
+      `[Edit Worker] Downloading ${s3Key} to ${tempFilePath} (streaming)...`
+    );
+
+    // Use streaming download to avoid loading entire video into memory
+    const videoStream = await downloadStreamFromS3(s3Key);
+    const writeStream = fs.createWriteStream(tempFilePath);
+
+    await new Promise<void>((resolve, reject) => {
+      videoStream.pipe(writeStream);
+      videoStream.on('error', reject);
+      writeStream.on('error', reject);
+      writeStream.on('finish', () => resolve());
+    });
 
     console.log(`[Edit Worker] Downloaded to ${tempFilePath}`);
+
+    await job.updateProgress(30);
 
     // Convert DesignSpec to pattern format
     const pattern = {

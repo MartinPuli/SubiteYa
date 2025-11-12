@@ -43,9 +43,19 @@ async function safeCleanup(filePaths: string[]) {
 // const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY || '';
 // const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET || '';
 
-// Configure multer for video upload
+// Configure multer for video upload - Use disk storage to avoid memory issues
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      const tempDir = process.env.TEMP || '/tmp';
+      cb(null, tempDir);
+    },
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const ext = path.extname(file.originalname);
+      cb(null, `upload-${uniqueSuffix}${ext}`);
+    },
+  }),
   limits: {
     fileSize: 500 * 1024 * 1024, // 500MB max
   },
@@ -165,16 +175,23 @@ router.post(
         return;
       }
 
-      // Upload video to S3
+      // Upload video to S3 from disk (avoid loading into memory)
       console.log('[POST /publish] Subiendo video a S3...');
+      const fileStream = fs.createReadStream(file.path);
       const s3Result = await uploadToS3({
-        file: file.buffer,
+        file: fileStream,
         filename: file.originalname,
         contentType: file.mimetype,
         folder: 'videos',
       });
 
       console.log('[POST /publish] Video subido a S3:', s3Result.key);
+
+      // Clean up temporary file after upload
+      fs.unlink(file.path, err => {
+        if (err)
+          console.error('[POST /publish] Failed to delete temp file:', err);
+      });
 
       // Create videos for each account and queue them
       const createdVideos = [];
