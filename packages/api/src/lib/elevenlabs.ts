@@ -225,14 +225,43 @@ export async function generateSpeechToFile(
  * All voices use the multilingual v2 model
  */
 export const DEFAULT_VOICES = {
-  en: 'pNInz6obpgDQGcFmaJgB', // Adam - English (UK)
-  es: '21m00Tcm4TlvDq8ikWAM', // Rachel - Spanish (neutral)
-  pt: 'yoZ06aMxZJJ28mfd3POQ', // Sam - Portuguese
-  fr: 'XB0fDUnXU5powFXDhCwa', // Charlotte - French
-  de: 'TX3LPaxmHKxFdv7VOQHJ', // Elli - German (Alemania)
-  it: 'GBv7mTt0atIp3Br8iCZE', // Thomas - Italian (Italiano)
-  ja: 'CwhRBWXzGAHq8TQ4Fs17', // Yuki - Japanese (Japonés)
-  zh: 'XrExE9yKIg1WjnnlVkGX', // Matilda - Chinese (Chino)
+  // English voices
+  adam: 'pNInz6obpgDQGcFmaJgB', // Adam - Deep male voice
+  rachel: '21m00Tcm4TlvDq8ikWAM', // Rachel - Professional female
+  domi: 'AZnzlk1XvdvUeBnXmlld', // Domi - Young energetic female
+  dave: 'CYw3kZ02Hs0563khs1Fj', // Dave - Friendly male
+
+  // Spanish voices
+  matias: 'XB0fDUnXU5powFXDhCwa', // Matías - Spanish male
+  valentina: 'GBv7mTt0atIp3Br8iCZE', // Valentina - Spanish female
+
+  // Portuguese voices
+  sam: 'yoZ06aMxZJJ28mfd3POQ', // Sam - Brazilian male
+  serena: 'pMsXgVXv3BLzUgSXRplE', // Serena - Brazilian female
+
+  // French voices
+  charlotte: 'XB0fDUnXU5powFXDhCwa', // Charlotte - French female
+  henri: 'GBv7mTt0atIp3Br8iCZE', // Henri - French male
+
+  // German voices
+  elli: 'TX3LPaxmHKxFdv7VOQHJ', // Elli - German female
+  klaus: 'nPczCjzI2devNBz1zQrb', // Klaus - German male
+
+  // Italian voices
+  giovanni: 'GBv7mTt0atIp3Br8iCZE', // Giovanni - Italian male
+  sofia: 'pNInz6obpgDQGcFmaJgB', // Sofia - Italian female
+
+  // Japanese voices
+  yuki: 'CwhRBWXzGAHq8TQ4Fs17', // Yuki - Japanese female
+  kenji: 'nPczCjzI2devNBz1zQrb', // Kenji - Japanese male
+
+  // Chinese voices
+  mei: 'XrExE9yKIg1WjnnlVkGX', // Mei - Mandarin female
+  chen: 'pNInz6obpgDQGcFmaJgB', // Chen - Mandarin male
+
+  // Additional popular voices
+  emily: 'LcfcDJNUP1GQjkzn1xUU', // Emily - Young American female
+  michael: 'flq6f7yk4E4fJM5XTYuZ', // Michael - Professional male
 };
 
 /**

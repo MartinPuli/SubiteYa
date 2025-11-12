@@ -241,62 +241,183 @@ router.post('/generate', authenticate, async (req: Request, res: Response) => {
 
 /**
  * GET /api/elevenlabs/default-voices
- * Get recommended default voices for each language
+ * Get recommended default voices for each language (20 voices)
  */
 router.get(
   '/default-voices',
   authenticate,
   async (req: Request, res: Response) => {
     try {
-      // Convert DEFAULT_VOICES object to array format expected by frontend
+      // 20 curated voices with descriptions
       const defaultVoicesArray = [
+        // English voices
         {
           language: 'Inglés',
-          voice_id: elevenlabs.DEFAULT_VOICES.en,
+          voice_id: elevenlabs.DEFAULT_VOICES.adam,
           name: 'Adam',
           flag: '🇺🇸',
+          description: 'Voz masculina profunda y autoritaria',
+          gender: 'male',
+        },
+        {
+          language: 'Inglés',
+          voice_id: elevenlabs.DEFAULT_VOICES.rachel,
+          name: 'Rachel',
+          flag: '🇺🇸',
+          description: 'Voz femenina profesional y clara',
+          gender: 'female',
+        },
+        {
+          language: 'Inglés',
+          voice_id: elevenlabs.DEFAULT_VOICES.domi,
+          name: 'Domi',
+          flag: '🇺🇸',
+          description: 'Voz femenina joven y enérgica',
+          gender: 'female',
+        },
+        {
+          language: 'Inglés',
+          voice_id: elevenlabs.DEFAULT_VOICES.dave,
+          name: 'Dave',
+          flag: '🇺🇸',
+          description: 'Voz masculina amigable y cercana',
+          gender: 'male',
+        },
+        {
+          language: 'Inglés',
+          voice_id: elevenlabs.DEFAULT_VOICES.emily,
+          name: 'Emily',
+          flag: '🇺🇸',
+          description: 'Voz femenina juvenil americana',
+          gender: 'female',
+        },
+        // Spanish voices
+        {
+          language: 'Español',
+          voice_id: elevenlabs.DEFAULT_VOICES.matias,
+          name: 'Matías',
+          flag: '🇪🇸',
+          description: 'Voz masculina española neutral',
+          gender: 'male',
         },
         {
           language: 'Español',
-          voice_id: elevenlabs.DEFAULT_VOICES.es,
-          name: 'Rachel',
+          voice_id: elevenlabs.DEFAULT_VOICES.valentina,
+          name: 'Valentina',
           flag: '🇪🇸',
+          description: 'Voz femenina española cálida',
+          gender: 'female',
+        },
+        // Portuguese voices
+        {
+          language: 'Portugués',
+          voice_id: elevenlabs.DEFAULT_VOICES.sam,
+          name: 'Sam',
+          flag: '🇧🇷',
+          description: 'Voz masculina brasileña versátil',
+          gender: 'male',
         },
         {
           language: 'Portugués',
-          voice_id: elevenlabs.DEFAULT_VOICES.pt,
-          name: 'Sam',
+          voice_id: elevenlabs.DEFAULT_VOICES.serena,
+          name: 'Serena',
           flag: '🇧🇷',
+          description: 'Voz femenina brasileña suave',
+          gender: 'female',
+        },
+        // French voices
+        {
+          language: 'Francés',
+          voice_id: elevenlabs.DEFAULT_VOICES.charlotte,
+          name: 'Charlotte',
+          flag: '🇫🇷',
+          description: 'Voz femenina francesa elegante',
+          gender: 'female',
         },
         {
           language: 'Francés',
-          voice_id: elevenlabs.DEFAULT_VOICES.fr,
-          name: 'Charlotte',
+          voice_id: elevenlabs.DEFAULT_VOICES.henri,
+          name: 'Henri',
           flag: '🇫🇷',
+          description: 'Voz masculina francesa sofisticada',
+          gender: 'male',
+        },
+        // German voices
+        {
+          language: 'Alemán',
+          voice_id: elevenlabs.DEFAULT_VOICES.elli,
+          name: 'Elli',
+          flag: '🇩🇪',
+          description: 'Voz femenina alemana clara',
+          gender: 'female',
         },
         {
           language: 'Alemán',
-          voice_id: elevenlabs.DEFAULT_VOICES.de,
-          name: 'Elli',
+          voice_id: elevenlabs.DEFAULT_VOICES.klaus,
+          name: 'Klaus',
           flag: '🇩🇪',
+          description: 'Voz masculina alemana firme',
+          gender: 'male',
+        },
+        // Italian voices
+        {
+          language: 'Italiano',
+          voice_id: elevenlabs.DEFAULT_VOICES.giovanni,
+          name: 'Giovanni',
+          flag: '🇮🇹',
+          description: 'Voz masculina italiana expresiva',
+          gender: 'male',
         },
         {
           language: 'Italiano',
-          voice_id: elevenlabs.DEFAULT_VOICES.it,
-          name: 'Thomas',
+          voice_id: elevenlabs.DEFAULT_VOICES.sofia,
+          name: 'Sofia',
           flag: '🇮🇹',
+          description: 'Voz femenina italiana melodiosa',
+          gender: 'female',
+        },
+        // Japanese voices
+        {
+          language: 'Japonés',
+          voice_id: elevenlabs.DEFAULT_VOICES.yuki,
+          name: 'Yuki',
+          flag: '🇯🇵',
+          description: 'Voz femenina japonesa dulce',
+          gender: 'female',
         },
         {
           language: 'Japonés',
-          voice_id: elevenlabs.DEFAULT_VOICES.ja,
-          name: 'Yuki',
+          voice_id: elevenlabs.DEFAULT_VOICES.kenji,
+          name: 'Kenji',
           flag: '🇯🇵',
+          description: 'Voz masculina japonesa formal',
+          gender: 'male',
+        },
+        // Chinese voices
+        {
+          language: 'Chino',
+          voice_id: elevenlabs.DEFAULT_VOICES.mei,
+          name: 'Mei',
+          flag: '🇨🇳',
+          description: 'Voz femenina mandarín clara',
+          gender: 'female',
         },
         {
           language: 'Chino',
-          voice_id: elevenlabs.DEFAULT_VOICES.zh,
-          name: 'Matilda',
+          voice_id: elevenlabs.DEFAULT_VOICES.chen,
+          name: 'Chen',
           flag: '🇨🇳',
+          description: 'Voz masculina mandarín profesional',
+          gender: 'male',
+        },
+        // Additional popular voice
+        {
+          language: 'Inglés',
+          voice_id: elevenlabs.DEFAULT_VOICES.michael,
+          name: 'Michael',
+          flag: '🇺🇸',
+          description: 'Voz masculina profesional versátil',
+          gender: 'male',
         },
       ];
 
