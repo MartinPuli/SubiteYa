@@ -25,24 +25,28 @@ const PORT = process.env.PORT || 3002;
 
 // Encryption key for TikTok tokens
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '';
-if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length !== 32) {
-  console.error('❌ ENCRYPTION_KEY must be 32 characters');
+if (!ENCRYPTION_KEY) {
+  console.error('❌ ENCRYPTION_KEY is required');
   process.exit(1);
 }
 
 /**
- * Decrypt token helper
+ * Decrypt token helper (compatible with tiktok.ts encryption using AES-256-GCM)
  */
 function decryptToken(encryptedToken: string): string {
-  const parts = encryptedToken.split(':');
-  const iv = Buffer.from(parts[0], 'hex');
-  const encrypted = parts[1];
+  const [ivHex, authTagHex, encrypted] = encryptedToken.split(':');
 
-  const decipher = crypto.createDecipheriv(
-    'aes-256-cbc',
-    Buffer.from(ENCRYPTION_KEY),
-    iv
-  );
+  if (!ivHex || !authTagHex || !encrypted) {
+    throw new Error('Invalid encrypted token format');
+  }
+
+  const iv = Buffer.from(ivHex, 'hex');
+  const authTag = Buffer.from(authTagHex, 'hex');
+  const key = Buffer.from(ENCRYPTION_KEY.slice(0, 32));
+
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(authTag);
+
   let decrypted = decipher.update(encrypted, 'hex', 'utf8');
   decrypted += decipher.final('utf8');
   return decrypted;
