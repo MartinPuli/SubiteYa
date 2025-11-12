@@ -15,7 +15,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { applyBrandPattern } from '../lib/video-processor';
 import { videoQueue } from '../lib/video-queue';
 import { uploadToS3 } from '../lib/storage';
-import { queueEditJob } from '../lib/queues-optimized';
+import { queueEditJob } from '../lib/qstash-client';
 import { VideoStatus } from '@prisma/client';
 import { createId } from '@paralleldrive/cuid2';
 

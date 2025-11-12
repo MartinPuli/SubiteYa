@@ -190,16 +190,8 @@ import monitorRoutes from './routes/monitor';
 // Import rate limiters
 import { generalLimiter, apiLimiter } from './middleware/rate-limit';
 
-// Import BullMQ workers (production)
-import { startEditWorker, stopEditWorker } from './workers/edit-worker-bullmq';
-import {
-  startUploadWorker,
-  stopUploadWorker,
-} from './workers/upload-worker-bullmq';
-import { closeQueues } from './lib/queues-optimized';
-
-const workersDisabled =
-  process.env.DISABLE_WORKERS === 'true' || process.env.NODE_ENV === 'test';
+// Import worker routes (Qstash HTTP endpoints)
+import workersRoutes from './routes/workers';
 
 // Apply general rate limiter to all routes
 app.use(generalLimiter);
@@ -226,6 +218,7 @@ app.use('/api/accounts', apiLimiter, designsRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/elevenlabs', apiLimiter, elevenlabsRoutes);
 app.use('/api/monitor', apiLimiter, monitorRoutes); // Redis monitoring endpoints
+app.use('/api/workers', workersRoutes); // Qstash webhook endpoints (no rate limit)
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -286,10 +279,8 @@ async function shutdown(signal: NodeJS.Signals) {
   console.log(`${signal} received, shutting down gracefully`);
 
   try {
-    if (!workersDisabled) {
-      await Promise.all([stopEditWorker(), stopUploadWorker()]);
-    }
-    await closeQueues();
+    // Qstash doesn't require cleanup (HTTP-based)
+    console.log('✅ Shutdown complete (Qstash HTTP-based)');
   } catch (error) {
     console.error('Error during shutdown:', error);
   } finally {
@@ -303,17 +294,10 @@ app.listen(PORT, () => {
   console.log(`📝 Health check: http://localhost:${PORT}/health`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔧 CORS configured for origins:`, allowedOrigins);
-
-  if (workersDisabled) {
-    console.log('⚠️  Background workers disabled via configuration');
-    console.log(
-      '   Set DISABLE_WORKERS=false to enable automatic worker startup.'
-    );
-  } else {
-    console.log('🧵 Starting background workers...');
-    startEditWorker();
-    startUploadWorker();
-  }
+  console.log('✅ Qstash HTTP-based workers enabled');
+  console.log(
+    '   Jobs will be received at /api/workers/edit and /api/workers/upload'
+  );
 });
 
 // Graceful shutdown
