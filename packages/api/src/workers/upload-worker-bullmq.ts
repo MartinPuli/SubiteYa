@@ -130,17 +130,34 @@ export function startUploadWorker() {
   worker = new Worker(
     'video-upload',
     async (job: Job) => {
-      const { videoId } = job.data;
-      await processUploadJob(videoId, job);
+      console.log(
+        `[Upload Worker] 📥 Received job ${job.id} for video ${job.data.videoId}`
+      );
+      const startTime = Date.now();
+      try {
+        const { videoId } = job.data;
+        await processUploadJob(videoId, job);
+        const duration = Date.now() - startTime;
+        console.log(
+          `[Upload Worker] ✅ Job ${job.id} completed in ${duration}ms`
+        );
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        console.error(
+          `[Upload Worker] ❌ Job ${job.id} failed after ${duration}ms:`,
+          error
+        );
+        throw error;
+      }
     },
     {
       connection: redisConnection,
       concurrency: CONCURRENCY,
       limiter: {
-        max: 3, // Max 3 uploads
-        duration: 60000, // per minute
+        max: 3,
+        duration: 60000, // Max 3 uploads per minute across all accounts
       },
-      lockDuration: 30000, // 30 seconds
+      lockDuration: 30000,
       stalledInterval: 300000, // Check for stalled jobs every 5 minutes (reduces Redis polling)
       maxStalledCount: 2,
     }

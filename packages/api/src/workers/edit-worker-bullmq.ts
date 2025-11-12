@@ -84,8 +84,25 @@ export function startEditWorker() {
   worker = new Worker(
     'video-edit',
     async (job: Job) => {
-      const { videoId } = job.data;
-      await processEditJob(videoId, job);
+      console.log(
+        `[Edit Worker] 📥 Received job ${job.id} for video ${job.data.videoId}`
+      );
+      const startTime = Date.now();
+      try {
+        const { videoId } = job.data;
+        await processEditJob(videoId, job);
+        const duration = Date.now() - startTime;
+        console.log(
+          `[Edit Worker] ✅ Job ${job.id} completed in ${duration}ms`
+        );
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        console.error(
+          `[Edit Worker] ❌ Job ${job.id} failed after ${duration}ms:`,
+          error
+        );
+        throw error;
+      }
     },
     {
       connection: redisConnection,
