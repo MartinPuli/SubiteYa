@@ -11,12 +11,26 @@ import { notifyUser } from '../routes/events';
 import crypto from 'node:crypto';
 import Redis from 'ioredis';
 
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+const REDIS_URL = process.env.REDIS_URL;
 const CONCURRENCY = Number.parseInt(
   process.env.UPLOAD_WORKER_CONCURRENCY || '1',
   10
 );
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '';
+
+// Validation: Prevent localhost connection loops
+if (
+  !REDIS_URL ||
+  REDIS_URL.includes('localhost') ||
+  REDIS_URL.includes('127.0.0.1')
+) {
+  console.warn(
+    '⚠️  [Upload Worker] REDIS_URL not configured or set to localhost.'
+  );
+  console.warn(
+    '💡 [Upload Worker] Set proper REDIS_URL in Render to enable worker.'
+  );
+}
 
 // Track last upload time per account for rate limiting
 const lastUploadTime = new Map<string, number>();
@@ -45,6 +59,21 @@ export function startUploadWorker() {
   if (!redisEnabled) {
     console.log(
       '🚫 [Upload Worker] Redis is DISABLED (ENABLE_REDIS=false). Worker will not start.'
+    );
+    return null;
+  }
+
+  // Validate REDIS_URL
+  if (
+    !REDIS_URL ||
+    REDIS_URL.includes('localhost') ||
+    REDIS_URL.includes('127.0.0.1')
+  ) {
+    console.error(
+      '❌ [Upload Worker] Invalid REDIS_URL. Cannot start worker with localhost connection.'
+    );
+    console.error(
+      '💡 [Upload Worker] Please configure REDIS_URL in Render environment variables.'
     );
     return null;
   }

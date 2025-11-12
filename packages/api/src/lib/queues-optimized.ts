@@ -15,7 +15,19 @@ import Redis from 'ioredis';
 
 // Feature flag to completely disable Redis
 const REDIS_ENABLED = process.env.ENABLE_REDIS !== 'false';
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+const REDIS_URL = process.env.REDIS_URL;
+
+// Validation: Disable Redis if URL is not properly configured
+if (REDIS_ENABLED && (!REDIS_URL || REDIS_URL.includes('localhost'))) {
+  console.warn(
+    '⚠️  REDIS_URL not configured or set to localhost. Disabling Redis to prevent connection loops.'
+  );
+  console.warn(
+    '💡 Set REDIS_URL in Render environment to enable Redis workers.'
+  );
+  // Force disable
+  process.env.ENABLE_REDIS = 'false';
+}
 
 // In-memory cache to reduce Redis queries
 interface CacheEntry<T> {
@@ -80,6 +92,10 @@ async function getRedisConnection(): Promise<Redis> {
   }
 
   connectionPromise = (async () => {
+    if (!REDIS_URL) {
+      throw new Error('REDIS_URL is not defined');
+    }
+
     const redisUrl = new URL(REDIS_URL);
     const isUpstash = redisUrl.protocol === 'rediss:';
 
@@ -125,36 +141,42 @@ export async function disconnectRedis(): Promise<void> {
   }
 }
 
-// Queue options with minimal overhead
-const queueOptions: QueueOptions = {
-  connection: {
-    // Use lazy connection factory
-    lazyConnect: true,
-  } as any,
-  defaultJobOptions: {
-    attempts: 2, // Reduce attempts from 3 to 2
-    backoff: {
-      type: 'exponential',
-      delay: 10000, // Longer delays reduce command frequency
+// Create queue options function (only called if Redis is enabled)
+function createQueueOptions(): QueueOptions {
+  if (!REDIS_URL) {
+    throw new Error('REDIS_URL is not defined');
+  }
+  return {
+    connection: new Redis(REDIS_URL, {
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+      lazyConnect: true,
+    }),
+    defaultJobOptions: {
+      attempts: 2,
+      backoff: {
+        type: 'exponential',
+        delay: 10000,
+      },
+      removeOnComplete: {
+        age: 3600,
+        count: 10,
+      },
+      removeOnFail: {
+        age: 24 * 3600,
+        count: 50,
+      },
     },
-    removeOnComplete: {
-      age: 3600, // 1 hour instead of 24 hours
-      count: 10, // Keep only 10 completed jobs
-    },
-    removeOnFail: {
-      age: 24 * 3600, // Keep failed jobs for 1 day
-      count: 50, // Max 50 failed jobs
-    },
-  },
-};
+  };
+}
 
 // Create queues only if Redis is enabled
 export const editQueue = REDIS_ENABLED
-  ? new Queue('video-edit', queueOptions)
+  ? new Queue('video-edit', createQueueOptions())
   : null;
 
 export const uploadQueue = REDIS_ENABLED
-  ? new Queue('video-upload', queueOptions)
+  ? new Queue('video-upload', createQueueOptions())
   : null;
 
 // Priority levels
