@@ -68,7 +68,27 @@ export const VoicesPage: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Voices loaded:', data);
-        setVoices(data.voices || []);
+
+        // Filter to show only the default voices in "Todas las Voces"
+        const allVoices = data.voices || [];
+        const defaultVoiceIds = [
+          'pNInz6obpgDQGcFmaJgB', // Adam - English
+          '21m00Tcm4TlvDq8ikWAM', // Rachel - Spanish
+          'yoZ06aMxZJJ28mfd3POQ', // Sam - Portuguese
+          'XB0fDUnXU5powFXDhCwa', // Charlotte - French
+          'TX3LPaxmHKxFdv7VOQHJ', // Elli - German
+          'GBv7mTt0atIp3Br8iCZE', // Thomas - Italian
+          'CwhRBWXzGAHq8TQ4Fs17', // Yuki - Japanese
+          'XrExE9yKIg1WjnnlVkGX', // Matilda - Chinese
+        ];
+
+        // Show default voices + any cloned voices (category: "cloned")
+        const filteredVoices = allVoices.filter(
+          (v: Voice) =>
+            defaultVoiceIds.includes(v.voice_id) || v.category === 'cloned'
+        );
+
+        setVoices(filteredVoices);
       } else {
         const errorData = await response.json();
         console.error('❌ Error response:', errorData);
@@ -387,56 +407,82 @@ export const VoicesPage: React.FC = () => {
 
       {/* Available Voices Section */}
       <Card className="voices-list-card">
-        <h2 className="section-title">🌍 Todas las Voces ({voices.length})</h2>
+        <h2 className="section-title">� Voces Disponibles para Seleccionar</h2>
         <p className="section-description">
-          Estas son todas las voces disponibles para usar en tus narraciones
+          Selecciona estas voces en la configuración de tus patrones de marca
+          para narración automática
         </p>
 
         <div className="voices-grid">
-          {voices.map(voice => (
-            <Card key={voice.voice_id} className="voice-card">
-              <div className="voice-info">
-                <h3>{voice.name}</h3>
-                <span className="voice-category">{voice.category}</span>
-                {voice.description && <p>{voice.description}</p>}
-                {Object.keys(voice.labels).length > 0 && (
-                  <div className="voice-labels">
-                    {Object.entries(voice.labels).map(([key, value]) => (
-                      <span key={key} className="label">
-                        {value}
-                      </span>
-                    ))}
-                  </div>
+          {voices.map(voice => {
+            // Map voice to language info
+            const languageMap: Record<string, { lang: string; flag: string }> =
+              {
+                pNInz6obpgDQGcFmaJgB: { lang: 'Inglés', flag: '🇺🇸' },
+                '21m00Tcm4TlvDq8ikWAM': { lang: 'Español', flag: '🇪🇸' },
+                yoZ06aMxZJJ28mfd3POQ: { lang: 'Portugués', flag: '🇧🇷' },
+                XB0fDUnXU5powFXDhCwa: { lang: 'Francés', flag: '🇫🇷' },
+                TX3LPaxmHKxFdv7VOQHJ: { lang: 'Alemán', flag: '🇩🇪' },
+                GBv7mTt0atIp3Br8iCZE: { lang: 'Italiano', flag: '🇮🇹' },
+                CwhRBWXzGAHq8TQ4Fs17: { lang: 'Japonés', flag: '🇯🇵' },
+                XrExE9yKIg1WjnnlVkGX: { lang: 'Chino', flag: '🇨🇳' },
+              };
+
+            const langInfo = languageMap[voice.voice_id] || {
+              lang: voice.category,
+              flag: '🎤',
+            };
+
+            return (
+              <Card key={voice.voice_id} className="voice-card">
+                <div
+                  className="voice-flag"
+                  style={{ fontSize: '2rem', marginBottom: '0.5rem' }}
+                >
+                  {langInfo.flag}
+                </div>
+                <div className="voice-info">
+                  <h3>{voice.name}</h3>
+                  <span className="voice-category">{langInfo.lang}</span>
+                  {voice.description && (
+                    <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                      {voice.description}
+                    </p>
+                  )}
+                  <span
+                    className="voice-id"
+                    style={{ fontSize: '0.75rem', opacity: 0.7 }}
+                  >
+                    ID: {voice.voice_id}
+                  </span>
+                </div>
+
+                <div style={{ marginTop: '1rem' }}>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleTestVoice(voice.voice_id)}
+                    disabled={testingVoiceId === voice.voice_id}
+                    style={{ width: '100%' }}
+                  >
+                    {testingVoiceId === voice.voice_id
+                      ? '▶️ Probando...'
+                      : '🎧 Probar Voz (3 segs)'}
+                  </Button>
+                </div>
+
+                {voice.preview_url && (
+                  <audio
+                    controls
+                    className="voice-preview"
+                    style={{ marginTop: '0.75rem', width: '100%' }}
+                  >
+                    <source src={voice.preview_url} type="audio/mpeg" />
+                  </audio>
                 )}
-              </div>
-
-              <div
-                style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}
-              >
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => handleTestVoice(voice.voice_id)}
-                  disabled={testingVoiceId === voice.voice_id}
-                  style={{ flex: 1 }}
-                >
-                  {testingVoiceId === voice.voice_id
-                    ? '▶️ Probando...'
-                    : '🎧 Probar'}
-                </Button>
-              </div>
-
-              {voice.preview_url && (
-                <audio
-                  controls
-                  className="voice-preview"
-                  style={{ marginTop: '0.5rem' }}
-                >
-                  <source src={voice.preview_url} type="audio/mpeg" />
-                </audio>
-              )}
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       </Card>
     </div>

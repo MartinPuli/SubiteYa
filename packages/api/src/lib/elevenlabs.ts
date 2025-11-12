@@ -221,16 +221,18 @@ export async function generateSpeechToFile(
 
 /**
  * Default voices for different languages (curated list)
+ * These are actual voice IDs from ElevenLabs that support multiple languages
+ * All voices use the multilingual v2 model
  */
 export const DEFAULT_VOICES = {
-  en: 'pNInz6obpgDQGcFmaJgB', // Adam - Deep, authoritative (like David Attenborough)
-  es: '21m00Tcm4TlvDq8ikWAM', // Rachel - Clear, professional Spanish
-  pt: 'yoZ06aMxZJJ28mfd3POQ', // Sam - Brazilian Portuguese
+  en: 'pNInz6obpgDQGcFmaJgB', // Adam - English (UK)
+  es: '21m00Tcm4TlvDq8ikWAM', // Rachel - Spanish (neutral)
+  pt: 'yoZ06aMxZJJ28mfd3POQ', // Sam - Portuguese
   fr: 'XB0fDUnXU5powFXDhCwa', // Charlotte - French
-  de: 'TX3LPaxmHKxFdv7VOQHJ', // Elli - German
-  it: 'GBv7mTt0atIp3Br8iCZE', // Thomas - Italian
-  ja: 'CwhRBWXzGAHq8TQ4Fs17', // Yuki - Japanese
-  zh: 'XrExE9yKIg1WjnnlVkGX', // Matilda - Mandarin Chinese
+  de: 'TX3LPaxmHKxFdv7VOQHJ', // Elli - German (Alemania)
+  it: 'GBv7mTt0atIp3Br8iCZE', // Thomas - Italian (Italiano)
+  ja: 'CwhRBWXzGAHq8TQ4Fs17', // Yuki - Japanese (Japonés)
+  zh: 'XrExE9yKIg1WjnnlVkGX', // Matilda - Chinese (Chino)
 };
 
 /**
