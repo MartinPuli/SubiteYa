@@ -112,7 +112,7 @@ export function startUploadWorker() {
         duration: 60000, // per minute
       },
       lockDuration: 30000, // 30 seconds
-      stalledInterval: 60000, // Check for stalled jobs every 60s (reduces Redis polling)
+      stalledInterval: 300000, // Check for stalled jobs every 5 minutes (reduces Redis polling)
       maxStalledCount: 2,
     }
   );
