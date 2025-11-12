@@ -185,6 +185,7 @@ import meRoutes from './routes/me';
 import designsRoutes from './routes/designs';
 import eventsRoutes from './routes/events';
 import elevenlabsRoutes from './routes/elevenlabs';
+import monitorRoutes from './routes/monitor';
 
 // Import rate limiters
 import { generalLimiter, apiLimiter } from './middleware/rate-limit';
@@ -222,8 +223,9 @@ app.use('/api/legal', legalRoutes); // No rate limiting for legal documents
 app.use('/api/videos', apiLimiter, videosRoutes);
 app.use('/api/me', apiLimiter, meRoutes);
 app.use('/api/accounts', apiLimiter, designsRoutes);
-app.use('/api/events', apiLimiter, eventsRoutes);
+app.use('/api/events', eventsRoutes);
 app.use('/api/elevenlabs', apiLimiter, elevenlabsRoutes);
+app.use('/api/monitor', apiLimiter, monitorRoutes); // Redis monitoring endpoints
 
 // 404 handler
 app.use((req: Request, res: Response) => {
