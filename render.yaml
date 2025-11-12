@@ -16,6 +16,8 @@ services:
         value: production
       - key: PORT
         value: 3000
+      - key: DISABLE_WORKERS
+        value: true # ⚠️ IMPORTANTE: Deshabilitar workers en API porque hay workers dedicados
       # Estas las agregarás manualmente en Render Dashboard:
       # - DATABASE_URL (tu PostgreSQL/Supabase existente)
       # - DIRECT_URL (tu PostgreSQL/Supabase existente)
