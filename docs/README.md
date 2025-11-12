@@ -2,8 +2,16 @@
 
 ## 🚀 Guías de Deploy
 
-- **[RENDER_WORKERS_SETUP.md](RENDER_WORKERS_SETUP.md)**: Guía completa para configurar workers en Render
-- **[RENDER_WORKERS_QUICKSTART.md](RENDER_WORKERS_QUICKSTART.md)**: Guía rápida (5 minutos)
+# SubiteYa Documentation
+
+Welcome to SubiteYa's technical documentation.
+
+## Table of Contents
+
+1. [Architecture Decision Records (ADRs)](./adr/README.md)
+2. [Render Workers Setup](./RENDER_WORKERS_SETUP.md)
+3. [Render Workers Quick Start](./RENDER_WORKERS_QUICKSTART.md)
+4. [Database Connection Retry System](./DATABASE_CONNECTION_RETRY.md) - Solución a errores de conexión intermitentes
 
 ## 🏗️ Arquitectura
 

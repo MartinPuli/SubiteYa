@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed - 2024-11-12
+
+- **Database Connection Stability**: Implementado sistema de reintentos automáticos para conexiones intermitentes con Supabase
+  - Agregada función `withRetry` con backoff exponencial (500ms → 1s → 2s)
+  - Configurado pool de conexiones optimizado (limit=10, timeout=20s)
+  - Aplicado en operaciones críticas: login, registro, refresh token
+  - Detecta y reintenta errores P1001, P1002, P1008, P1017
+  - Documentación completa en `docs/DATABASE_CONNECTION_RETRY.md`
+
 ## [1.0.0] - 2025-10-08
 
 ### Added

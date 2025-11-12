@@ -5,7 +5,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { prisma } from '../lib/prisma';
+import { prisma, withRetry } from '../lib/prisma';
 import {
   signToken,
   signAccessToken,
@@ -79,10 +79,12 @@ router.post(
         return;
       }
 
-      // Check if user exists
-      const existingUser = await prisma.user.findUnique({
-        where: { email },
-      });
+      // Check if user exists with retry
+      const existingUser = await withRetry(() =>
+        prisma.user.findUnique({
+          where: { email },
+        })
+      );
 
       if (existingUser) {
         res.status(409).json({
@@ -100,35 +102,39 @@ router.post(
       const salt = generateSalt();
       const hash = hashPassword(password, salt);
 
-      // Create user
+      // Create user with retry
       const now = new Date();
-      const user = await prisma.user.create({
-        data: {
-          email,
-          name,
-          passwordHash: hash,
-          passwordSalt: salt,
-          role: 'user',
-          language: 'es',
-          timezone: 'America/Argentina/Buenos_Aires',
-          emailVerified: false,
-          emailVerificationCode: verificationCode,
-          emailVerificationExp: verificationExp,
-          acceptedTermsAt: now,
-          acceptedPrivacyAt: now,
-        },
-      });
+      const user = await withRetry(() =>
+        prisma.user.create({
+          data: {
+            email,
+            name,
+            passwordHash: hash,
+            passwordSalt: salt,
+            role: 'user',
+            language: 'es',
+            timezone: 'America/Argentina/Buenos_Aires',
+            emailVerified: false,
+            emailVerificationCode: verificationCode,
+            emailVerificationExp: verificationExp,
+            acceptedTermsAt: now,
+            acceptedPrivacyAt: now,
+          },
+        })
+      );
 
-      // Create audit event
-      await prisma.auditEvent.create({
-        data: {
-          userId: user.id,
-          type: 'user.registered',
-          detailsJson: { email, name },
-          ip: req.ip,
-          userAgent: req.headers['user-agent'],
-        },
-      });
+      // Create audit event with retry
+      await withRetry(() =>
+        prisma.auditEvent.create({
+          data: {
+            userId: user.id,
+            type: 'user.registered',
+            detailsJson: { email, name },
+            ip: req.ip,
+            userAgent: req.headers['user-agent'],
+          },
+        })
+      );
 
       // Send verification email
       try {
@@ -136,10 +142,12 @@ router.post(
         console.log(`✅ Email de verificación enviado a: ${email}`);
       } catch (emailError) {
         console.error('❌ Error enviando email de verificación:', emailError);
-        // Delete user if email fails
-        await prisma.user.delete({
-          where: { id: user.id },
-        });
+        // Delete user if email fails (with retry)
+        await withRetry(() =>
+          prisma.user.delete({
+            where: { id: user.id },
+          })
+        );
         res.status(500).json({
           error: 'Internal Server Error',
           message:
@@ -161,15 +169,17 @@ router.post(
         role: user.role,
       });
 
-      // Store refresh token in database
+      // Store refresh token in database with retry
       const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 días
-      await prisma.refreshToken.create({
-        data: {
-          userId: user.id,
-          tokenId,
-          expiresAt,
-        },
-      });
+      await withRetry(() =>
+        prisma.refreshToken.create({
+          data: {
+            userId: user.id,
+            tokenId,
+            expiresAt,
+          },
+        })
+      );
 
       res.status(201).json({
         message: 'Usuario registrado exitosamente',
@@ -207,10 +217,12 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
       return;
     }
 
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
+    // Find user with retry logic for connection issues
+    const user = await withRetry(() =>
+      prisma.user.findUnique({
+        where: { email },
+      })
+    );
 
     if (!user) {
       res.status(401).json({
@@ -235,16 +247,18 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
       return;
     }
 
-    // Create audit event
-    await prisma.auditEvent.create({
-      data: {
-        userId: user.id,
-        type: 'user.login',
-        detailsJson: { email },
-        ip: req.ip,
-        userAgent: req.headers['user-agent'],
-      },
-    });
+    // Create audit event with retry logic
+    await withRetry(() =>
+      prisma.auditEvent.create({
+        data: {
+          userId: user.id,
+          type: 'user.login',
+          detailsJson: { email },
+          ip: req.ip,
+          userAgent: req.headers['user-agent'],
+        },
+      })
+    );
 
     // Generate tokens
     const accessToken = signAccessToken({
@@ -259,15 +273,17 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
       role: user.role,
     });
 
-    // Store refresh token in database
+    // Store refresh token in database with retry logic
     const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 días
-    await prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        tokenId,
-        expiresAt,
-      },
-    });
+    await withRetry(() =>
+      prisma.refreshToken.create({
+        data: {
+          userId: user.id,
+          tokenId,
+          expiresAt,
+        },
+      })
+    );
 
     res.json({
       message: 'Login exitoso',
