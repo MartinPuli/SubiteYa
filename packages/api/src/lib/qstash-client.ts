@@ -14,7 +14,8 @@ import { Client } from '@upstash/qstash';
 
 // Initialize Qstash client
 const qstashToken = process.env.QSTASH_TOKEN;
-const qstashUrl = process.env.QSTASH_URL || process.env.RENDER_EXTERNAL_URL;
+const editWorkerUrl = process.env.EDIT_WORKER_URL;
+const uploadWorkerUrl = process.env.UPLOAD_WORKER_URL;
 
 let qstashClient: Client | null = null;
 
@@ -22,6 +23,8 @@ let qstashClient: Client | null = null;
 if (qstashToken) {
   qstashClient = new Client({ token: qstashToken });
   console.log('✅ Qstash client initialized');
+  console.log(`   Edit Worker: ${editWorkerUrl || 'NOT SET'}`);
+  console.log(`   Upload Worker: ${uploadWorkerUrl || 'NOT SET'}`);
 } else {
   console.warn('⚠️  QSTASH_TOKEN not set - queue system disabled');
 }
@@ -30,14 +33,16 @@ export const QSTASH_ENABLED = !!qstashClient;
 
 /**
  * Queue a video for editing
- * Sends HTTP POST to /api/workers/edit endpoint
+ * Sends HTTP POST to Edit Worker /process endpoint
  */
 export async function queueEditJob(
   videoId: string,
   priority: 'high' | 'normal' | 'low' = 'normal'
 ): Promise<boolean> {
-  if (!qstashClient || !qstashUrl) {
-    console.warn('[Qstash] Client not configured, skipping job queue');
+  if (!qstashClient || !editWorkerUrl) {
+    console.warn(
+      '[Qstash] Client not configured or EDIT_WORKER_URL not set, skipping job queue'
+    );
     return false;
   }
 
@@ -45,7 +50,7 @@ export async function queueEditJob(
     const delay = priority === 'high' ? 0 : priority === 'normal' ? 5 : 30;
 
     await qstashClient.publishJSON({
-      url: `${qstashUrl}/api/workers/edit`,
+      url: `${editWorkerUrl}/process`,
       body: {
         videoId,
         priority,
@@ -55,7 +60,9 @@ export async function queueEditJob(
       retries: 3, // Retry up to 3 times on failure
     });
 
-    console.log(`[Qstash] ✅ Queued edit job for video ${videoId}`);
+    console.log(
+      `[Qstash] ✅ Queued edit job for video ${videoId} → ${editWorkerUrl}`
+    );
     return true;
   } catch (error) {
     console.error('[Qstash] Failed to queue edit job:', error);
@@ -65,14 +72,16 @@ export async function queueEditJob(
 
 /**
  * Queue a video for TikTok upload
- * Sends HTTP POST to /api/workers/upload endpoint
+ * Sends HTTP POST to Upload Worker /process endpoint
  */
 export async function queueUploadJob(
   videoId: string,
   priority: 'high' | 'normal' | 'low' = 'normal'
 ): Promise<boolean> {
-  if (!qstashClient || !qstashUrl) {
-    console.warn('[Qstash] Client not configured, skipping job queue');
+  if (!qstashClient || !uploadWorkerUrl) {
+    console.warn(
+      '[Qstash] Client not configured or UPLOAD_WORKER_URL not set, skipping job queue'
+    );
     return false;
   }
 
@@ -80,7 +89,7 @@ export async function queueUploadJob(
     const delay = priority === 'high' ? 0 : priority === 'normal' ? 10 : 60;
 
     await qstashClient.publishJSON({
-      url: `${qstashUrl}/api/workers/upload`,
+      url: `${uploadWorkerUrl}/process`,
       body: {
         videoId,
         priority,
@@ -90,7 +99,9 @@ export async function queueUploadJob(
       retries: 3, // Retry up to 3 times on failure
     });
 
-    console.log(`[Qstash] ✅ Queued upload job for video ${videoId}`);
+    console.log(
+      `[Qstash] ✅ Queued upload job for video ${videoId} → ${uploadWorkerUrl}`
+    );
     return true;
   } catch (error) {
     console.error('[Qstash] Failed to queue upload job:', error);
@@ -106,14 +117,22 @@ export async function scheduleJob(
   videoId: string,
   delaySeconds: number
 ): Promise<boolean> {
-  if (!qstashClient || !qstashUrl) {
+  if (!qstashClient) {
     console.warn('[Qstash] Client not configured, skipping job schedule');
+    return false;
+  }
+
+  const targetUrl = endpoint === 'edit' ? editWorkerUrl : uploadWorkerUrl;
+  if (!targetUrl) {
+    console.warn(
+      `[Qstash] ${endpoint.toUpperCase()}_WORKER_URL not set, skipping job schedule`
+    );
     return false;
   }
 
   try {
     await qstashClient.publishJSON({
-      url: `${qstashUrl}/api/workers/${endpoint}`,
+      url: `${targetUrl}/process`,
       body: {
         videoId,
         scheduled: true,
@@ -124,7 +143,7 @@ export async function scheduleJob(
     });
 
     console.log(
-      `[Qstash] ✅ Scheduled ${endpoint} job for video ${videoId} (delay: ${delaySeconds}s)`
+      `[Qstash] ✅ Scheduled ${endpoint} job for video ${videoId} (delay: ${delaySeconds}s) → ${targetUrl}`
     );
     return true;
   } catch (error) {
@@ -142,7 +161,7 @@ export function getQueueHealth(): {
 } {
   return {
     enabled: QSTASH_ENABLED,
-    configured: !!(qstashToken && qstashUrl),
+    configured: !!(qstashToken && editWorkerUrl && uploadWorkerUrl),
   };
 }
 

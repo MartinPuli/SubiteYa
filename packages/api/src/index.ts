@@ -192,9 +192,6 @@ import monitorRoutes from './routes/monitor';
 // Import rate limiters
 import { generalLimiter, apiLimiter } from './middleware/rate-limit';
 
-// Import worker routes (Qstash HTTP endpoints)
-import workersRoutes from './routes/workers';
-
 // Apply general rate limiter to all routes
 app.use(generalLimiter);
 
@@ -219,8 +216,7 @@ app.use('/api/me', apiLimiter, meRoutes);
 app.use('/api/accounts', apiLimiter, designsRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/elevenlabs', apiLimiter, elevenlabsRoutes);
-app.use('/api/monitor', apiLimiter, monitorRoutes); // Redis monitoring endpoints
-app.use('/api/workers', workersRoutes); // Qstash webhook endpoints (no rate limit)
+app.use('/api/monitor', apiLimiter, monitorRoutes); // Qstash monitoring endpoints
 
 // 404 handler
 app.use((req: Request, res: Response) => {
