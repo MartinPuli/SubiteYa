@@ -1,81 +1,32 @@
 /**
- * @fileoverview Redis Monitoring Routes
- * Purpose: API endpoints to monitor Redis/Upstash usage
+ * @fileoverview Qstash Monitoring Routes
+ * Purpose: API endpoints to monitor Qstash queue health and video stats
  */
 
 import { Router, Request, Response } from 'express';
-import {
-  getRedisUsage,
-  getDetailedRedisUsage,
-  redisMonitor,
-} from '../lib/redis-monitor';
-import { checkQueueHealth, getCommandCount } from '../lib/queues-optimized';
+import { getQueueHealth } from '../lib/qstash-client';
 import { authenticate } from '../middleware/auth';
+import { prisma } from '../lib/prisma';
 
 const router = Router();
 
 /**
- * GET /api/monitor/redis-usage
- * Get current Redis usage statistics
- */
-router.get(
-  '/redis-usage',
-  authenticate,
-  async (req: Request, res: Response) => {
-    try {
-      const usage = getRedisUsage();
-      res.json(usage);
-    } catch (error) {
-      console.error('Error getting Redis usage:', error);
-      res.status(500).json({
-        error: 'Failed to get Redis usage',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }
-);
-
-/**
- * GET /api/monitor/redis-detailed
- * Get detailed Redis usage with daily breakdown and alerts
- */
-router.get(
-  '/redis-detailed',
-  authenticate,
-  async (req: Request, res: Response) => {
-    try {
-      const detailed = getDetailedRedisUsage();
-      res.json(detailed);
-    } catch (error) {
-      console.error('Error getting detailed Redis usage:', error);
-      res.status(500).json({
-        error: 'Failed to get detailed Redis usage',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }
-);
-
-/**
  * GET /api/monitor/queue-health
- * Check if Redis and queues are operational
+ * Check if Qstash queue system is operational
  */
 router.get(
   '/queue-health',
   authenticate,
-  async (req: Request, res: Response) => {
+  async (_req: Request, res: Response) => {
     try {
-      const health = await checkQueueHealth();
-      const usage = getRedisUsage();
-
+      const health = getQueueHealth();
       res.json({
-        ...health,
-        usage: {
-          total: usage.total,
-          percentage: usage.percentage,
-          status: usage.status,
+        status: health.enabled ? 'operational' : 'disabled',
+        qstash: {
+          enabled: health.enabled,
+          configured: health.configured,
         },
-        recommendations: getRecommendations(usage),
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('Error checking queue health:', error);
@@ -88,99 +39,47 @@ router.get(
 );
 
 /**
- * POST /api/monitor/flush-usage
- * Force save current usage data (admin only)
+ * GET /api/monitor/stats
+ * Get queue statistics from database
  */
-router.post(
-  '/flush-usage',
-  authenticate,
-  async (req: Request, res: Response) => {
-    try {
-      // Only allow admins
-      const user = (req as any).user;
-      if (user.role !== 'admin') {
-        res.status(403).json({ error: 'Admin access required' });
-        return;
-      }
+router.get('/stats', authenticate, async (_req: Request, res: Response) => {
+  try {
+    const stats = await prisma.video.groupBy({
+      by: ['status'],
+      _count: true,
+    });
 
-      await redisMonitor.flush();
-      res.json({ message: 'Usage data saved successfully' });
-    } catch (error) {
-      console.error('Error flushing usage data:', error);
-      res.status(500).json({
-        error: 'Failed to flush usage data',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
+    const statusCounts = stats.reduce(
+      (acc, { status, _count }) => {
+        acc[status] = _count;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    const recentVideos = await prisma.video.findMany({
+      take: 10,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    res.json({
+      videosByStatus: statusCounts,
+      recentActivity: recentVideos,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error getting stats:', error);
+    res.status(500).json({
+      error: 'Failed to get stats',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
-);
-
-/**
- * POST /api/monitor/reset-usage
- * Reset usage counter (admin only, use with extreme caution)
- */
-router.post(
-  '/reset-usage',
-  authenticate,
-  async (req: Request, res: Response) => {
-    try {
-      // Only allow admins
-      const user = (req as any).user;
-      if (user.role !== 'admin') {
-        res.status(403).json({ error: 'Admin access required' });
-        return;
-      }
-
-      await redisMonitor.reset();
-      res.json({ message: 'Usage counter reset successfully' });
-    } catch (error) {
-      console.error('Error resetting usage:', error);
-      res.status(500).json({
-        error: 'Failed to reset usage',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }
-);
-
-/**
- * Generate recommendations based on usage
- */
-function getRecommendations(usage: ReturnType<typeof getRedisUsage>): string[] {
-  const recommendations: string[] = [];
-
-  if (usage.percentage >= 100) {
-    recommendations.push(
-      'URGENT: Redis limit exceeded. Set ENABLE_REDIS=false immediately to stop workers.'
-    );
-    recommendations.push(
-      'Upgrade to Upstash Pro ($10/month) for 10M commands/month.'
-    );
-  } else if (usage.percentage >= 85) {
-    recommendations.push(
-      'CRITICAL: Approaching Redis limit. Consider disabling workers or upgrading plan.'
-    );
-    recommendations.push('Monitor daily usage closely.');
-  } else if (usage.percentage >= 70) {
-    recommendations.push(
-      'WARNING: Redis usage is high. Review worker configuration.'
-    );
-    recommendations.push(
-      'Consider implementing longer polling intervals or event-driven architecture.'
-    );
-  } else if (usage.projectedMonthly > usage.limit * 0.9) {
-    recommendations.push(
-      `Projected monthly usage (${usage.projectedMonthly.toLocaleString()}) may exceed limit.`
-    );
-    recommendations.push('Monitor trends and optimize if needed.');
-  } else {
-    recommendations.push('Usage is within normal range.');
-    recommendations.push(
-      `Daily average: ${usage.dailyAverage.toFixed(0)} commands.`
-    );
-  }
-
-  return recommendations;
-}
+});
 
 export default router;

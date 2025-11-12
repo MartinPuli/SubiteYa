@@ -154,20 +154,22 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
-// Redis health check endpoint
-app.get('/health/redis', async (_req: Request, res: Response) => {
+// Qstash health check endpoint
+app.get('/health/queue', async (_req: Request, res: Response) => {
   try {
-    const { getQueueStats } = await import('./lib/queues');
-    const stats = await getQueueStats();
+    const { getQueueHealth } = await import('./lib/qstash-client');
+    const health = getQueueHealth();
     res.json({
-      status: 'ok',
-      redis: 'connected',
-      queues: stats,
+      status: health.enabled ? 'ok' : 'disabled',
+      qstash: {
+        enabled: health.enabled,
+        configured: health.configured,
+      },
     });
   } catch (error) {
     res.status(500).json({
       status: 'error',
-      redis: 'disconnected',
+      qstash: 'error',
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
