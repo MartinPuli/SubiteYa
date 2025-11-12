@@ -14,6 +14,10 @@ import { prisma } from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { applyBrandPattern } from '../lib/video-processor';
 import { videoQueue } from '../lib/video-queue';
+import { uploadToS3 } from '../lib/storage';
+import { queueEditJob } from '../lib/queues-optimized';
+import { VideoStatus } from '@prisma/client';
+import { createId } from '@paralleldrive/cuid2';
 
 const router = Router();
 
@@ -72,14 +76,11 @@ function decryptToken(encryptedToken: string): string {
 // All routes require authentication
 router.use(authenticate);
 
-// POST /publish - Upload video and publish to multiple TikTok accounts
+// POST /publish - Upload video and queue for processing
 router.post(
   '/',
   upload.single('video'),
   async (req: AuthRequest, res: Response) => {
-    const processedFilesForCleanup = new Set<string>();
-    let originalVideoPath: string | null = null;
-
     try {
       const userId = req.user!.userId;
       const file = req.file;
@@ -89,7 +90,6 @@ router.post(
         '[POST /publish] File:',
         file ? `${file.originalname} (${file.size} bytes)` : 'NO FILE'
       );
-      console.log('[POST /publish] Body:', { ...req.body, video: undefined });
 
       if (!file) {
         console.log('[POST /publish] ERROR: No file provided');
@@ -110,30 +110,16 @@ router.post(
         accountIds,
       } = req.body;
 
-      console.log('[POST /publish] Parsed params:', {
-        titleParam,
-        caption,
-        accountIds,
-      });
-
-      // Convert string booleans to actual booleans (FormData sends strings)
+      // Convert string booleans to actual booleans
       const disableComment =
         disableCommentRaw === 'true' || disableCommentRaw === true;
       const disableDuet = disableDuetRaw === 'true' || disableDuetRaw === true;
       const disableStitch =
         disableStitchRaw === 'true' || disableStitchRaw === true;
 
-      // For unaudited apps, TikTok only allows SELF_ONLY (private) posts
-      // Force private mode until app is audited by TikTok
-      const privacyLevel = 'SELF_ONLY';
-
-      // Accept either title or caption
       const title = titleParam || caption;
 
-      console.log('[POST /publish] Final title:', title);
-
       if (!title || title.trim().length === 0) {
-        console.log('[POST /publish] ERROR: Title/caption is empty');
         res.status(400).json({
           error: 'Bad Request',
           message: 'El título/descripción es requerido',
@@ -142,7 +128,6 @@ router.post(
       }
 
       if (!accountIds || accountIds.length === 0) {
-        console.log('[POST /publish] ERROR: No accountIds provided');
         res.status(400).json({
           error: 'Bad Request',
           message: 'Debe seleccionar al menos una cuenta',
@@ -150,14 +135,11 @@ router.post(
         return;
       }
 
-      // Parse accountIds (can be JSON string or array)
+      // Parse accountIds
       const parsedAccountIds =
         typeof accountIds === 'string' ? JSON.parse(accountIds) : accountIds;
 
-      console.log('[POST /publish] Parsed account IDs:', parsedAccountIds);
-
       if (!Array.isArray(parsedAccountIds) || parsedAccountIds.length === 0) {
-        console.log('[POST /publish] ERROR: Invalid accountIds format');
         res.status(400).json({
           error: 'Bad Request',
           message: 'accountIds debe ser un array con al menos un ID',
@@ -165,9 +147,9 @@ router.post(
         return;
       }
 
-      console.log('[POST /publish] Fetching connections for user...');
+      console.log('[POST /publish] Verificando cuentas...');
 
-      // Verify all connections belong to user and get them
+      // Verify all connections belong to user
       const connections = await prisma.tikTokConnection.findMany({
         where: {
           id: { in: parsedAccountIds },
@@ -183,386 +165,71 @@ router.post(
         return;
       }
 
-      // Calculate checksum
-      const checksum = crypto
-        .createHash('sha256')
-        .update(file.buffer)
-        .digest('hex');
-
-      // Save original video to temp file
-      const tempDir = process.env.TEMP || '/tmp';
-      originalVideoPath = path.join(
-        tempDir,
-        `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.mp4`
-      );
-      await writeFile(originalVideoPath, file.buffer);
-
-      // Create video asset
-      const videoAsset = await prisma.videoAsset.create({
-        data: {
-          userId,
-          storageUrl: checksum, // Usamos el checksum como identificador
-          originalFilename: file.originalname,
-          sizeBytes: file.size,
-          checksum,
-          status: 'uploaded',
-        },
+      // Upload video to S3
+      console.log('[POST /publish] Subiendo video a S3...');
+      const s3Result = await uploadToS3({
+        file: file.buffer,
+        filename: file.originalname,
+        contentType: file.mimetype,
+        folder: 'videos',
       });
 
-      // Create publish batch
-      const batch = await prisma.publishBatch.create({
-        data: {
-          userId,
-          videoAssetId: videoAsset.id,
-          defaultsJson: {
-            title,
-            privacyLevel,
-            disableComment,
-            disableDuet,
-            disableStitch,
-          },
-          scheduleTimeUtc: null,
-        },
-      });
+      console.log('[POST /publish] Video subido a S3:', s3Result.key);
 
-      // Create jobs immediately in 'queued' state so they appear in history
-      const jobIdMap = new Map<string, string>();
+      // Create videos for each account and queue them
+      const createdVideos = [];
+
       for (const connection of connections) {
-        const job = await prisma.publishJob.create({
-          data: {
-            batchId: batch.id,
+        // Get default pattern for this account
+        const pattern = await prisma.brandPattern.findFirst({
+          where: {
             userId,
             tiktokConnectionId: connection.id,
-            videoAssetId: videoAsset.id,
-            caption: title,
-            hashtags: [],
-            privacyStatus: privacyLevel,
-            allowDuet: !disableDuet,
-            allowStitch: !disableStitch,
-            allowComment: !disableComment,
-            scheduleTimeUtc: null,
-            state: 'queued',
-            idempotencyKey: crypto.randomBytes(16).toString('hex'),
+            isDefault: true,
           },
         });
-        jobIdMap.set(connection.id, job.id);
-        console.log(
-          `[${connection.displayName}] Job created: ${job.id} (queued)`
-        );
-      }
 
-      const connectionVideoPaths = new Map<string, string>();
-
-      // Apply brand pattern per connection so each cuenta usa su diseño
-      for (const connection of connections) {
-        try {
-          const pattern = await prisma.brandPattern.findFirst({
-            where: {
-              userId,
-              tiktokConnectionId: connection.id,
-              isDefault: true,
+        // Create video record
+        const video = await prisma.video.create({
+          data: {
+            id: createId(),
+            userId,
+            accountId: connection.id,
+            srcUrl: s3Result.url,
+            title,
+            status: VideoStatus.EDITING_QUEUED,
+            designId: pattern?.id || null,
+            editSpecJson: {
+              disableComment,
+              disableDuet,
+              disableStitch,
+              privacyLevel: 'SELF_ONLY', // Force private for unaudited apps
             },
-          });
-
-          const shouldApplyPattern =
-            !!pattern &&
-            (pattern.logoUrl ||
-              pattern.enableEffects ||
-              pattern.enableSubtitles);
-
-          if (!shouldApplyPattern) {
-            connectionVideoPaths.set(connection.id, originalVideoPath);
-            if (!pattern) {
-              console.log(
-                `[${connection.displayName}] Sin patrón por defecto, se usa el video original`
-              );
-            } else {
-              console.log(
-                `[${connection.displayName}] Patrón sin efectos/ajustes activos, se usa el video original`
-              );
-            }
-            continue;
-          }
-
-          console.log(
-            `[${connection.displayName}] Aplicando patrón "${pattern.name}" al video...`
-          );
-
-          const processResult = await applyBrandPattern(originalVideoPath, {
-            // Logo
-            logoUrl: pattern.logoUrl ?? undefined,
-            logoPosition: pattern.logoPosition ?? undefined,
-            logoSize: pattern.logoSize ?? undefined,
-            logoOpacity: pattern.logoOpacity ?? undefined,
-            // Effects
-            enableEffects: pattern.enableEffects ?? undefined,
-            filterType: pattern.filterType ?? undefined,
-            brightness: pattern.brightness ?? undefined,
-            contrast: pattern.contrast ?? undefined,
-            saturation: pattern.saturation ?? undefined,
-            // Subtitles
-            enableSubtitles: pattern.enableSubtitles ?? undefined,
-            subtitleStyle: pattern.subtitleStyle ?? undefined,
-            subtitlePosition: pattern.subtitlePosition ?? undefined,
-            subtitleColor: pattern.subtitleColor ?? undefined,
-            subtitleBgColor: pattern.subtitleBgColor ?? undefined,
-            subtitleFontSize: pattern.subtitleFontSize ?? undefined,
-          });
-
-          if (processResult.success && processResult.outputPath) {
-            connectionVideoPaths.set(connection.id, processResult.outputPath);
-            processedFilesForCleanup.add(processResult.outputPath);
-
-            const stats = await fs.promises.stat(processResult.outputPath);
-            console.log(
-              `[${connection.displayName}] ✓ Patrón aplicado. Tamaño final: ${stats.size} bytes`
-            );
-          } else {
-            console.warn(
-              `[${connection.displayName}] ⚠ Error al aplicar patrón: ${processResult.error}. Se usará el video original.`
-            );
-            connectionVideoPaths.set(connection.id, originalVideoPath);
-          }
-        } catch (patternError) {
-          console.error(
-            `[${connection.displayName}] Error procesando patrón:`,
-            patternError
-          );
-          connectionVideoPaths.set(connection.id, originalVideoPath);
-        }
-      }
-
-      type PublishResult =
-        | {
-            success: true;
-            jobId: string;
-            publishId: string;
-            connectionId: string;
-            displayName: string;
-          }
-        | {
-            success: false;
-            jobId: string;
-            connectionId: string;
-            displayName: string;
-            error: string;
-          };
-
-      // Publish to each account
-      const publishResults: PublishResult[] = await Promise.all(
-        connections.map(async connection => {
-          try {
-            const videoPath =
-              connectionVideoPaths.get(connection.id) ?? originalVideoPath;
-
-            if (!videoPath) {
-              throw new Error('Video path not found');
-            }
-
-            // Read video only when needed for upload (reduces memory usage)
-            const finalVideoBuffer = await fs.promises.readFile(videoPath);
-
-            // Decrypt access token
-            const accessToken = decryptToken(connection.accessTokenEnc);
-
-            // 1. Query Creator Info (required before posting)
-            console.log(
-              `[${connection.displayName}] Step 1: Querying creator info...`
-            );
-            const creatorInfoResponse = await fetch(
-              'https://open.tiktokapis.com/v2/post/publish/creator_info/query/',
-              {
-                method: 'POST',
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                  'Content-Type': 'application/json; charset=UTF-8',
-                },
-                // No body required per TikTok docs
-              }
-            );
-
-            const responseText = await creatorInfoResponse.text();
-            console.log(
-              `[${connection.displayName}] Creator info response (${creatorInfoResponse.status}):`,
-              responseText
-            );
-
-            if (!creatorInfoResponse.ok) {
-              let errorData;
-              try {
-                errorData = JSON.parse(responseText);
-              } catch {
-                errorData = { rawResponse: responseText };
-              }
-
-              // Check for common errors
-              const errorMsg =
-                errorData.error?.message ||
-                errorData.message ||
-                JSON.stringify(errorData);
-              const errorCode = errorData.error?.code || 'unknown';
-
-              console.error(
-                `[${connection.displayName}] Creator info failed:`,
-                {
-                  status: creatorInfoResponse.status,
-                  code: errorCode,
-                  message: errorMsg,
-                }
-              );
-
-              // Provide helpful error messages
-              if (
-                errorCode === 'scope_not_authorized' ||
-                errorMsg.includes('scope')
-              ) {
-                throw new Error(
-                  'Falta el permiso video.publish. Ve a Conexiones y reconecta tu cuenta de TikTok para otorgar los permisos necesarios.'
-                );
-              } else if (
-                errorCode === 'access_token_invalid' ||
-                creatorInfoResponse.status === 401
-              ) {
-                throw new Error(
-                  'Token inválido o expirado. Reconecta tu cuenta de TikTok en la página de Conexiones.'
-                );
-              } else {
-                throw new Error(
-                  `Error TikTok (${creatorInfoResponse.status}): ${errorMsg}`
-                );
-              }
-            }
-
-            const creatorInfo = JSON.parse(responseText);
-            console.log(`[${connection.displayName}] Creator info OK:`, {
-              username: creatorInfo.data?.creator_username,
-              maxDuration: creatorInfo.data?.max_video_post_duration_sec,
-            });
-
-            // 2. Initialize video upload
-            const initResponse = await fetch(
-              'https://open.tiktokapis.com/v2/post/publish/video/init/',
-              {
-                method: 'POST',
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                  'Content-Type': 'application/json; charset=UTF-8',
-                },
-                body: JSON.stringify({
-                  post_info: {
-                    title,
-                    privacy_level: privacyLevel,
-                    disable_duet: disableDuet,
-                    disable_comment: disableComment,
-                    disable_stitch: disableStitch,
-                    video_cover_timestamp_ms: 1000,
-                  },
-                  source_info: {
-                    source: 'FILE_UPLOAD',
-                    video_size: finalVideoBuffer.length,
-                    chunk_size: finalVideoBuffer.length, // Subir todo de una vez
-                    total_chunk_count: 1,
-                  },
-                }),
-              }
-            );
-
-            if (!initResponse.ok) {
-              const errorData = await initResponse.json();
-              throw new Error(`Init failed: ${JSON.stringify(errorData)}`);
-            }
-
-            const initData = (await initResponse.json()) as {
-              data: {
-                publish_id: string;
-                upload_url: string;
-              };
-            };
-
-            // 3. Upload video file
-            const uploadResponse = await fetch(initData.data.upload_url, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': file.mimetype,
-                'Content-Range': `bytes 0-${finalVideoBuffer.length - 1}/${finalVideoBuffer.length}`,
+          },
+          include: {
+            account: {
+              select: {
+                displayName: true,
+                avatarUrl: true,
               },
-              body: finalVideoBuffer,
-            });
-
-            if (!uploadResponse.ok) {
-              throw new Error('Video upload failed');
-            }
-
-            // Update job to 'publishing' state with TikTok video ID
-            const jobId = jobIdMap.get(connection.id);
-            if (jobId) {
-              await prisma.publishJob.update({
-                where: { id: jobId },
-                data: {
-                  state: 'publishing',
-                  tiktokVideoId: initData.data.publish_id,
-                },
-              });
-              console.log(
-                `[${connection.displayName}] Job ${jobId} updated to publishing`
-              );
-            }
-
-            return {
-              success: true,
-              jobId: jobId!,
-              publishId: initData.data.publish_id,
-              connectionId: connection.id,
-              displayName: connection.displayName,
-            };
-          } catch (error) {
-            console.error(
-              `Error publishing to ${connection.displayName}:`,
-              error
-            );
-
-            // Update job to 'failed' state
-            const jobId = jobIdMap.get(connection.id);
-            if (jobId) {
-              await prisma.publishJob.update({
-                where: { id: jobId },
-                data: {
-                  state: 'failed',
-                  errorMessage:
-                    error instanceof Error ? error.message : 'Unknown error',
-                },
-              });
-              console.log(
-                `[${connection.displayName}] Job ${jobId} marked as failed`
-              );
-            }
-
-            return {
-              success: false,
-              jobId: jobId!,
-              connectionId: connection.id,
-              displayName: connection.displayName,
-              error: error instanceof Error ? error.message : 'Unknown error',
-            };
-          }
-        })
-      );
-
-      const successfulJobs = publishResults.filter(
-        (result): result is Extract<PublishResult, { success: true }> =>
-          result.success
-      );
-
-      if (successfulJobs.length > 0) {
-        const jobIds = successfulJobs.map(result => result.jobId);
-        await prisma.publishJob.updateMany({
-          where: { id: { in: jobIds } },
-          data: { state: 'completed' },
+            },
+            design: {
+              select: {
+                name: true,
+              },
+            },
+          },
         });
-      }
 
-      const successCount = publishResults.filter(r => r.success).length;
-      const failedCount = publishResults.filter(r => !r.success).length;
+        // Queue edit job
+        await queueEditJob(video.id);
+
+        console.log(
+          `[${connection.displayName}] Video ${video.id} created and queued for editing`
+        );
+
+        createdVideos.push(video);
+      }
 
       // Create audit event
       await prisma.auditEvent.create({
@@ -570,43 +237,21 @@ router.post(
           userId,
           type: 'batch.created',
           detailsJson: {
-            batchId: batch.id,
-            videoAssetId: videoAsset.id,
+            videoIds: createdVideos.map(v => v.id),
             accountCount: connections.length,
-            successCount,
-            failedCount,
+            srcUrl: s3Result.url,
           },
           ip: req.ip,
           userAgent: req.headers['user-agent'],
         },
       });
 
-      // Cleanup temporary files
-      const filesToCleanup = originalVideoPath
-        ? [originalVideoPath, ...Array.from(processedFilesForCleanup)]
-        : Array.from(processedFilesForCleanup);
-
-      // Use safeCleanup to handle any errors gracefully
-      await safeCleanup(filesToCleanup);
-
       res.status(201).json({
-        message: `Video publicado en ${successCount} de ${connections.length} cuenta(s)`,
-        batch: {
-          id: batch.id,
-          videoAssetId: videoAsset.id,
-        },
-        results: publishResults,
+        message: `Video encolado para ${connections.length} cuenta(s)`,
+        videos: createdVideos,
       });
     } catch (error) {
       console.error('Publish error:', error);
-
-      // Cleanup on error
-      const filesToCleanup = originalVideoPath
-        ? [originalVideoPath, ...Array.from(processedFilesForCleanup)]
-        : Array.from(processedFilesForCleanup);
-
-      await safeCleanup(filesToCleanup);
-
       res.status(500).json({
         error: 'Internal Server Error',
         message: 'Error al publicar video',
