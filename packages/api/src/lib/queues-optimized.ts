@@ -13,20 +13,27 @@
 import { Queue, QueueOptions } from 'bullmq';
 import Redis from 'ioredis';
 
-// Feature flag to completely disable Redis
-const REDIS_ENABLED = process.env.ENABLE_REDIS !== 'false';
+// Get REDIS_URL first
 const REDIS_URL = process.env.REDIS_URL;
 
-// Validation: Disable Redis if URL is not properly configured
-if (REDIS_ENABLED && (!REDIS_URL || REDIS_URL.includes('localhost'))) {
+// Validate REDIS_URL and determine if Redis should be enabled
+const hasValidRedisUrl =
+  REDIS_URL &&
+  !REDIS_URL.includes('localhost') &&
+  !REDIS_URL.includes('127.0.0.1');
+
+// Feature flag to completely disable Redis
+let REDIS_ENABLED = process.env.ENABLE_REDIS !== 'false';
+
+// Disable Redis if URL is not properly configured
+if (REDIS_ENABLED && !hasValidRedisUrl) {
   console.warn(
     '⚠️  REDIS_URL not configured or set to localhost. Disabling Redis to prevent connection loops.'
   );
   console.warn(
-    '💡 Set REDIS_URL in Render environment to enable Redis workers.'
+    '💡 Set valid REDIS_URL in Render environment to enable Redis workers.'
   );
-  // Force disable
-  process.env.ENABLE_REDIS = 'false';
+  REDIS_ENABLED = false; // Force disable BEFORE creating queues
 }
 
 // In-memory cache to reduce Redis queries
