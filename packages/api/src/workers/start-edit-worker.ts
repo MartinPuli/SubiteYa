@@ -16,7 +16,7 @@ console.log('🎬 Starting Edit Worker (standalone)...');
 // Start the worker
 const worker = startEditWorker();
 
-// Create a minimal HTTP server for health checks
+// Create a minimal HTTP server for health checks (Render requires a port)
 const PORT = process.env.PORT || 3001;
 const server = http.createServer((req, res) => {
   if (req.url === '/health' || req.url === '/') {
@@ -40,6 +40,9 @@ server.listen(PORT, () => {
     console.log('✅ Edit Worker is running and waiting for jobs...');
   }
 });
+
+// Keep process alive
+process.stdin.resume();
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {

@@ -37,7 +37,7 @@ try {
   process.exit(1);
 }
 
-// Create a minimal HTTP server for health checks
+// Create a minimal HTTP server for health checks (Render requires a port)
 const PORT = process.env.PORT || 3002;
 const server = http.createServer((req, res) => {
   if (req.url === '/health' || req.url === '/') {
@@ -58,6 +58,9 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, () => {
   console.log(`✅ Health check server listening on port ${PORT}`);
 });
+
+// Keep process alive
+process.stdin.resume();
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
