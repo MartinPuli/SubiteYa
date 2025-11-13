@@ -139,7 +139,7 @@ app.post('/process', async (req: Request, res: Response) => {
   const startTime = Date.now();
   let tempFilePath: string | null = null;
   let outputFilePath: string | null = null;
-  const { videoId } = req.body;
+  let videoId: string | undefined;
 
   try {
     // Verify Qstash signature
@@ -150,7 +150,14 @@ app.post('/process', async (req: Request, res: Response) => {
       return;
     }
 
-    const parsedBody = body as { videoId: string };
+    const parsedBody = body as { videoId?: string };
+    if (!parsedBody?.videoId) {
+      console.error('[Edit Worker] Missing videoId in request body');
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+
+    videoId = parsedBody.videoId;
     console.log(
       `[Edit Worker] 📥 Received job for video ${parsedBody.videoId}`
     );

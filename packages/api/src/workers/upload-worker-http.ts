@@ -326,7 +326,7 @@ async function uploadVideoToTikTok(
 app.post('/process', async (req: Request, res: Response) => {
   const startTime = Date.now();
   let tempFilePath: string | null = null;
-  const { videoId } = req.body as { videoId?: string };
+  let videoId: string | undefined;
   let accountId: string | null = null;
 
   try {
@@ -338,7 +338,14 @@ app.post('/process', async (req: Request, res: Response) => {
       return;
     }
 
-    const parsedBody = body as { videoId: string };
+    const parsedBody = body as { videoId?: string };
+    if (!parsedBody?.videoId) {
+      console.error('[Upload Worker] Missing videoId in request body');
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+
+    videoId = parsedBody.videoId;
     console.log(
       `[Upload Worker] 📥 Received job for video ${parsedBody.videoId}`
     );
