@@ -20,6 +20,8 @@ import path from 'node:path';
 import axios from 'axios';
 import crypto from 'node:crypto';
 
+type RequestWithRawBody = Request & { rawBody?: string };
+
 const app = express();
 const PORT = process.env.PORT || 3002;
 
@@ -158,8 +160,14 @@ function recordAccountSuccess(accountId: string): void {
   accountBackoff.delete(accountId);
 }
 
-// Body parser for JSON
-app.use(express.json());
+// Body parser for JSON (store raw body for QStash signature verification)
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      (req as RequestWithRawBody).rawBody = buf.toString();
+    },
+  })
+);
 
 /**
  * Verify Qstash signature
@@ -178,12 +186,24 @@ async function verifyQstashSignature(
       return { valid: false };
     }
 
-    const body = await qstashReceiver.verify({
+    const rawBody = (req as RequestWithRawBody).rawBody;
+    const verifiedBody = await qstashReceiver.verify({
       signature,
-      body: JSON.stringify(req.body),
+      body: rawBody ?? JSON.stringify(req.body),
     });
 
-    return { valid: true, body };
+    let parsedBody: unknown = verifiedBody;
+    if (typeof verifiedBody === 'string') {
+      try {
+        parsedBody = JSON.parse(verifiedBody);
+      } catch (error) {
+        console.warn(
+          '[Upload Worker] Unable to parse verified body as JSON, returning raw string'
+        );
+      }
+    }
+
+    return { valid: true, body: parsedBody };
   } catch (error) {
     console.error('[Upload Worker] Signature verification failed:', error);
     return { valid: false };
