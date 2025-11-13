@@ -165,26 +165,23 @@ app.post('/process', async (req: Request, res: Response) => {
     }
 
     // Skip if already in terminal state (EDITED, FAILED_EDIT, POSTED, etc.)
-    if (
-      [
-        VideoStatus.EDITED,
-        VideoStatus.FAILED_EDIT,
-        VideoStatus.POSTED,
-        VideoStatus.FAILED_UPLOAD,
-      ].includes(video.status)
-    ) {
+    const terminalStates: VideoStatus[] = [
+      VideoStatus.EDITED,
+      VideoStatus.FAILED_EDIT,
+      VideoStatus.POSTED,
+      VideoStatus.FAILED_UPLOAD,
+    ];
+    if (terminalStates.includes(video.status)) {
       console.log(
         `[Edit Worker] ⏭️  Video ${parsedBody.videoId} already in terminal state: ${video.status}`
       );
       markExecutionEnd(parsedBody.videoId, 'completed');
-      res
-        .status(200)
-        .json({
-          success: true,
-          skipped: true,
-          reason: 'already_processed',
-          status: video.status,
-        });
+      res.status(200).json({
+        success: true,
+        skipped: true,
+        reason: 'already_processed',
+        status: video.status,
+      });
       return;
     }
 

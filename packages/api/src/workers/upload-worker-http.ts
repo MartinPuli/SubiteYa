@@ -355,21 +355,21 @@ app.post('/process', async (req: Request, res: Response) => {
     accountId = video.accountId;
 
     // Skip if already in terminal state
-    if (
-      [VideoStatus.POSTED, VideoStatus.FAILED_UPLOAD].includes(video.status)
-    ) {
+    const terminalStates: VideoStatus[] = [
+      VideoStatus.POSTED,
+      VideoStatus.FAILED_UPLOAD,
+    ];
+    if (terminalStates.includes(video.status)) {
       console.log(
         `[Upload Worker] ⏭️  Video ${parsedBody.videoId} already in terminal state: ${video.status}`
       );
       markExecutionEnd(parsedBody.videoId, 'completed');
-      res
-        .status(200)
-        .json({
-          success: true,
-          skipped: true,
-          reason: 'already_processed',
-          status: video.status,
-        });
+      res.status(200).json({
+        success: true,
+        skipped: true,
+        reason: 'already_processed',
+        status: video.status,
+      });
       return;
     }
 
@@ -388,12 +388,10 @@ app.post('/process', async (req: Request, res: Response) => {
         `[Upload Worker] ⏸️  Account ${accountId} has ${concurrentJobs} concurrent jobs (max: ${MAX_CONCURRENT_PER_ACCOUNT})`
       );
       markExecutionEnd(parsedBody.videoId, 'failed');
-      res
-        .status(429)
-        .json({
-          error: 'Too many concurrent uploads for this account',
-          retryAfter: 30,
-        });
+      res.status(429).json({
+        error: 'Too many concurrent uploads for this account',
+        retryAfter: 30,
+      });
       return;
     }
 
@@ -404,12 +402,10 @@ app.post('/process', async (req: Request, res: Response) => {
         `[Upload Worker] ⏸️  Account ${accountId} in backoff period (${Math.ceil(backoffInfo.delayMs! / 1000)}s remaining)`
       );
       markExecutionEnd(parsedBody.videoId, 'failed');
-      res
-        .status(429)
-        .json({
-          error: 'Account in backoff period',
-          retryAfter: Math.ceil(backoffInfo.delayMs! / 1000),
-        });
+      res.status(429).json({
+        error: 'Account in backoff period',
+        retryAfter: Math.ceil(backoffInfo.delayMs! / 1000),
+      });
       return;
     }
 
@@ -527,14 +523,12 @@ app.post('/process', async (req: Request, res: Response) => {
       `[Upload Worker] ✅ Completed video ${parsedBody.videoId} in ${duration}ms`
     );
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        videoId: parsedBody.videoId,
-        publishId,
-        duration,
-      });
+    res.status(200).json({
+      success: true,
+      videoId: parsedBody.videoId,
+      publishId,
+      duration,
+    });
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
@@ -549,11 +543,12 @@ app.post('/process', async (req: Request, res: Response) => {
       }
 
       // ATOMIC TRANSITION: Only update to FAILED_UPLOAD if not already failed
+      const failedStates: VideoStatus[] = [VideoStatus.FAILED_UPLOAD];
       await prisma.video
         .updateMany({
           where: {
             id: videoId,
-            status: { notIn: [VideoStatus.FAILED_UPLOAD] },
+            status: { notIn: failedStates },
           },
           data: {
             status: VideoStatus.FAILED_UPLOAD,
