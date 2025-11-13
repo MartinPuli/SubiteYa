@@ -33,15 +33,38 @@ export const QSTASH_ENABLED = !!qstashClient;
 
 /**
  * Wake up a worker service (Render free tier spins down after inactivity)
+ * Tries multiple times to ensure the worker starts
  */
 async function wakeUpWorker(workerUrl: string): Promise<void> {
-  try {
-    await fetch(`${workerUrl}/wake`, { method: 'GET' });
-    console.log(`[Qstash] 👋 Sent wake-up ping to ${workerUrl}`);
-  } catch (error) {
-    // Ignore errors - worker might be starting
-    console.log(`[Qstash] Wake-up ping failed (worker starting): ${error}`);
+  console.log(`[Qstash] 👋 Waking up ${workerUrl}...`);
+
+  // Send 3 wake-up pings with 2s interval to ensure worker starts
+  for (let i = 0; i < 3; i++) {
+    try {
+      const response = await fetch(`${workerUrl}/wake`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(5000), // 5s timeout
+      });
+
+      if (response.ok) {
+        console.log(`[Qstash] ✅ Worker awake (attempt ${i + 1}/3)`);
+        return; // Worker is up, stop trying
+      }
+    } catch (error) {
+      console.log(
+        `[Qstash] ⏳ Wake-up attempt ${i + 1}/3 failed (worker starting...)`
+      );
+    }
+
+    // Wait 2s before next attempt
+    if (i < 2) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
   }
+
+  console.log(
+    `[Qstash] ⚠️  Worker might still be starting (will retry via QStash)`
+  );
 }
 
 /**
@@ -59,13 +82,13 @@ export async function queueEditJob(
     return false;
   }
 
-  // Wake up worker first (async, don't wait)
-  wakeUpWorker(editWorkerUrl).catch(() => {});
+  // Wake up worker first and WAIT for it to be ready
+  await wakeUpWorker(editWorkerUrl);
 
   try {
-    // Delay to allow worker to wake up (Render free tier spins down after 15min)
-    // High priority: 10s, Normal: 30s, Low: 60s
-    const delay = priority === 'high' ? 10 : priority === 'normal' ? 30 : 60;
+    // Even after wake-up, add some delay for safety (worker needs to connect to DB, etc)
+    // High priority: 15s, Normal: 30s, Low: 60s
+    const delay = priority === 'high' ? 15 : priority === 'normal' ? 30 : 60;
 
     const response = await qstashClient.publishJSON({
       url: `${editWorkerUrl}/process`,
@@ -75,7 +98,7 @@ export async function queueEditJob(
         timestamp: Date.now(),
       },
       delay, // Seconds to wait before delivery (gives worker time to start)
-      retries: 3, // Retry up to 3 times on failure (504, 500, connection errors)
+      retries: 5, // More retries for cold starts (QStash will retry with exponential backoff)
     });
 
     console.log(
