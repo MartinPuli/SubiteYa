@@ -23,6 +23,8 @@ import type { z } from 'zod';
 
 type DesignSpecType = z.infer<typeof DesignSpec>;
 
+type RequestWithRawBody = Request & { rawBody?: string };
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -80,8 +82,14 @@ function markExecutionEnd(
   }
 }
 
-// Body parser for JSON
-app.use(express.json());
+// Body parser for JSON (store raw body for QStash signature verification)
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      (req as RequestWithRawBody).rawBody = buf.toString();
+    },
+  })
+);
 
 /**
  * Verify Qstash signature
@@ -100,12 +108,24 @@ async function verifyQstashSignature(
       return { valid: false };
     }
 
-    const body = await qstashReceiver.verify({
+    const rawBody = (req as RequestWithRawBody).rawBody;
+    const verifiedBody = await qstashReceiver.verify({
       signature,
-      body: JSON.stringify(req.body),
+      body: rawBody ?? JSON.stringify(req.body),
     });
 
-    return { valid: true, body };
+    let parsedBody: unknown = verifiedBody;
+    if (typeof verifiedBody === 'string') {
+      try {
+        parsedBody = JSON.parse(verifiedBody);
+      } catch (error) {
+        console.warn(
+          '[Edit Worker] Unable to parse verified body as JSON, returning raw string'
+        );
+      }
+    }
+
+    return { valid: true, body: parsedBody };
   } catch (error) {
     console.error('[Edit Worker] Signature verification failed:', error);
     return { valid: false };
@@ -119,7 +139,7 @@ app.post('/process', async (req: Request, res: Response) => {
   const startTime = Date.now();
   let tempFilePath: string | null = null;
   let outputFilePath: string | null = null;
-  const { videoId } = req.body;
+  let videoId: string | undefined;
 
   try {
     // Verify Qstash signature
@@ -130,7 +150,14 @@ app.post('/process', async (req: Request, res: Response) => {
       return;
     }
 
-    const parsedBody = body as { videoId: string };
+    const parsedBody = body as { videoId?: string };
+    if (!parsedBody?.videoId) {
+      console.error('[Edit Worker] Missing videoId in request body');
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+
+    videoId = parsedBody.videoId;
     console.log(
       `[Edit Worker] 📥 Received job for video ${parsedBody.videoId}`
     );
