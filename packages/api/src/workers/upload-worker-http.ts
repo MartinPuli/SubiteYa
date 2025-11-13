@@ -70,6 +70,94 @@ if (QSTASH_SIGNING_KEY) {
   );
 }
 
+// Idempotency tracking: videoId → execution state
+const activeExecutions = new Map<
+  string,
+  { startTime: number; status: 'running' | 'completed' | 'failed' }
+>();
+
+// Backoff tracking per account: accountId → { consecutiveFailures, lastFailureTime }
+const accountBackoff = new Map<
+  string,
+  { consecutiveFailures: number; lastFailureTime: number }
+>();
+
+const MAX_CONCURRENT_PER_ACCOUNT = 3;
+const MAX_RETRIES = 3;
+
+function isExecutionInProgress(videoId: string): boolean {
+  const execution = activeExecutions.get(videoId);
+  if (!execution) return false;
+
+  // If completed/failed more than 5 minutes ago, allow re-execution
+  if (execution.status !== 'running') {
+    const fiveMinutes = 5 * 60 * 1000;
+    if (Date.now() - execution.startTime > fiveMinutes) {
+      activeExecutions.delete(videoId);
+      return false;
+    }
+  }
+
+  return execution.status === 'running';
+}
+
+function markExecutionStart(videoId: string): void {
+  activeExecutions.set(videoId, { startTime: Date.now(), status: 'running' });
+}
+
+function markExecutionEnd(
+  videoId: string,
+  status: 'completed' | 'failed'
+): void {
+  const execution = activeExecutions.get(videoId);
+  if (execution) {
+    execution.status = status;
+  }
+}
+
+function getAccountConcurrentJobs(accountId: string): number {
+  let count = 0;
+  for (const [, execution] of activeExecutions) {
+    if (execution.status === 'running') count++;
+  }
+  return count;
+}
+
+function shouldBackoff(accountId: string): {
+  backoff: boolean;
+  delayMs?: number;
+} {
+  const info = accountBackoff.get(accountId);
+  if (!info || info.consecutiveFailures === 0) return { backoff: false };
+
+  // Exponential backoff: 2^failures seconds (max 5 minutes)
+  const delayMs = Math.min(
+    Math.pow(2, info.consecutiveFailures) * 1000,
+    5 * 60 * 1000
+  );
+  const timeSinceLastFailure = Date.now() - info.lastFailureTime;
+
+  if (timeSinceLastFailure < delayMs) {
+    return { backoff: true, delayMs: delayMs - timeSinceLastFailure };
+  }
+
+  return { backoff: false };
+}
+
+function recordAccountFailure(accountId: string): void {
+  const info = accountBackoff.get(accountId) || {
+    consecutiveFailures: 0,
+    lastFailureTime: 0,
+  };
+  info.consecutiveFailures++;
+  info.lastFailureTime = Date.now();
+  accountBackoff.set(accountId, info);
+}
+
+function recordAccountSuccess(accountId: string): void {
+  accountBackoff.delete(accountId);
+}
+
 // Body parser for JSON
 app.use(express.json());
 
@@ -217,6 +305,9 @@ async function uploadVideoToTikTok(
  */
 app.post('/process', async (req: Request, res: Response) => {
   const startTime = Date.now();
+  let tempFilePath: string | null = null;
+  const { videoId } = req.body as { videoId?: string };
+  let accountId: string | null = null;
 
   try {
     // Verify Qstash signature
@@ -227,12 +318,27 @@ app.post('/process', async (req: Request, res: Response) => {
       return;
     }
 
-    const { videoId } = body as { videoId: string };
-    console.log(`[Upload Worker] 📥 Received job for video ${videoId}`);
+    const parsedBody = body as { videoId: string };
+    console.log(
+      `[Upload Worker] 📥 Received job for video ${parsedBody.videoId}`
+    );
 
-    // Get video with account
+    // IDEMPOTENCY CHECK: Skip if already processing or completed
+    if (isExecutionInProgress(parsedBody.videoId)) {
+      console.log(
+        `[Upload Worker] ⏭️  Skipping ${parsedBody.videoId} - already in progress or recently completed`
+      );
+      res
+        .status(200)
+        .json({ success: true, skipped: true, reason: 'idempotent' });
+      return;
+    }
+
+    markExecutionStart(parsedBody.videoId);
+
+    // Get video with account (check terminal states first)
     const video = await prisma.video.findUnique({
-      where: { id: videoId },
+      where: { id: parsedBody.videoId },
       include: {
         account: true,
         user: true,
@@ -240,8 +346,30 @@ app.post('/process', async (req: Request, res: Response) => {
     });
 
     if (!video) {
-      console.error(`[Upload Worker] Video ${videoId} not found`);
+      console.error(`[Upload Worker] Video ${parsedBody.videoId} not found`);
+      markExecutionEnd(parsedBody.videoId, 'failed');
       res.status(404).json({ error: 'Video not found' });
+      return;
+    }
+
+    accountId = video.accountId;
+
+    // Skip if already in terminal state
+    if (
+      [VideoStatus.POSTED, VideoStatus.FAILED_UPLOAD].includes(video.status)
+    ) {
+      console.log(
+        `[Upload Worker] ⏭️  Video ${parsedBody.videoId} already in terminal state: ${video.status}`
+      );
+      markExecutionEnd(parsedBody.videoId, 'completed');
+      res
+        .status(200)
+        .json({
+          success: true,
+          skipped: true,
+          reason: 'already_processed',
+          status: video.status,
+        });
       return;
     }
 
@@ -249,47 +377,84 @@ app.post('/process', async (req: Request, res: Response) => {
       throw new Error('Video has no edited URL');
     }
 
-    if (!video.accountId) {
+    if (!accountId) {
       throw new Error('Video has no associated TikTok account');
     }
 
-    // Update video status to UPLOADING
+    // CONCURRENCY CHECK: Limit concurrent uploads per account
+    const concurrentJobs = getAccountConcurrentJobs(accountId);
+    if (concurrentJobs >= MAX_CONCURRENT_PER_ACCOUNT) {
+      console.log(
+        `[Upload Worker] ⏸️  Account ${accountId} has ${concurrentJobs} concurrent jobs (max: ${MAX_CONCURRENT_PER_ACCOUNT})`
+      );
+      markExecutionEnd(parsedBody.videoId, 'failed');
+      res
+        .status(429)
+        .json({
+          error: 'Too many concurrent uploads for this account',
+          retryAfter: 30,
+        });
+      return;
+    }
+
+    // BACKOFF CHECK: Check if account needs backoff due to recent failures
+    const backoffInfo = shouldBackoff(accountId);
+    if (backoffInfo.backoff) {
+      console.log(
+        `[Upload Worker] ⏸️  Account ${accountId} in backoff period (${Math.ceil(backoffInfo.delayMs! / 1000)}s remaining)`
+      );
+      markExecutionEnd(parsedBody.videoId, 'failed');
+      res
+        .status(429)
+        .json({
+          error: 'Account in backoff period',
+          retryAfter: Math.ceil(backoffInfo.delayMs! / 1000),
+        });
+      return;
+    }
+
+    // ATOMIC TRANSITION: EDITED/UPLOADING → UPLOADING
     await prisma.video.update({
-      where: { id: videoId },
-      data: { status: VideoStatus.UPLOADING, progress: 10 },
+      where: { id: parsedBody.videoId },
+      data: {
+        status: VideoStatus.UPLOADING,
+        progress: 10,
+        error: null,
+      },
     });
 
     notifyUser(video.userId, {
       type: 'video_status_changed',
-      videoId,
+      videoId: parsedBody.videoId,
       status: 'UPLOADING',
     });
 
     // Get TikTok access token
-    const accessToken = await getTikTokAccessToken(video.accountId);
+    console.log('[Upload Worker] 🔑 Getting access token...');
+    const accessToken = await getTikTokAccessToken(accountId);
 
     await prisma.video.update({
-      where: { id: videoId },
+      where: { id: parsedBody.videoId },
       data: { progress: 20 },
     });
 
     // Get creator info (required by TikTok API)
-    console.log('[Upload Worker] Fetching TikTok creator info...');
+    console.log('[Upload Worker] 👤 Fetching creator info...');
     await getTikTokCreatorInfo(accessToken);
 
     await prisma.video.update({
-      where: { id: videoId },
+      where: { id: parsedBody.videoId },
       data: { progress: 30 },
     });
 
     // Download video from S3 to temp file
     const s3Key = extractS3Key(video.editedUrl);
-    const tempFilePath = path.join(
+    tempFilePath = path.join(
       os.tmpdir(),
-      `upload-${videoId}-${Date.now()}.mp4`
+      `upload-${parsedBody.videoId}-${Date.now()}.mp4`
     );
 
-    console.log(`[Upload Worker] Downloading ${s3Key} to ${tempFilePath}...`);
+    console.log(`[Upload Worker] ⬇️  Downloading from S3...`);
 
     const videoStream = await downloadStreamFromS3(s3Key);
     const writeStream = fs.createWriteStream(tempFilePath);
@@ -302,7 +467,7 @@ app.post('/process', async (req: Request, res: Response) => {
     });
 
     await prisma.video.update({
-      where: { id: videoId },
+      where: { id: parsedBody.videoId },
       data: { progress: 50 },
     });
 
@@ -311,69 +476,85 @@ app.post('/process', async (req: Request, res: Response) => {
     const videoSize = stats.size;
 
     console.log(
-      `[Upload Worker] Video size: ${(videoSize / 1024 / 1024).toFixed(2)} MB`
+      `[Upload Worker] 📊 Video size: ${(videoSize / 1024 / 1024).toFixed(2)} MB`
     );
 
     // Initialize TikTok upload
-    console.log('[Upload Worker] Initializing TikTok upload...');
+    console.log('[Upload Worker] 🚀 Initializing TikTok upload...');
 
     const { publishId, uploadUrl } = await initTikTokUpload(
       accessToken,
       videoSize,
       video.title || 'SubiteYa Video',
-      'PUBLIC_TO_EVERYONE', // Default privacy
-      false, // disableComment
-      false, // disableDuet
-      false // disableStitch
+      'PUBLIC_TO_EVERYONE',
+      false,
+      false,
+      false
     );
 
     await prisma.video.update({
-      where: { id: videoId },
-      data: {
-        progress: 70,
-      },
+      where: { id: parsedBody.videoId },
+      data: { progress: 70 },
     });
 
     // Upload video to TikTok
-    console.log('[Upload Worker] Uploading video to TikTok...');
+    console.log('[Upload Worker] ⬆️  Uploading to TikTok...');
 
     await uploadVideoToTikTok(uploadUrl, tempFilePath);
 
-    // Clean up temp file
-    await fs.promises.unlink(tempFilePath).catch(() => {});
-
-    // Update video status to POSTED
+    // ATOMIC TRANSITION: UPLOADING → POSTED
     await prisma.video.update({
-      where: { id: videoId },
+      where: { id: parsedBody.videoId },
       data: {
         status: VideoStatus.POSTED,
         progress: 100,
+        error: null,
       },
     });
 
     notifyUser(video.userId, {
       type: 'video_status_changed',
-      videoId,
+      videoId: parsedBody.videoId,
       status: 'POSTED',
     });
 
+    // Record success for backoff tracking
+    recordAccountSuccess(accountId);
+    markExecutionEnd(parsedBody.videoId, 'completed');
+
     const duration = Date.now() - startTime;
     console.log(
-      `[Upload Worker] ✅ Completed video ${videoId} in ${duration}ms`
+      `[Upload Worker] ✅ Completed video ${parsedBody.videoId} in ${duration}ms`
     );
 
-    res.status(200).json({ success: true, videoId, publishId, duration });
+    res
+      .status(200)
+      .json({
+        success: true,
+        videoId: parsedBody.videoId,
+        publishId,
+        duration,
+      });
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
     console.error('[Upload Worker] ❌ Error:', errorMessage);
 
-    // Try to update video status
-    const { videoId } = req.body as { videoId?: string };
     if (videoId) {
+      markExecutionEnd(videoId, 'failed');
+
+      // Record failure for backoff
+      if (accountId) {
+        recordAccountFailure(accountId);
+      }
+
+      // ATOMIC TRANSITION: Only update to FAILED_UPLOAD if not already failed
       await prisma.video
-        .update({
-          where: { id: videoId },
+        .updateMany({
+          where: {
+            id: videoId,
+            status: { notIn: [VideoStatus.FAILED_UPLOAD] },
+          },
           data: {
             status: VideoStatus.FAILED_UPLOAD,
             error: errorMessage,
@@ -383,6 +564,11 @@ app.post('/process', async (req: Request, res: Response) => {
     }
 
     res.status(500).json({ error: errorMessage });
+  } finally {
+    // ROBUST CLEANUP: Always delete temp files
+    if (tempFilePath) {
+      await fs.promises.unlink(tempFilePath).catch(() => {});
+    }
   }
 });
 

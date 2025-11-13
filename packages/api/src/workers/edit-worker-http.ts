@@ -44,6 +44,42 @@ if (QSTASH_SIGNING_KEY) {
   );
 }
 
+// Idempotency tracking: videoId → execution state
+const activeExecutions = new Map<
+  string,
+  { startTime: number; status: 'running' | 'completed' | 'failed' }
+>();
+
+function isExecutionInProgress(videoId: string): boolean {
+  const execution = activeExecutions.get(videoId);
+  if (!execution) return false;
+
+  // If completed/failed more than 5 minutes ago, allow re-execution
+  if (execution.status !== 'running') {
+    const fiveMinutes = 5 * 60 * 1000;
+    if (Date.now() - execution.startTime > fiveMinutes) {
+      activeExecutions.delete(videoId);
+      return false;
+    }
+  }
+
+  return execution.status === 'running';
+}
+
+function markExecutionStart(videoId: string): void {
+  activeExecutions.set(videoId, { startTime: Date.now(), status: 'running' });
+}
+
+function markExecutionEnd(
+  videoId: string,
+  status: 'completed' | 'failed'
+): void {
+  const execution = activeExecutions.get(videoId);
+  if (execution) {
+    execution.status = status;
+  }
+}
+
 // Body parser for JSON
 app.use(express.json());
 
@@ -81,6 +117,9 @@ async function verifyQstashSignature(
  */
 app.post('/process', async (req: Request, res: Response) => {
   const startTime = Date.now();
+  let tempFilePath: string | null = null;
+  let outputFilePath: string | null = null;
+  const { videoId } = req.body;
 
   try {
     // Verify Qstash signature
@@ -91,12 +130,27 @@ app.post('/process', async (req: Request, res: Response) => {
       return;
     }
 
-    const { videoId } = body;
-    console.log(`[Edit Worker] 📥 Received job for video ${videoId}`);
+    const parsedBody = body as { videoId: string };
+    console.log(
+      `[Edit Worker] 📥 Received job for video ${parsedBody.videoId}`
+    );
 
-    // Get video with design
+    // IDEMPOTENCY CHECK: Skip if already processing or completed
+    if (isExecutionInProgress(parsedBody.videoId)) {
+      console.log(
+        `[Edit Worker] ⏭️  Skipping ${parsedBody.videoId} - already in progress or recently completed`
+      );
+      res
+        .status(200)
+        .json({ success: true, skipped: true, reason: 'idempotent' });
+      return;
+    }
+
+    markExecutionStart(parsedBody.videoId);
+
+    // Get video with design (check terminal states first)
     const video = await prisma.video.findUnique({
-      where: { id: videoId },
+      where: { id: parsedBody.videoId },
       include: {
         design: true,
         user: true,
@@ -104,20 +158,49 @@ app.post('/process', async (req: Request, res: Response) => {
     });
 
     if (!video) {
-      console.error(`[Edit Worker] Video ${videoId} not found`);
+      console.error(`[Edit Worker] Video ${parsedBody.videoId} not found`);
+      markExecutionEnd(parsedBody.videoId, 'failed');
       res.status(404).json({ error: 'Video not found' });
       return;
     }
 
-    // Update video status to EDITING
+    // Skip if already in terminal state (EDITED, FAILED_EDIT, POSTED, etc.)
+    if (
+      [
+        VideoStatus.EDITED,
+        VideoStatus.FAILED_EDIT,
+        VideoStatus.POSTED,
+        VideoStatus.FAILED_UPLOAD,
+      ].includes(video.status)
+    ) {
+      console.log(
+        `[Edit Worker] ⏭️  Video ${parsedBody.videoId} already in terminal state: ${video.status}`
+      );
+      markExecutionEnd(parsedBody.videoId, 'completed');
+      res
+        .status(200)
+        .json({
+          success: true,
+          skipped: true,
+          reason: 'already_processed',
+          status: video.status,
+        });
+      return;
+    }
+
+    // ATOMIC TRANSITION: PENDING/EDITING → EDITING with progress
     await prisma.video.update({
-      where: { id: videoId },
-      data: { status: VideoStatus.EDITING, progress: 10 },
+      where: { id: parsedBody.videoId },
+      data: {
+        status: VideoStatus.EDITING,
+        progress: 10,
+        error: null, // Clear any previous error
+      },
     });
 
     notifyUser(video.userId, {
       type: 'video_status_changed',
-      videoId,
+      videoId: parsedBody.videoId,
       status: 'EDITING',
     });
 
@@ -132,17 +215,17 @@ app.post('/process', async (req: Request, res: Response) => {
     }
 
     console.log(
-      `[Edit Worker] Processing with design: ${video.design?.name || 'frozen spec'}`
+      `[Edit Worker] 🎨 Processing with design: ${video.design?.name || 'frozen spec'}`
     );
 
     // Download video from S3 to temp file (streaming)
     const s3Key = extractS3Key(video.srcUrl);
-    const tempFilePath = path.join(
+    tempFilePath = path.join(
       os.tmpdir(),
-      `video-${videoId}-${Date.now()}.mp4`
+      `video-${parsedBody.videoId}-${Date.now()}.mp4`
     );
 
-    console.log(`[Edit Worker] Downloading ${s3Key} to ${tempFilePath}...`);
+    console.log(`[Edit Worker] ⬇️  Downloading ${s3Key}...`);
 
     const videoStream = await downloadStreamFromS3(s3Key);
     const writeStream = fs.createWriteStream(tempFilePath);
@@ -155,7 +238,7 @@ app.post('/process', async (req: Request, res: Response) => {
     });
 
     await prisma.video.update({
-      where: { id: videoId },
+      where: { id: parsedBody.videoId },
       data: { progress: 30 },
     });
 
@@ -178,7 +261,7 @@ app.post('/process', async (req: Request, res: Response) => {
       subtitleFontSize: 24,
     };
 
-    console.log(`[Edit Worker] Applying branding to ${tempFilePath}...`);
+    console.log(`[Edit Worker] 🎬 Applying branding...`);
 
     const result = await applyBrandPattern(tempFilePath, pattern);
 
@@ -186,58 +269,69 @@ app.post('/process', async (req: Request, res: Response) => {
       throw new Error(result.error || 'Video processing failed');
     }
 
+    outputFilePath = result.outputPath;
+
     await prisma.video.update({
-      where: { id: videoId },
+      where: { id: parsedBody.videoId },
       data: { progress: 70 },
     });
 
     // Upload edited video to S3 (streaming)
-    console.log(`[Edit Worker] Uploading ${result.outputPath} to S3...`);
+    console.log(`[Edit Worker] ⬆️  Uploading to S3...`);
 
-    const editedStream = fs.createReadStream(result.outputPath);
+    const editedStream = fs.createReadStream(outputFilePath);
 
     const uploadResult = await uploadToS3({
       file: editedStream,
-      filename: path.basename(result.outputPath),
+      filename: path.basename(outputFilePath),
       contentType: 'video/mp4',
       folder: 'videos',
     });
 
-    // Clean up temp files
-    await fs.promises.unlink(tempFilePath).catch(() => {});
-    await fs.promises.unlink(result.outputPath).catch(() => {});
-
-    // Update video status to EDITED
+    // ATOMIC TRANSITION: EDITING → EDITED with all fields
     await prisma.video.update({
-      where: { id: videoId },
+      where: { id: parsedBody.videoId },
       data: {
         status: VideoStatus.EDITED,
         editedUrl: uploadResult.url,
         progress: 100,
+        error: null,
       },
     });
 
     notifyUser(video.userId, {
       type: 'video_status_changed',
-      videoId,
+      videoId: parsedBody.videoId,
       status: 'EDITED',
     });
 
-    const duration = Date.now() - startTime;
-    console.log(`[Edit Worker] ✅ Completed video ${videoId} in ${duration}ms`);
+    markExecutionEnd(parsedBody.videoId, 'completed');
 
-    res.status(200).json({ success: true, videoId, duration });
+    const duration = Date.now() - startTime;
+    console.log(
+      `[Edit Worker] ✅ Completed video ${parsedBody.videoId} in ${duration}ms`
+    );
+
+    res
+      .status(200)
+      .json({ success: true, videoId: parsedBody.videoId, duration });
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
     console.error('[Edit Worker] ❌ Error:', errorMessage);
 
-    // Try to update video status
-    const { videoId } = req.body;
     if (videoId) {
+      markExecutionEnd(videoId, 'failed');
+
+      // ATOMIC TRANSITION: Only update to FAILED_EDIT if not already in a failed state
       await prisma.video
-        .update({
-          where: { id: videoId },
+        .updateMany({
+          where: {
+            id: videoId,
+            status: {
+              notIn: [VideoStatus.FAILED_EDIT, VideoStatus.FAILED_UPLOAD],
+            },
+          },
           data: {
             status: VideoStatus.FAILED_EDIT,
             error: errorMessage,
@@ -247,6 +341,14 @@ app.post('/process', async (req: Request, res: Response) => {
     }
 
     res.status(500).json({ error: errorMessage });
+  } finally {
+    // ROBUST CLEANUP: Always delete temp files
+    if (tempFilePath) {
+      await fs.promises.unlink(tempFilePath).catch(() => {});
+    }
+    if (outputFilePath) {
+      await fs.promises.unlink(outputFilePath).catch(() => {});
+    }
   }
 });
 
