@@ -360,9 +360,18 @@ app.get('/health', (_req: Request, res: Response) => {
       enabled: !!qstashReceiver,
       signatureVerification: !!QSTASH_SIGNING_KEY,
     },
+    activeExecutions: activeExecutions.size,
     uptime: process.uptime(),
     timestamp: Date.now(),
   });
+});
+
+/**
+ * GET /wake - Endpoint to wake up the service (no-op but keeps service alive)
+ */
+app.get('/wake', (_req: Request, res: Response) => {
+  console.log('👋 Wake-up ping received');
+  res.json({ status: 'awake', timestamp: Date.now() });
 });
 
 /**

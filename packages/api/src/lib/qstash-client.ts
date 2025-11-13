@@ -32,6 +32,19 @@ if (qstashToken) {
 export const QSTASH_ENABLED = !!qstashClient;
 
 /**
+ * Wake up a worker service (Render free tier spins down after inactivity)
+ */
+async function wakeUpWorker(workerUrl: string): Promise<void> {
+  try {
+    await fetch(`${workerUrl}/wake`, { method: 'GET' });
+    console.log(`[Qstash] 👋 Sent wake-up ping to ${workerUrl}`);
+  } catch (error) {
+    // Ignore errors - worker might be starting
+    console.log(`[Qstash] Wake-up ping failed (worker starting): ${error}`);
+  }
+}
+
+/**
  * Queue a video for editing
  * Sends HTTP POST to Edit Worker /process endpoint
  */
@@ -46,22 +59,27 @@ export async function queueEditJob(
     return false;
   }
 
-  try {
-    const delay = priority === 'high' ? 0 : priority === 'normal' ? 5 : 30;
+  // Wake up worker first (async, don't wait)
+  wakeUpWorker(editWorkerUrl).catch(() => {});
 
-    await qstashClient.publishJSON({
+  try {
+    // Delay to allow worker to wake up (Render free tier spins down after 15min)
+    // High priority: 10s, Normal: 30s, Low: 60s
+    const delay = priority === 'high' ? 10 : priority === 'normal' ? 30 : 60;
+
+    const response = await qstashClient.publishJSON({
       url: `${editWorkerUrl}/process`,
       body: {
         videoId,
         priority,
         timestamp: Date.now(),
       },
-      delay, // Seconds to wait before delivery
-      retries: 3, // Retry up to 3 times on failure
+      delay, // Seconds to wait before delivery (gives worker time to start)
+      retries: 3, // Retry up to 3 times on failure (504, 500, connection errors)
     });
 
     console.log(
-      `[Qstash] ✅ Queued edit job for video ${videoId} → ${editWorkerUrl}`
+      `[Qstash] ✅ Queued edit job for video ${videoId} → ${editWorkerUrl} (messageId: ${response.messageId})`
     );
     return true;
   } catch (error) {
