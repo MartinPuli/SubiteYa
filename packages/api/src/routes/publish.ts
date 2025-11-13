@@ -205,7 +205,7 @@ router.post(
           },
         });
 
-        // Create video record
+        // Create video record with PENDING status (Edit Worker will change to EDITING)
         const video = await prisma.video.create({
           data: {
             id: createId(),
@@ -213,7 +213,8 @@ router.post(
             accountId: connection.id,
             srcUrl: s3Result.url,
             title,
-            status: VideoStatus.EDITING_QUEUED,
+            status: VideoStatus.PENDING,
+            progress: 0,
             designId: pattern?.id || null,
             editSpecJson: {
               disableComment,

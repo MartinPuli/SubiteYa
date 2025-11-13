@@ -269,7 +269,8 @@ model BrandPattern {
 
 enum VideoStatus {
   DRAFT
-  EDITING_QUEUED
+  PENDING           // Video uploaded to S3, waiting for edit worker
+  EDITING_QUEUED    // Deprecated: use PENDING instead
   EDITING
   EDITED
   UPLOAD_QUEUED
