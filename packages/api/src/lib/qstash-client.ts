@@ -75,6 +75,10 @@ export async function queueEditJob(
   videoId: string,
   priority: 'high' | 'normal' | 'low' = 'normal'
 ): Promise<boolean> {
+  console.log(`[Qstash] 🔍 Attempting to queue edit job for video ${videoId}`);
+  console.log(`[Qstash] 🔍 Client available: ${!!qstashClient}`);
+  console.log(`[Qstash] 🔍 Edit worker URL: ${editWorkerUrl}`);
+
   if (!qstashClient || !editWorkerUrl) {
     console.warn(
       '[Qstash] Client not configured or EDIT_WORKER_URL not set, skipping job queue'
@@ -82,13 +86,11 @@ export async function queueEditJob(
     return false;
   }
 
-  // Wake up worker first and WAIT for it to be ready
-  await wakeUpWorker(editWorkerUrl);
-
   try {
-    // Even after wake-up, add some delay for safety (worker needs to connect to DB, etc)
-    // High priority: 15s, Normal: 30s, Low: 60s
-    const delay = priority === 'high' ? 15 : priority === 'normal' ? 30 : 60;
+    // Delay to allow cold worker startup: High priority: 30s, Normal: 60s, Low: 120s
+    const delay = priority === 'high' ? 30 : priority === 'normal' ? 60 : 120;
+
+    console.log(`[Qstash] 🚀 Publishing to Qstash with delay: ${delay}s`);
 
     const response = await qstashClient.publishJSON({
       url: `${editWorkerUrl}/process`,
@@ -97,16 +99,18 @@ export async function queueEditJob(
         priority,
         timestamp: Date.now(),
       },
-      delay, // Seconds to wait before delivery (gives worker time to start)
-      retries: 5, // More retries for cold starts (QStash will retry with exponential backoff)
+      delay, // Seconds to wait before delivery (gives worker time to start from cold)
+      retries: 5, // More retries for cold starts (Qstash will retry with exponential backoff)
+      timeout: 300, // 5 minutes timeout for video processing
     });
 
     console.log(
-      `[Qstash] ✅ Queued edit job for video ${videoId} → ${editWorkerUrl} (messageId: ${response.messageId})`
+      `[Qstash] ✅ Queued edit job for video ${videoId} → ${editWorkerUrl} (messageId: ${response.messageId}, delay: ${delay}s)`
     );
     return true;
   } catch (error) {
-    console.error('[Qstash] Failed to queue edit job:', error);
+    console.error('[Qstash] ❌ Failed to queue edit job:', error);
+    console.error('[Qstash] ❌ Error details:', JSON.stringify(error, null, 2));
     return false;
   }
 }
