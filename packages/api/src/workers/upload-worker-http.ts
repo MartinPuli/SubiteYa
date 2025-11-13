@@ -321,6 +321,38 @@ async function uploadVideoToTikTok(
 }
 
 /**
+ * Finalize TikTok upload (make the post visible in the account)
+ */
+async function finalizeTikTokUpload(
+  accessToken: string,
+  publishId: string
+): Promise<{ shareUrl?: string | null; videoId?: string | null }> {
+  const response = await axios.post(
+    'https://open.tiktokapis.com/v2/post/publish/video/submit/',
+    {
+      publish_id: publishId,
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (response.data?.error?.code !== 'ok') {
+    throw new Error(
+      `TikTok finalize error: ${response.data?.error?.message || 'Unknown error'}`
+    );
+  }
+
+  return {
+    shareUrl: response.data?.data?.share_url ?? null,
+    videoId: response.data?.data?.video_id ?? null,
+  };
+}
+
+/**
  * POST /process - Process TikTok upload job (called by Qstash)
  */
 app.post('/process', async (req: Request, res: Response) => {
@@ -407,6 +439,33 @@ app.post('/process', async (req: Request, res: Response) => {
     if (!accountId) {
       throw new Error('Video has no associated TikTok account');
     }
+
+    const editSpec = (video.editSpecJson ?? {}) as {
+      disableComment?: boolean | string;
+      disableDuet?: boolean | string;
+      disableStitch?: boolean | string;
+      privacyLevel?: string;
+      title?: string;
+      caption?: string;
+    };
+
+    const parseBoolean = (value: unknown, fallback = false) => {
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'string') {
+        return value.toLowerCase() === 'true';
+      }
+      return fallback;
+    };
+
+    const publishTitle =
+      video.title || editSpec.title || editSpec.caption || 'SubiteYa Video';
+    const disableComment = parseBoolean(editSpec.disableComment);
+    const disableDuet = parseBoolean(editSpec.disableDuet);
+    const disableStitch = parseBoolean(editSpec.disableStitch);
+    const privacyLevel =
+      typeof editSpec.privacyLevel === 'string'
+        ? editSpec.privacyLevel
+        : 'PUBLIC_TO_EVERYONE';
 
     // CONCURRENCY CHECK: Limit concurrent uploads per account
     const concurrentJobs = getAccountConcurrentJobs(accountId);
@@ -508,11 +567,11 @@ app.post('/process', async (req: Request, res: Response) => {
     const { publishId, uploadUrl } = await initTikTokUpload(
       accessToken,
       videoSize,
-      video.title || 'SubiteYa Video',
-      'PUBLIC_TO_EVERYONE',
-      false,
-      false,
-      false
+      publishTitle,
+      privacyLevel,
+      disableComment,
+      disableDuet,
+      disableStitch
     );
 
     await prisma.video.update({
@@ -525,6 +584,20 @@ app.post('/process', async (req: Request, res: Response) => {
 
     await uploadVideoToTikTok(uploadUrl, tempFilePath);
 
+    await prisma.video.update({
+      where: { id: parsedBody.videoId },
+      data: { progress: 85 },
+    });
+
+    console.log('[Upload Worker] 📤 Finalizing TikTok publish...');
+
+    const finalizeResult = await finalizeTikTokUpload(accessToken, publishId);
+
+    await prisma.video.update({
+      where: { id: parsedBody.videoId },
+      data: { progress: 95 },
+    });
+
     // ATOMIC TRANSITION: UPLOADING → POSTED
     await prisma.video.update({
       where: { id: parsedBody.videoId },
@@ -532,6 +605,9 @@ app.post('/process', async (req: Request, res: Response) => {
         status: VideoStatus.POSTED,
         progress: 100,
         error: null,
+        ...(finalizeResult.shareUrl
+          ? { postUrl: finalizeResult.shareUrl }
+          : {}),
       },
     });
 
@@ -550,11 +626,23 @@ app.post('/process', async (req: Request, res: Response) => {
       `[Upload Worker] ✅ Completed video ${parsedBody.videoId} in ${duration}ms`
     );
 
+    if (finalizeResult.shareUrl) {
+      console.log(
+        `[Upload Worker] 🔗 TikTok share URL: ${finalizeResult.shareUrl}`
+      );
+    } else if (finalizeResult.videoId) {
+      console.log(
+        `[Upload Worker] 🆔 TikTok video ID: ${finalizeResult.videoId}`
+      );
+    }
+
     res.status(200).json({
       success: true,
       videoId: parsedBody.videoId,
       publishId,
       duration,
+      shareUrl: finalizeResult.shareUrl,
+      tiktokVideoId: finalizeResult.videoId,
     });
   } catch (error: unknown) {
     const errorMessage =
