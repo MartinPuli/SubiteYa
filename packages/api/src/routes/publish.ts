@@ -196,32 +196,8 @@ router.post(
       const createdVideos = [];
 
       for (const connection of connections) {
-        // Get or create default pattern for this account
-        let pattern = await prisma.brandPattern.findFirst({
-          where: {
-            userId,
-            tiktokConnectionId: connection.id,
-            isDefault: true,
-          },
-        });
-
-        // If no default pattern exists, create one
-        if (!pattern) {
-          console.log(
-            `[POST /publish] Creating default BrandPattern for ${connection.displayName}`
-          );
-          pattern = await prisma.brandPattern.create({
-            data: {
-              id: createId(),
-              userId,
-              tiktokConnectionId: connection.id,
-              name: 'Patrón por defecto',
-              isDefault: true,
-              version: 1,
-              // All fields are optional, using default values
-            },
-          });
-        }
+        // Note: We don't use designId anymore (that's for old DesignProfile system)
+        // The Edit Worker will fetch the BrandPattern directly from the connection
 
         // Create video record with PENDING status (Edit Worker will change to EDITING)
         const video = await prisma.video.create({
@@ -233,7 +209,7 @@ router.post(
             title,
             status: VideoStatus.PENDING,
             progress: 0,
-            designId: pattern.id, // Now guaranteed to exist
+            designId: null, // Not using old DesignProfile system
             editSpecJson: {
               disableComment,
               disableDuet,
