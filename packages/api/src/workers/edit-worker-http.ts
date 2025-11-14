@@ -109,23 +109,20 @@ async function verifyQstashSignature(
     }
 
     const rawBody = (req as RequestWithRawBody).rawBody;
-    const verifiedBody = await qstashReceiver.verify({
+    const bodyToVerify = rawBody ?? JSON.stringify(req.body);
+
+    // qstashReceiver.verify() returns true/false, doesn't return the body
+    const isValid = await qstashReceiver.verify({
       signature,
-      body: rawBody ?? JSON.stringify(req.body),
+      body: bodyToVerify,
     });
 
-    let parsedBody: unknown = verifiedBody;
-    if (typeof verifiedBody === 'string') {
-      try {
-        parsedBody = JSON.parse(verifiedBody);
-      } catch (error) {
-        console.warn(
-          '[Edit Worker] Unable to parse verified body as JSON, returning raw string'
-        );
-      }
+    if (!isValid) {
+      return { valid: false };
     }
 
-    return { valid: true, body: parsedBody };
+    // If valid, return the original parsed body
+    return { valid: true, body: req.body };
   } catch (error) {
     console.error('[Edit Worker] Signature verification failed:', error);
     return { valid: false };
