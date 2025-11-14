@@ -142,6 +142,15 @@ app.post('/process', async (req: Request, res: Response) => {
   let videoId: string | undefined;
 
   try {
+    console.log(
+      '[Edit Worker] 🔍 Raw request body:',
+      JSON.stringify(req.body, null, 2)
+    );
+    console.log(
+      '[Edit Worker] 🔍 Request headers:',
+      JSON.stringify(req.headers, null, 2)
+    );
+
     // Verify Qstash signature
     const { valid, body } = await verifyQstashSignature(req);
     if (!valid) {
@@ -150,9 +159,15 @@ app.post('/process', async (req: Request, res: Response) => {
       return;
     }
 
+    console.log(
+      '[Edit Worker] 🔍 Body after signature verification:',
+      JSON.stringify(body, null, 2)
+    );
+    console.log('[Edit Worker] 🔍 Body type:', typeof body);
+
     const parsedBody = body as { videoId?: string };
     console.log(
-      '[Edit Worker] 🔍 Received body:',
+      '[Edit Worker] 🔍 Parsed body:',
       JSON.stringify(parsedBody, null, 2)
     );
 
