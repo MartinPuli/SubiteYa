@@ -183,29 +183,29 @@ async function verifyQstashSignature(
   try {
     const signature = req.headers['upstash-signature'] as string;
     if (!signature) {
+      console.error('[Upload Worker] Missing upstash-signature header');
       return { valid: false };
     }
 
     const rawBody = (req as RequestWithRawBody).rawBody;
-    const verifiedBody = await qstashReceiver.verify({
+    const bodyToVerify = rawBody ?? JSON.stringify(req.body);
+
+    // IMPORTANT: qstashReceiver.verify() returns a BOOLEAN, not the body
+    const isValid = await qstashReceiver.verify({
       signature,
-      body: rawBody ?? JSON.stringify(req.body),
+      body: bodyToVerify,
     });
 
-    let parsedBody: unknown = verifiedBody;
-    if (typeof verifiedBody === 'string') {
-      try {
-        parsedBody = JSON.parse(verifiedBody);
-      } catch (error) {
-        console.warn(
-          '[Upload Worker] Unable to parse verified body as JSON, returning raw string'
-        );
-      }
+    if (!isValid) {
+      console.error('[Upload Worker] Qstash signature verification failed');
+      return { valid: false };
     }
 
-    return { valid: true, body: parsedBody };
+    // Use the Express-parsed body directly after successful verification
+    console.log('[Upload Worker] ✅ Qstash signature verified');
+    return { valid: true, body: req.body };
   } catch (error) {
-    console.error('[Upload Worker] Signature verification failed:', error);
+    console.error('[Upload Worker] Signature verification error:', error);
     return { valid: false };
   }
 }
@@ -370,9 +370,14 @@ app.post('/process', async (req: Request, res: Response) => {
       return;
     }
 
+    // Debug: Log received body type and content
+    console.log('[Upload Worker] Received body:', JSON.stringify(body));
+    console.log('[Upload Worker] Body type:', typeof body);
+
     const parsedBody = body as { videoId?: string };
     if (!parsedBody?.videoId) {
       console.error('[Upload Worker] Missing videoId in request body');
+      console.error('[Upload Worker] Received body was:', parsedBody);
       res.status(400).json({ error: 'Invalid payload' });
       return;
     }
