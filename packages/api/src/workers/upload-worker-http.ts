@@ -457,6 +457,48 @@ async function uploadVideoToTikTok(
 }
 
 /**
+ * Check TikTok upload status (verify upload completed before finalizing)
+ */
+async function checkTikTokUploadStatus(
+  accessToken: string,
+  publishId: string
+): Promise<{ status: string; failReason?: string }> {
+  try {
+    const response = await axios.post(
+      'https://open.tiktokapis.com/v2/post/publish/status/fetch/',
+      {
+        publish_id: publishId,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    console.log('[Upload Worker] 📊 Upload status:', {
+      status: response.data?.data?.status,
+      failReason: response.data?.data?.fail_reason,
+    });
+
+    return {
+      status: response.data?.data?.status || 'UNKNOWN',
+      failReason: response.data?.data?.fail_reason,
+    };
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error)) {
+      console.error('[Upload Worker] ⚠️ Status check failed:', {
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+    }
+    // If status check fails, assume we can proceed (might not be implemented yet)
+    return { status: 'UNKNOWN' };
+  }
+}
+
+/**
  * Finalize TikTok upload (make the post visible in the account)
  */
 async function finalizeTikTokUpload(
@@ -735,6 +777,7 @@ app.post('/process', async (req: Request, res: Response) => {
     // Initialize TikTok upload
     console.log('[Upload Worker] 🚀 Initializing TikTok upload...');
 
+    const initStartTime = Date.now();
     const { publishId, uploadUrl } = await initTikTokUpload(
       accessToken,
       videoSize,
@@ -743,6 +786,9 @@ app.post('/process', async (req: Request, res: Response) => {
       disableComment,
       disableDuet,
       disableStitch
+    );
+    console.log(
+      `[Upload Worker] ✅ Received publish_id: ${publishId} (took ${Date.now() - initStartTime}ms)`
     );
 
     await prisma.video.update({
@@ -753,14 +799,50 @@ app.post('/process', async (req: Request, res: Response) => {
     // Upload video to TikTok
     console.log('[Upload Worker] ⬆️  Uploading to TikTok...');
 
+    const uploadStartTime = Date.now();
     await uploadVideoToTikTok(uploadUrl, tempFilePath);
+    const uploadDuration = Date.now() - uploadStartTime;
+    console.log(
+      `[Upload Worker] ✅ Upload completed (took ${uploadDuration}ms)`
+    );
 
     await prisma.video.update({
       where: { id: parsedBody.videoId },
       data: { progress: 85 },
     });
 
+    // Wait for TikTok to process the uploaded video (2-5 seconds recommended)
+    const timeSinceInit = Date.now() - initStartTime;
+    console.log(`[Upload Worker] ⏱️  Time since init: ${timeSinceInit}ms`);
+
+    // Give TikTok a moment to process the upload before finalizing
+    const processingDelay = 3000; // 3 seconds
+    console.log(
+      `[Upload Worker] ⏳ Waiting ${processingDelay}ms for TikTok processing...`
+    );
+    await new Promise(resolve => setTimeout(resolve, processingDelay));
+
+    // Check upload status before finalizing
+    console.log('[Upload Worker] 🔍 Checking upload status...');
+    const uploadStatus = await checkTikTokUploadStatus(accessToken, publishId);
+    console.log(
+      `[Upload Worker] 📊 Status: ${uploadStatus.status}${uploadStatus.failReason ? ` (reason: ${uploadStatus.failReason})` : ''}`
+    );
+
+    // If status indicates failure, throw error
+    if (
+      uploadStatus.status === 'FAILED' ||
+      uploadStatus.status === 'PUBLISH_FAILED'
+    ) {
+      throw new Error(
+        `TikTok upload failed: ${uploadStatus.failReason || 'Unknown reason'}`
+      );
+    }
+
     console.log('[Upload Worker] 📤 Finalizing TikTok publish...');
+    console.log(
+      `[Upload Worker] 🔑 Using publish_id: ${publishId} (age: ${Date.now() - initStartTime}ms)`
+    );
 
     const finalizeResult = await finalizeTikTokUpload(accessToken, publishId);
 

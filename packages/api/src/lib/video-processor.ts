@@ -546,32 +546,62 @@ async function transcribeAudioWithWhisper(
 
   const subtitles: SubtitleSegment[] = [];
 
-  const transcription = await openai.audio.transcriptions.create({
-    file: fs.createReadStream(audioPath),
-    model: 'whisper-1',
-    response_format: 'verbose_json',
-    timestamp_granularities: ['segment'],
-  });
+  try {
+    const transcription = await openai.audio.transcriptions.create({
+      file: fs.createReadStream(audioPath),
+      model: 'whisper-1',
+      response_format: 'verbose_json',
+      timestamp_granularities: ['segment'],
+    });
 
-  if ('segments' in transcription && Array.isArray(transcription.segments)) {
-    for (const segment of transcription.segments) {
-      if (
-        typeof segment.start === 'number' &&
-        typeof segment.end === 'number' &&
-        typeof segment.text === 'string'
-      ) {
-        subtitles.push({
-          start: segment.start,
-          end: segment.end,
-          text: segment.text.trim(),
-        });
+    console.log('Whisper response:', {
+      hasSegments: 'segments' in transcription,
+      segmentCount:
+        'segments' in transcription && Array.isArray(transcription.segments)
+          ? transcription.segments.length
+          : 0,
+      hasText: 'text' in transcription,
+      textLength:
+        'text' in transcription && typeof transcription.text === 'string'
+          ? transcription.text.length
+          : 0,
+    });
+
+    if ('segments' in transcription && Array.isArray(transcription.segments)) {
+      for (const segment of transcription.segments) {
+        if (
+          typeof segment.start === 'number' &&
+          typeof segment.end === 'number' &&
+          typeof segment.text === 'string'
+        ) {
+          subtitles.push({
+            start: segment.start,
+            end: segment.end,
+            text: segment.text.trim(),
+          });
+        }
+      }
+    } else if (
+      'text' in transcription &&
+      typeof transcription.text === 'string'
+    ) {
+      const text = transcription.text.trim();
+      if (text.length > 0) {
+        subtitles.push({ start: 0, end: 9999, text });
       }
     }
-  } else if ('text' in transcription && typeof transcription.text === 'string') {
-    subtitles.push({ start: 0, end: 9999, text: transcription.text.trim() });
-  }
 
-  return subtitles;
+    if (subtitles.length === 0) {
+      console.warn(
+        '⚠️ Whisper returned 0 subtitles - video may have no audio or speech'
+      );
+    }
+
+    return subtitles;
+  } catch (error) {
+    console.error('❌ Whisper transcription error:', error);
+    throw error;
+  }
 }
 
 async function mixNarrationWithVideo(options: {
@@ -676,7 +706,8 @@ async function applyVoiceNarrationToVideo(
     }
 
     originalAudioPath = await extractAudioFromVideo(inputPath);
-    const originalSegments = await transcribeAudioWithWhisper(originalAudioPath);
+    const originalSegments =
+      await transcribeAudioWithWhisper(originalAudioPath);
     const transcriptionText = originalSegments
       .map(segment => segment.text)
       .join(' ')
@@ -710,12 +741,14 @@ async function applyVoiceNarrationToVideo(
 
     await fs.promises.writeFile(narrationAudioPath, narrationBuffer);
 
-    const narrationSubtitles = await transcribeAudioWithWhisper(
-      narrationAudioPath
-    );
+    const narrationSubtitles =
+      await transcribeAudioWithWhisper(narrationAudioPath);
 
     const narrationVolume = Math.max((config.narrationVolume ?? 80) / 100, 0);
-    const originalVolume = Math.max((config.originalAudioVolume ?? 30) / 100, 0);
+    const originalVolume = Math.max(
+      (config.originalAudioVolume ?? 30) / 100,
+      0
+    );
     const narrationSpeed = config.narrationSpeed ?? 1.0;
 
     const outputPath = inputPath.replace(
@@ -1085,10 +1118,7 @@ export async function applyBrandPattern(
       });
 
       if (!voiceResult.success || !voiceResult.outputPath) {
-        console.warn(
-          'Voice narration processing failed:',
-          voiceResult.error
-        );
+        console.warn('Voice narration processing failed:', voiceResult.error);
       } else {
         if (currentPath !== inputPath) {
           try {
@@ -1175,6 +1205,11 @@ export async function applyBrandPattern(
       if (!subtitlesResult.success || !subtitlesResult.subtitles) {
         // Don't fail the whole process, just log warning
         console.warn('Failed to generate subtitles:', subtitlesResult.error);
+      } else if (subtitlesResult.subtitles.length === 0) {
+        // Skip burning if no subtitles were generated
+        console.warn(
+          '⚠️ No subtitles generated from transcription - skipping subtitle burn'
+        );
       } else {
         console.log('Burning subtitles into video...');
         const burnResult = await burnSubtitlesIntoVideo(
