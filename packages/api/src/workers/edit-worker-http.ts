@@ -302,24 +302,23 @@ app.post('/process', async (req: Request, res: Response) => {
     let pattern;
 
     if (brandPattern) {
-      // Use BrandPattern (NEW SYSTEM) - specJson contains the full config
-      const spec = brandPattern.specJson as any;
+      // Use BrandPattern (NEW SYSTEM) - fields are directly on the model
       pattern = {
-        logoUrl: spec.brand?.watermark?.url,
-        logoPosition: spec.brand?.watermark?.position || 'bottom-right',
-        logoSize: spec.brand?.watermark?.size || 15,
-        logoOpacity: (spec.brand?.watermark?.opacity || 0.8) * 100,
-        enableEffects: spec.effects?.enabled || false,
-        filterType: spec.effects?.filter || 'none',
-        brightness: spec.effects?.brightness || 100,
-        contrast: spec.effects?.contrast || 100,
-        saturation: spec.effects?.saturation || 100,
-        enableSubtitles: spec.captions?.enabled || false,
-        subtitleStyle: spec.captions?.style || 'classic',
-        subtitlePosition: spec.captions?.position || 'bottom',
-        subtitleColor: spec.typography?.colorPrimary || '#FFFFFF',
-        subtitleBgColor: spec.captions?.background || 'rgba(0,0,0,0.7)',
-        subtitleFontSize: spec.captions?.fontSize || 24,
+        logoUrl: brandPattern.logoUrl,
+        logoPosition: brandPattern.logoPosition,
+        logoSize: brandPattern.logoSize,
+        logoOpacity: brandPattern.logoOpacity,
+        enableEffects: brandPattern.enableEffects,
+        filterType: brandPattern.filterType,
+        brightness: brandPattern.brightness,
+        contrast: brandPattern.contrast,
+        saturation: brandPattern.saturation,
+        enableSubtitles: brandPattern.enableSubtitles,
+        subtitleStyle: brandPattern.subtitleStyle,
+        subtitlePosition: brandPattern.subtitlePosition,
+        subtitleColor: brandPattern.subtitleColor,
+        subtitleBgColor: brandPattern.subtitleBgColor,
+        subtitleFontSize: brandPattern.subtitleFontSize,
       };
       console.log(`[Edit Worker] 🎨 Using BrandPattern: ${brandPattern.name}`);
     } else if (video.editSpecJson) {
