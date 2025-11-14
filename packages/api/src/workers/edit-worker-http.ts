@@ -328,6 +328,15 @@ app.post('/process', async (req: Request, res: Response) => {
         originalAudioVolume: brandPattern.original_audio_volume,
       };
       console.log(`[Edit Worker] 🎨 Using BrandPattern: ${brandPattern.name}`);
+      console.log(`[Edit Worker] 🔍 Pattern values:`, {
+        enableEffects: pattern.enableEffects,
+        brightness: pattern.brightness,
+        contrast: pattern.contrast,
+        saturation: pattern.saturation,
+        logoUrl: pattern.logoUrl ? 'SET' : 'NOT SET',
+        enableSubtitles: pattern.enableSubtitles,
+        enableVoiceNarration: pattern.enableVoiceNarration,
+      });
     } else if (video.editSpecJson) {
       // Fallback: frozen spec from video
       const spec = video.editSpecJson as any;

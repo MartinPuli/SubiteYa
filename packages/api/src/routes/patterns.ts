@@ -237,6 +237,14 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       outputFps = 30,
       // Transitions
       transitionType = 'none',
+      // Voice Narration (ElevenLabs)
+      enable_voice_narration = false,
+      narration_language = 'es',
+      narration_voice_id = '',
+      narration_style = 'documentary',
+      narration_volume = 80,
+      narration_speed = 1.0,
+      original_audio_volume = 30,
     } = req.body;
 
     // Validate required fields
@@ -351,6 +359,14 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         output_fps: outputFps,
         // Transitions
         transition_type: transitionType,
+        // Voice Narration (ElevenLabs)
+        enable_voice_narration,
+        narration_language: narration_language || null,
+        narration_voice_id: narration_voice_id || null,
+        narration_style: narration_style || null,
+        narration_volume,
+        narration_speed,
+        original_audio_volume,
       },
       include: {
         tiktokConnection: {
@@ -408,6 +424,50 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
       subtitleColor,
       subtitleBgColor,
       subtitleFontSize,
+      subtitleAnimation,
+      subtitleFontFamily,
+      // Color Grading
+      enableColorGrading,
+      temperature,
+      tint,
+      hue,
+      exposure,
+      highlights,
+      shadows,
+      // Effects
+      vignette,
+      sharpen,
+      blur,
+      grain,
+      // Speed & Motion
+      speedMultiplier,
+      enableSmoothSlowMotion,
+      enableStabilization,
+      enableDenoise,
+      denoiseStrength,
+      // Auto Crop
+      enableAutoCrop,
+      aspectRatio,
+      cropPosition,
+      // Audio
+      audioVolume,
+      audioNormalize,
+      enableBackgroundMusic,
+      backgroundMusicVolume,
+      // Quality
+      outputQuality,
+      outputBitrate,
+      outputFps,
+      // Transitions
+      transitionType,
+      // Voice Narration (ElevenLabs)
+      enable_voice_narration,
+      narration_language,
+      narration_voice_id,
+      narration_style,
+      narration_volume,
+      narration_speed,
+      original_audio_volume,
     } = req.body;
 
     // Find pattern
@@ -460,6 +520,74 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
         ...(subtitleColor !== undefined && { subtitleColor }),
         ...(subtitleBgColor !== undefined && { subtitleBgColor }),
         ...(subtitleFontSize !== undefined && { subtitleFontSize }),
+        ...(subtitleAnimation !== undefined && {
+          subtitle_animation: subtitleAnimation,
+        }),
+        ...(subtitleFontFamily !== undefined && {
+          subtitle_font_family: subtitleFontFamily,
+        }),
+        // Color Grading
+        ...(enableColorGrading !== undefined && {
+          enable_color_grading: enableColorGrading,
+        }),
+        ...(temperature !== undefined && { temperature }),
+        ...(tint !== undefined && { tint }),
+        ...(hue !== undefined && { hue }),
+        ...(exposure !== undefined && { exposure }),
+        ...(highlights !== undefined && { highlights }),
+        ...(shadows !== undefined && { shadows }),
+        // Effects
+        ...(vignette !== undefined && { vignette }),
+        ...(sharpen !== undefined && { sharpen }),
+        ...(blur !== undefined && { blur }),
+        ...(grain !== undefined && { grain }),
+        // Speed & Motion
+        ...(speedMultiplier !== undefined && {
+          speed_multiplier: speedMultiplier,
+        }),
+        ...(enableSmoothSlowMotion !== undefined && {
+          enable_smooth_slow: enableSmoothSlowMotion,
+        }),
+        ...(enableStabilization !== undefined && {
+          enable_stabilization: enableStabilization,
+        }),
+        ...(enableDenoise !== undefined && { enable_denoise: enableDenoise }),
+        ...(denoiseStrength !== undefined && {
+          denoise_strength: denoiseStrength,
+        }),
+        // Auto Crop
+        ...(enableAutoCrop !== undefined && {
+          enable_auto_crop: enableAutoCrop,
+        }),
+        ...(aspectRatio !== undefined && { target_aspect_ratio: aspectRatio }),
+        ...(cropPosition !== undefined && { crop_position: cropPosition }),
+        // Audio
+        ...(audioVolume !== undefined && { audio_volume: audioVolume }),
+        ...(audioNormalize !== undefined && {
+          audio_normalize: audioNormalize,
+        }),
+        ...(enableBackgroundMusic !== undefined && {
+          enable_bg_music: enableBackgroundMusic,
+        }),
+        ...(backgroundMusicVolume !== undefined && {
+          bg_music_volume: backgroundMusicVolume,
+        }),
+        // Quality
+        ...(outputQuality !== undefined && { output_quality: outputQuality }),
+        ...(outputBitrate !== undefined && { output_bitrate: outputBitrate }),
+        ...(outputFps !== undefined && { output_fps: outputFps }),
+        // Transitions
+        ...(transitionType !== undefined && {
+          transition_type: transitionType,
+        }),
+        // Voice Narration (ElevenLabs)
+        ...(enable_voice_narration !== undefined && { enable_voice_narration }),
+        ...(narration_language !== undefined && { narration_language }),
+        ...(narration_voice_id !== undefined && { narration_voice_id }),
+        ...(narration_style !== undefined && { narration_style }),
+        ...(narration_volume !== undefined && { narration_volume }),
+        ...(narration_speed !== undefined && { narration_speed }),
+        ...(original_audio_volume !== undefined && { original_audio_volume }),
         version: { increment: 1 },
       },
       include: {

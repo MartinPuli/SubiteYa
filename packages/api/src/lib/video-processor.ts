@@ -1132,9 +1132,24 @@ export async function applyBrandPattern(
       }
     }
 
-    // Step 1: Apply visual effects if enabled
-    if (pattern.enableEffects && pattern.filterType !== 'none') {
-      console.log('Applying visual effects...');
+    // Step 1: Apply visual effects if enabled OR if any adjustment values are set
+    const hasAdjustments =
+      (pattern.brightness && pattern.brightness !== 100) ||
+      (pattern.contrast && pattern.contrast !== 100) ||
+      (pattern.saturation && pattern.saturation !== 100);
+
+    const shouldApplyEffects =
+      (pattern.enableEffects && pattern.filterType !== 'none') ||
+      hasAdjustments;
+
+    if (shouldApplyEffects) {
+      console.log('Applying visual effects...', {
+        brightness: pattern.brightness,
+        contrast: pattern.contrast,
+        saturation: pattern.saturation,
+        filterType: pattern.filterType,
+        enableEffects: pattern.enableEffects,
+      });
       const effectsResult = await applyEffectsToVideo(currentPath, {
         filterType: pattern.filterType || 'none',
         brightness: pattern.brightness || 100,

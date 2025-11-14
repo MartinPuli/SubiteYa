@@ -839,12 +839,32 @@ app.post('/process', async (req: Request, res: Response) => {
       );
     }
 
-    console.log('[Upload Worker] 📤 Finalizing TikTok publish...');
-    console.log(
-      `[Upload Worker] 🔑 Using publish_id: ${publishId} (age: ${Date.now() - initStartTime}ms)`
-    );
+    let finalizeResult: { shareUrl?: string | null; videoId?: string | null } =
+      {};
 
-    const finalizeResult = await finalizeTikTokUpload(accessToken, publishId);
+    // Check if already published (PUBLISH_COMPLETE means video is live)
+    if (uploadStatus.status === 'PUBLISH_COMPLETE') {
+      console.log(
+        '[Upload Worker] ✅ Video already published by TikTok (status: PUBLISH_COMPLETE)'
+      );
+      console.log(
+        '[Upload Worker] ⏭️  Skipping finalize call - not needed for direct file upload'
+      );
+
+      // Video is already live, no finalize needed
+      finalizeResult = {
+        shareUrl: null, // TikTok doesn't provide share URL in status check
+        videoId: null,
+      };
+    } else {
+      // Status is PROCESSING_DOWNLOAD or similar - need to finalize
+      console.log('[Upload Worker] 📤 Finalizing TikTok publish...');
+      console.log(
+        `[Upload Worker] 🔑 Using publish_id: ${publishId} (age: ${Date.now() - initStartTime}ms)`
+      );
+
+      finalizeResult = await finalizeTikTokUpload(accessToken, publishId);
+    }
 
     await prisma.video.update({
       where: { id: parsedBody.videoId },
