@@ -45,12 +45,56 @@ const getStateLabel = (state: string) => {
 export const HistoryPage: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, token } = useAuthStore();
-  const { jobs, fetchJobs } = useAppStore();
+  const { jobs, fetchJobs, deleteVideo, deletePublishJob } = useAppStore();
   const [previewVideo, setPreviewVideo] = useState<{
     id: string;
     url: string;
     title: string;
   } | null>(null);
+
+  const canDeleteJob = (job: (typeof jobs)[number]) => {
+    const state = job.state?.toLowerCase?.() || '';
+    const deletableStates = new Set(['failed', 'completed', 'published']);
+
+    if (job.jobType === 'video' && job.status) {
+      const normalizedStatus = job.status.toUpperCase();
+      const deletableVideoStatuses = new Set([
+        'EDITED',
+        'FAILED_EDIT',
+        'FAILED_UPLOAD',
+        'POSTED',
+      ]);
+      return deletableVideoStatuses.has(normalizedStatus);
+    }
+
+    return deletableStates.has(state);
+  };
+
+  const handleDelete = async (job: (typeof jobs)[number]) => {
+    if (!token) return;
+
+    const confirmation = window.confirm(
+      `¿Eliminar "${job.caption || 'este video'}" de tu historial? Esta acción no se puede deshacer.`
+    );
+
+    if (!confirmation) return;
+
+    try {
+      if (job.jobType === 'video') {
+        await deleteVideo(token, job.id);
+      } else {
+        await deletePublishJob(token, job.id);
+      }
+      alert('🗑️ Video eliminado del historial');
+    } catch (error) {
+      console.error('Delete job error:', error);
+      alert(
+        `Error al eliminar video: ${
+          error instanceof Error ? error.message : 'Error desconocido'
+        }`
+      );
+    }
+  };
 
   const queueForUpload = async (videoId: string) => {
     if (!token) return;
@@ -133,65 +177,81 @@ export const HistoryPage: React.FC = () => {
         </Card>
       ) : (
         <div className="history-list">
-          {jobs.map(job => (
-            <Card key={job.id} className="history-item">
-              <div className="job-info">
-                <div>
-                  <h3 className="job-caption">{job.caption}</h3>
-                  <p className="job-account">
-                    {job.tiktokConnection.displayName}
-                  </p>
-                </div>
-                <div
-                  style={{ display: 'flex', alignItems: 'center', gap: '12px' }}
-                >
-                  <span className={`job-status ${getStateColor(job.state)}`}>
-                    {getStateLabel(job.state)}
-                  </span>
-                  {job.state.toLowerCase() === 'completed' && (
-                    <>
+          {jobs.map(job => {
+            const jobState = job.state.toLowerCase();
+            const isVideoJob = job.jobType === 'video';
+            const isCompletedVideo = isVideoJob && jobState === 'completed';
+            const showDelete = canDeleteJob(job);
+
+            return (
+              <Card key={job.id} className="history-item">
+                <div className="job-info">
+                  <div>
+                    <h3 className="job-caption">{job.caption}</h3>
+                    <p className="job-account">
+                      {job.tiktokConnection.displayName}
+                    </p>
+                  </div>
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', gap: '12px' }}
+                  >
+                    <span className={`job-status ${getStateColor(job.state)}`}>
+                      {getStateLabel(job.state)}
+                    </span>
+                    {isCompletedVideo && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            const jobWithUrl = job as typeof job & {
+                              editedUrl?: string;
+                            };
+                            if (jobWithUrl.editedUrl) {
+                              setPreviewVideo({
+                                id: job.id,
+                                url: jobWithUrl.editedUrl,
+                                title: job.caption,
+                              });
+                            } else {
+                              alert('Video aún no disponible para preview');
+                            }
+                          }}
+                          style={{ fontSize: '14px', padding: '6px 12px' }}
+                        >
+                          👁️ Ver/Editar
+                        </Button>
+                        <Button
+                          variant="primary"
+                          onClick={() => queueForUpload(job.id)}
+                          style={{ fontSize: '14px', padding: '6px 12px' }}
+                        >
+                          🚀 Subir a TikTok
+                        </Button>
+                      </>
+                    )}
+                    {showDelete && (
                       <Button
-                        variant="ghost"
-                        onClick={() => {
-                          const jobWithUrl = job as typeof job & {
-                            editedUrl?: string;
-                          };
-                          if (jobWithUrl.editedUrl) {
-                            setPreviewVideo({
-                              id: job.id,
-                              url: jobWithUrl.editedUrl,
-                              title: job.caption,
-                            });
-                          } else {
-                            alert('Video aún no disponible para preview');
-                          }
-                        }}
+                        variant="danger"
+                        onClick={() => handleDelete(job)}
                         style={{ fontSize: '14px', padding: '6px 12px' }}
                       >
-                        👁️ Ver/Editar
+                        🗑️ Eliminar
                       </Button>
-                      <Button
-                        variant="primary"
-                        onClick={() => queueForUpload(job.id)}
-                        style={{ fontSize: '14px', padding: '6px 12px' }}
-                      >
-                        🚀 Subir a TikTok
-                      </Button>
-                    </>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="job-date">
-                {new Date(job.createdAt).toLocaleDateString('es-ES', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </div>
-            </Card>
-          ))}
+                <div className="job-date">
+                  {new Date(job.createdAt).toLocaleDateString('es-ES', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
 

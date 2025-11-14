@@ -14,8 +14,16 @@ interface PublishJob {
   state: string;
   tiktokConnection: {
     displayName: string;
+    avatarUrl?: string | null;
   };
   createdAt: string;
+  editedUrl?: string | null;
+  status?: string;
+  videoAsset?: {
+    originalFilename?: string | null;
+    sizeBytes?: number | null;
+  } | null;
+  jobType?: 'publish' | 'video';
 }
 
 interface AppState {
@@ -38,6 +46,8 @@ interface AppState {
   deleteConnection: (token: string, connectionId: string) => Promise<void>;
   setDefaultConnection: (token: string, connectionId: string) => Promise<void>;
   createMockConnection: (token: string, displayName: string) => Promise<void>;
+  deleteVideo: (token: string, videoId: string) => Promise<void>;
+  deletePublishJob: (token: string, jobId: string) => Promise<void>;
 }
 
 const API_URL = API_BASE_URL;
@@ -209,6 +219,72 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       // Refresh connections
       await get().fetchConnections(token);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Error desconocido';
+      set({ error: message, isLoading: false });
+      throw error;
+    }
+  },
+
+  deleteVideo: async (token: string, videoId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_URL}/videos/${videoId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        let message = 'Error al eliminar video';
+        try {
+          const error = await response.json();
+          if (error?.message) message = error.message;
+        } catch (err) {
+          console.error('Delete video parse error:', err);
+        }
+        throw new Error(message);
+      }
+
+      const now = Date.now();
+      set(state => ({
+        jobs: state.jobs.filter(job => job.id !== videoId),
+        isLoading: false,
+        lastFetchJobs: now,
+      }));
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Error desconocido';
+      set({ error: message, isLoading: false });
+      throw error;
+    }
+  },
+
+  deletePublishJob: async (token: string, jobId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_URL}/publish/jobs/${jobId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        let message = 'Error al eliminar publicación';
+        try {
+          const error = await response.json();
+          if (error?.message) message = error.message;
+        } catch (err) {
+          console.error('Delete publish job parse error:', err);
+        }
+        throw new Error(message);
+      }
+
+      const now = Date.now();
+      set(state => ({
+        jobs: state.jobs.filter(job => job.id !== jobId),
+        isLoading: false,
+        lastFetchJobs: now,
+      }));
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Error desconocido';

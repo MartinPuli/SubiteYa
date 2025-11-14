@@ -20,6 +20,8 @@ import { createId } from '@paralleldrive/cuid2';
 
 const router = Router();
 
+const DELETABLE_PUBLISH_STATES = new Set(['failed', 'completed', 'published']);
+
 const writeFile = promisify(fs.writeFile);
 const unlink = promisify(fs.unlink);
 
@@ -356,6 +358,7 @@ router.get('/jobs', async (req: AuthRequest, res: Response) => {
         avatarUrl: video.account?.avatarUrl,
       },
       videoAsset: null,
+      jobType: 'video' as const,
     }));
 
     console.log(
@@ -370,6 +373,7 @@ router.get('/jobs', async (req: AuthRequest, res: Response) => {
             sizeBytes: Number(job.videoAsset.sizeBytes),
           }
         : null,
+      jobType: 'publish' as const,
     }));
 
     // Combine both and sort by date
@@ -427,6 +431,44 @@ router.get('/jobs/:id', async (req: AuthRequest, res: Response) => {
     res.status(500).json({
       error: 'Internal Server Error',
       message: 'Error al obtener trabajo',
+    });
+  }
+});
+
+// DELETE /publish/jobs/:id - Remove legacy publish job from history
+router.delete('/jobs/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const jobId = req.params.id;
+
+    const job = await prisma.publishJob.findFirst({
+      where: { id: jobId, userId },
+    });
+
+    if (!job) {
+      res.status(404).json({
+        error: 'Not Found',
+        message: 'Trabajo no encontrado',
+      });
+      return;
+    }
+
+    if (!DELETABLE_PUBLISH_STATES.has(job.state.toLowerCase())) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: `El trabajo en estado ${job.state} no puede eliminarse`,
+      });
+      return;
+    }
+
+    await prisma.publishJob.delete({ where: { id: jobId } });
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Delete publish job error:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Error al eliminar publicación',
     });
   }
 });
