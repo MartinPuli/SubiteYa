@@ -29,11 +29,11 @@ const getStateColor = (state: string) => {
 
 const getStateLabel = (state: string) => {
   const labels: Record<string, string> = {
-    queued: '⏳ En cola',
-    uploading: '⬆️ Subiendo',
-    publishing: '🚀 Publicando',
-    completed: '✅ Publicado',
-    published: '✅ Publicado',
+    queued: '⏳ En Cola de Edición',
+    uploading: '✂️ Editando Video',
+    completed: '✅ Editado',
+    publishing: '📤 En Cola de Publicación',
+    published: '🎉 Publicado',
     failed: '❌ Fallido',
     scheduled: '📅 Programado',
     canceled: '🚫 Cancelado',
@@ -81,10 +81,11 @@ export const HistoryPage: React.FC = () => {
       return;
     }
 
-    if (token) {
+    // Solo cargar si no hay datos o si está vacío
+    if (token && jobs.length === 0) {
       fetchJobs(token).catch(console.error);
     }
-  }, [isAuthenticated, token, navigate, fetchJobs]);
+  }, [isAuthenticated, token, navigate, fetchJobs, jobs.length]);
 
   // Auto-refresh every 5 seconds if there are jobs in progress
   useEffect(() => {
@@ -142,13 +143,27 @@ export const HistoryPage: React.FC = () => {
                     {getStateLabel(job.state)}
                   </span>
                   {job.state.toLowerCase() === 'completed' && (
-                    <Button
-                      variant="primary"
-                      onClick={() => queueForUpload(job.id)}
-                      style={{ fontSize: '14px', padding: '6px 12px' }}
-                    >
-                      🚀 Subir a TikTok
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          // TODO: Implementar preview/edición
+                          alert(
+                            'Próximamente: Vista previa y edición del video'
+                          );
+                        }}
+                        style={{ fontSize: '14px', padding: '6px 12px' }}
+                      >
+                        👁️ Ver/Editar
+                      </Button>
+                      <Button
+                        variant="primary"
+                        onClick={() => queueForUpload(job.id)}
+                        style={{ fontSize: '14px', padding: '6px 12px' }}
+                      >
+                        🚀 Subir a TikTok
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>

@@ -25,9 +25,11 @@ export const DashboardPage: React.FC = () => {
 
   const stats = {
     connections: connections.length,
-    pending: jobs.filter(j => j.state === 'queued' || j.state === 'processing')
-      .length,
-    completed: jobs.filter(j => j.state === 'completed').length,
+    enColaEdicion: jobs.filter(j => j.state === 'queued').length,
+    editando: jobs.filter(j => j.state === 'uploading').length,
+    editados: jobs.filter(j => j.state === 'completed').length,
+    publicando: jobs.filter(j => j.state === 'publishing').length,
+    publicados: jobs.filter(j => j.state === 'published').length,
     failed: jobs.filter(j => j.state === 'failed').length,
   };
 
@@ -55,24 +57,47 @@ export const DashboardPage: React.FC = () => {
 
         <Card>
           <div className="stat-card">
-            <div className="stat-value">{stats.pending}</div>
-            <div className="stat-label">Pendientes</div>
+            <div className="stat-value">{stats.enColaEdicion}</div>
+            <div className="stat-label">⏳ En Cola de Edición</div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="stat-card">
+            <div className="stat-value">{stats.editando}</div>
+            <div className="stat-label">✂️ Editando</div>
           </div>
         </Card>
 
         <Card>
           <div className="stat-card">
             <div className="stat-value stat-value--success">
-              {stats.completed}
+              {stats.editados}
             </div>
-            <div className="stat-label">Completadas</div>
+            <div className="stat-label">✅ Editados</div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="stat-card">
+            <div className="stat-value">{stats.publicando}</div>
+            <div className="stat-label">📤 Publicando</div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="stat-card">
+            <div className="stat-value stat-value--success">
+              {stats.publicados}
+            </div>
+            <div className="stat-label">🎉 Publicados</div>
           </div>
         </Card>
 
         <Card>
           <div className="stat-card">
             <div className="stat-value stat-value--error">{stats.failed}</div>
-            <div className="stat-label">Fallidas</div>
+            <div className="stat-label">❌ Fallidos</div>
           </div>
         </Card>
       </div>
