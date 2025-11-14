@@ -465,35 +465,57 @@ async function finalizeTikTokUpload(
 ): Promise<{ shareUrl?: string | null; videoId?: string | null }> {
   console.log('[Upload Worker] 🔍 Finalizing with publish_id:', publishId);
 
-  const response = await axios.post(
-    'https://open.tiktokapis.com/v2/post/publish/video/submit/',
-    {
-      publish_id: publishId,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
+  try {
+    const response = await axios.post(
+      'https://open.tiktokapis.com/v2/post/publish/video/submit/',
+      {
+        publish_id: publishId,
       },
-    }
-  );
-
-  console.log('[Upload Worker] 📋 Finalize response:', {
-    status: response.status,
-    errorCode: response.data?.error?.code,
-    errorMessage: response.data?.error?.message,
-  });
-
-  if (response.data?.error?.code !== 'ok') {
-    throw new Error(
-      `TikTok finalize error: ${response.data?.error?.message || 'Unknown error'}`
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
     );
-  }
 
-  return {
-    shareUrl: response.data?.data?.share_url ?? null,
-    videoId: response.data?.data?.video_id ?? null,
-  };
+    console.log('[Upload Worker] 📋 Finalize response:', {
+      status: response.status,
+      errorCode: response.data?.error?.code,
+      errorMessage: response.data?.error?.message,
+      data: response.data,
+    });
+
+    if (response.data?.error?.code !== 'ok') {
+      throw new Error(
+        `TikTok finalize error: ${response.data?.error?.message || 'Unknown error'}`
+      );
+    }
+
+    return {
+      shareUrl: response.data?.data?.share_url ?? null,
+      videoId: response.data?.data?.video_id ?? null,
+    };
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error)) {
+      console.error('[Upload Worker] ❌ Finalize failed:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        headers: error.response?.headers,
+        url: error.config?.url,
+        method: error.config?.method,
+        requestData: error.config?.data,
+      });
+
+      // Extract TikTok error message if available
+      const tiktokError = error.response?.data?.error?.message || error.message;
+      throw new Error(
+        `TikTok finalize failed (${error.response?.status}): ${tiktokError}`
+      );
+    }
+    throw error;
+  }
 }
 
 /**
