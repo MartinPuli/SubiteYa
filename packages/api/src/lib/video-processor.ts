@@ -517,22 +517,54 @@ async function extractAudioFromVideo(videoPath: string): Promise<string> {
   const audioPath = videoPath.replace(/\.[^.]+$/, '_audio.mp3');
 
   return new Promise((resolve, reject) => {
+    let hasAudioStream = false;
+
     ffmpeg(videoPath)
       .outputOptions([
         '-vn', // No video
         '-acodec libmp3lame', // MP3 codec
         '-q:a 2', // High quality
+        '-af',
+        'volume=2.0', // Boost volume 2x to help Whisper detect speech
       ])
       .output(audioPath)
       .on('start', commandLine => {
         console.log('Extracting audio:', commandLine);
       })
-      .on('end', () => {
-        console.log('Audio extracted successfully');
-        resolve(audioPath);
+      .on('codecData', data => {
+        // Check if video has audio stream
+        if (data.audio) {
+          hasAudioStream = true;
+          console.log('✅ Audio stream detected:', data.audio);
+        } else {
+          console.warn('⚠️ No audio stream found in video');
+        }
+      })
+      .on('end', async () => {
+        // Check if audio file was created and has content
+        try {
+          const stats = await fs.promises.stat(audioPath);
+          if (stats.size === 0) {
+            console.error('❌ Extracted audio file is empty (0 bytes)');
+            reject(new Error('Video has no audio or audio extraction failed'));
+            return;
+          }
+          if (stats.size < 1000) {
+            console.warn(
+              `⚠️ Audio file is very small (${stats.size} bytes) - may be silent`
+            );
+          }
+          console.log(
+            `✅ Audio extracted successfully (${(stats.size / 1024).toFixed(2)} KB)`
+          );
+          resolve(audioPath);
+        } catch (err) {
+          console.error('❌ Audio file not created:', err);
+          reject(new Error('Failed to create audio file'));
+        }
       })
       .on('error', err => {
-        console.error('Error extracting audio:', err);
+        console.error('❌ Error extracting audio:', err);
         reject(err);
       })
       .run();
@@ -547,11 +579,25 @@ async function transcribeAudioWithWhisper(
   const subtitles: SubtitleSegment[] = [];
 
   try {
+    // Check audio file size before sending to Whisper
+    const audioStats = await fs.promises.stat(audioPath);
+    console.log(
+      `📊 Audio file size: ${(audioStats.size / 1024).toFixed(2)} KB`
+    );
+
+    if (audioStats.size < 1000) {
+      console.warn(
+        '⚠️ Audio file too small (<1KB) - likely no speech, skipping Whisper'
+      );
+      return [];
+    }
+
     const transcription = await openai.audio.transcriptions.create({
       file: fs.createReadStream(audioPath),
       model: 'whisper-1',
       response_format: 'verbose_json',
       timestamp_granularities: ['segment'],
+      language: 'es', // Set Spanish as default to improve accuracy
     });
 
     console.log('Whisper response:', {
@@ -574,11 +620,15 @@ async function transcribeAudioWithWhisper(
           typeof segment.end === 'number' &&
           typeof segment.text === 'string'
         ) {
-          subtitles.push({
-            start: segment.start,
-            end: segment.end,
-            text: segment.text.trim(),
-          });
+          const text = segment.text.trim();
+          // Filter out empty or very short segments (noise)
+          if (text.length >= 2) {
+            subtitles.push({
+              start: segment.start,
+              end: segment.end,
+              text,
+            });
+          }
         }
       }
     } else if (
@@ -593,8 +643,10 @@ async function transcribeAudioWithWhisper(
 
     if (subtitles.length === 0) {
       console.warn(
-        '⚠️ Whisper returned 0 subtitles - video may have no audio or speech'
+        '⚠️ Whisper returned 0 subtitles - video may have no speech or only music/noise'
       );
+    } else {
+      console.log(`✅ Generated ${subtitles.length} subtitle segments`);
     }
 
     return subtitles;
@@ -749,7 +801,7 @@ async function applyVoiceNarrationToVideo(
       (config.originalAudioVolume ?? 30) / 100,
       0
     );
-    const narrationSpeed = config.narrationSpeed ?? 1.0;
+    const narrationSpeed = config.narrationSpeed ?? 1;
 
     const outputPath = inputPath.replace(
       /\.[^.]+$/,
