@@ -319,6 +319,13 @@ app.post('/process', async (req: Request, res: Response) => {
         subtitleColor: brandPattern.subtitleColor,
         subtitleBgColor: brandPattern.subtitleBgColor,
         subtitleFontSize: brandPattern.subtitleFontSize,
+        enableVoiceNarration: brandPattern.enableVoiceNarration,
+        narrationLanguage: brandPattern.narrationLanguage,
+        narrationVoiceId: brandPattern.narrationVoiceId,
+        narrationStyle: brandPattern.narrationStyle,
+        narrationVolume: brandPattern.narrationVolume,
+        narrationSpeed: brandPattern.narrationSpeed,
+        originalAudioVolume: brandPattern.originalAudioVolume,
       };
       console.log(`[Edit Worker] 🎨 Using BrandPattern: ${brandPattern.name}`);
     } else if (video.editSpecJson) {
