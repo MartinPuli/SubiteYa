@@ -151,8 +151,17 @@ app.post('/process', async (req: Request, res: Response) => {
     }
 
     const parsedBody = body as { videoId?: string };
+    console.log(
+      '[Edit Worker] 🔍 Received body:',
+      JSON.stringify(parsedBody, null, 2)
+    );
+
     if (!parsedBody?.videoId) {
       console.error('[Edit Worker] Missing videoId in request body');
+      console.error(
+        '[Edit Worker] Full body received:',
+        JSON.stringify(body, null, 2)
+      );
       res.status(400).json({ error: 'Invalid payload' });
       return;
     }
