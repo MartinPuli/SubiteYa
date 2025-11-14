@@ -286,6 +286,7 @@ router.get('/jobs', async (req: AuthRequest, res: Response) => {
 
     const { state, limit = '50' } = req.query;
 
+    // Fetch old publish_jobs
     interface WhereClause {
       userId: string;
       state?: string;
@@ -317,7 +318,47 @@ router.get('/jobs', async (req: AuthRequest, res: Response) => {
       take: parseInt(limit as string, 10),
     });
 
-    console.log(`[GET /jobs] Found ${jobs.length} jobs for user ${userId}`);
+    // Also fetch videos from new system and format as jobs
+    const videos = await prisma.video.findMany({
+      where: { userId },
+      include: {
+        account: {
+          select: {
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit as string, 10),
+    });
+
+    // Map video statuses to job states
+    const statusToState: Record<string, string> = {
+      PENDING: 'queued',
+      EDITING: 'uploading',
+      EDITED: 'completed',
+      UPLOADING: 'publishing',
+      POSTED: 'published',
+      FAILED_EDIT: 'failed',
+      FAILED_UPLOAD: 'failed',
+    };
+
+    const videoJobs = videos.map(video => ({
+      id: video.id,
+      caption: video.title,
+      state: statusToState[video.status] || 'queued',
+      createdAt: video.createdAt,
+      tiktokConnection: {
+        displayName: video.account?.displayName || 'Cuenta desconocida',
+        avatarUrl: video.account?.avatarUrl,
+      },
+      videoAsset: null,
+    }));
+
+    console.log(
+      `[GET /jobs] Found ${jobs.length} publish_jobs + ${videos.length} videos for user ${userId}`
+    );
 
     const serializedJobs = jobs.map(job => ({
       ...job,
@@ -329,7 +370,13 @@ router.get('/jobs', async (req: AuthRequest, res: Response) => {
         : null,
     }));
 
-    res.json({ jobs: serializedJobs });
+    // Combine both and sort by date
+    const allJobs = [...serializedJobs, ...videoJobs].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    res.json({ jobs: allJobs });
   } catch (error) {
     console.error('Get jobs error:', error);
     res.status(500).json({
