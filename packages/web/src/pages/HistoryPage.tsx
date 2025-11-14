@@ -45,12 +45,13 @@ const getStateLabel = (state: string) => {
 export const HistoryPage: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, token } = useAuthStore();
-  const { jobs, fetchJobs } = useAppStore();
+  const { jobs, fetchJobs, deleteVideo } = useAppStore();
   const [previewVideo, setPreviewVideo] = useState<{
     id: string;
     url: string;
     title: string;
   } | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const queueForUpload = async (videoId: string) => {
     if (!token) return;
@@ -78,6 +79,35 @@ export const HistoryPage: React.FC = () => {
       alert(
         `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
+    }
+  };
+
+  const handleDeleteJob = async (jobId: string) => {
+    if (!token) return;
+
+    const confirmDelete = window.confirm(
+      '¿Seguro que deseas descartar este video del historial?'
+    );
+
+    if (!confirmDelete) return;
+
+    setDeletingId(jobId);
+
+    try {
+      await deleteVideo(token, jobId);
+      if (previewVideo?.id === jobId) {
+        setPreviewVideo(null);
+      }
+      alert('🗑️ Video eliminado del historial');
+    } catch (error) {
+      console.error('Delete video error:', error);
+      alert(
+        `Error al eliminar video: ${
+          error instanceof Error ? error.message : 'Error desconocido'
+        }`
+      );
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -148,6 +178,19 @@ export const HistoryPage: React.FC = () => {
                   <span className={`job-status ${getStateColor(job.state)}`}>
                     {getStateLabel(job.state)}
                   </span>
+                  {job.status &&
+                    ['failed', 'completed', 'edited'].includes(
+                      job.state.toLowerCase()
+                    ) && (
+                      <Button
+                        variant="danger"
+                        onClick={() => handleDeleteJob(job.id)}
+                        loading={deletingId === job.id}
+                        style={{ fontSize: '14px', padding: '6px 12px' }}
+                      >
+                        🗑️ Descartar
+                      </Button>
+                    )}
                   {job.state.toLowerCase() === 'completed' && (
                     <>
                       <Button

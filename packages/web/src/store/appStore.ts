@@ -14,8 +14,15 @@ interface PublishJob {
   state: string;
   tiktokConnection: {
     displayName: string;
+    avatarUrl?: string | null;
   };
   createdAt: string;
+  editedUrl?: string | null;
+  status?: string;
+  videoAsset?: {
+    originalFilename: string;
+    sizeBytes: number;
+  } | null;
 }
 
 interface AppState {
@@ -36,6 +43,7 @@ interface AppState {
   fetchConnections: (token: string, forceRefresh?: boolean) => Promise<void>;
   fetchJobs: (token: string, forceRefresh?: boolean) => Promise<void>;
   deleteConnection: (token: string, connectionId: string) => Promise<void>;
+  deleteVideo: (token: string, videoId: string) => Promise<void>;
   setDefaultConnection: (token: string, connectionId: string) => Promise<void>;
   createMockConnection: (token: string, displayName: string) => Promise<void>;
 }
@@ -158,6 +166,32 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       // Refresh connections
       await get().fetchConnections(token);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Error desconocido';
+      set({ error: message, isLoading: false });
+      throw error;
+    }
+  },
+
+  deleteVideo: async (token: string, videoId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_URL}/videos/${videoId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.message || 'Error al eliminar video');
+      }
+
+      set(state => ({
+        jobs: state.jobs.filter(job => job.id !== videoId),
+        isLoading: false,
+        lastFetchJobs: null,
+      }));
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Error desconocido';

@@ -215,6 +215,50 @@ router.post('/:id/queue-upload', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// DELETE /videos/:id - Remove a processed video from history
+router.delete('/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { id } = req.params;
+
+    const video = await prisma.video.findFirst({
+      where: { id, userId },
+    });
+
+    if (!video) {
+      res.status(404).json({
+        error: 'Not Found',
+        message: 'Video no encontrado',
+      });
+      return;
+    }
+
+    const deletableStatuses = [
+      VideoStatus.EDITED,
+      VideoStatus.FAILED_EDIT,
+      VideoStatus.FAILED_UPLOAD,
+    ];
+
+    if (!deletableStatuses.includes(video.status)) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: `Video en estado ${video.status} no se puede eliminar`,
+      });
+      return;
+    }
+
+    await prisma.video.delete({ where: { id: video.id } });
+
+    res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error('Delete video error:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Error al eliminar video',
+    });
+  }
+});
+
 // GET /videos/:id - Get video details with jobs
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
