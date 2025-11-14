@@ -463,6 +463,8 @@ async function finalizeTikTokUpload(
   accessToken: string,
   publishId: string
 ): Promise<{ shareUrl?: string | null; videoId?: string | null }> {
+  console.log('[Upload Worker] 🔍 Finalizing with publish_id:', publishId);
+
   const response = await axios.post(
     'https://open.tiktokapis.com/v2/post/publish/video/submit/',
     {
@@ -475,6 +477,12 @@ async function finalizeTikTokUpload(
       },
     }
   );
+
+  console.log('[Upload Worker] 📋 Finalize response:', {
+    status: response.status,
+    errorCode: response.data?.error?.code,
+    errorMessage: response.data?.error?.message,
+  });
 
   if (response.data?.error?.code !== 'ok') {
     throw new Error(

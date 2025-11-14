@@ -161,10 +161,12 @@ router.post('/:id/queue-upload', async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    if (video.status !== VideoStatus.EDITED) {
+    // Allow EDITED or FAILED_UPLOAD states
+    const allowedStates = [VideoStatus.EDITED, VideoStatus.FAILED_UPLOAD];
+    if (!allowedStates.includes(video.status)) {
       res.status(400).json({
         error: 'Bad Request',
-        message: `Video debe estar en estado EDITED (actual: ${video.status})`,
+        message: `Video debe estar en estado EDITED o FAILED_UPLOAD (actual: ${video.status})`,
       });
       return;
     }
