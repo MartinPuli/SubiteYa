@@ -304,7 +304,7 @@ app.post('/process', async (req: Request, res: Response) => {
     if (brandPattern) {
       // Use BrandPattern (NEW SYSTEM) - fields are directly on the model
       pattern = {
-        logoUrl: brandPattern.logoUrl,
+        logoUrl: brandPattern.logoUrl || undefined,
         logoPosition: brandPattern.logoPosition,
         logoSize: brandPattern.logoSize,
         logoOpacity: brandPattern.logoOpacity,
@@ -319,13 +319,13 @@ app.post('/process', async (req: Request, res: Response) => {
         subtitleColor: brandPattern.subtitleColor,
         subtitleBgColor: brandPattern.subtitleBgColor,
         subtitleFontSize: brandPattern.subtitleFontSize,
-        enableVoiceNarration: brandPattern.enableVoiceNarration,
-        narrationLanguage: brandPattern.narrationLanguage,
-        narrationVoiceId: brandPattern.narrationVoiceId,
-        narrationStyle: brandPattern.narrationStyle,
-        narrationVolume: brandPattern.narrationVolume,
-        narrationSpeed: brandPattern.narrationSpeed,
-        originalAudioVolume: brandPattern.originalAudioVolume,
+        enableVoiceNarration: brandPattern.enable_voice_narration,
+        narrationLanguage: brandPattern.narration_language || undefined,
+        narrationVoiceId: brandPattern.narration_voice_id || undefined,
+        narrationStyle: brandPattern.narration_style || undefined,
+        narrationVolume: brandPattern.narration_volume,
+        narrationSpeed: brandPattern.narration_speed,
+        originalAudioVolume: brandPattern.original_audio_volume,
       };
       console.log(`[Edit Worker] 🎨 Using BrandPattern: ${brandPattern.name}`);
     } else if (video.editSpecJson) {
