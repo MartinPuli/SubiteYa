@@ -205,6 +205,13 @@ export const HistoryPage: React.FC = () => {
             queueForUpload(previewVideo.id);
             setPreviewVideo(null);
           }}
+          onEdit={videoId => {
+            // TODO: Implementar navegación al editor
+            console.log('Edit video:', videoId);
+            alert(
+              'Editor de video próximamente. Por ahora puedes re-subir el video con diferentes ajustes.'
+            );
+          }}
         />
       )}
 

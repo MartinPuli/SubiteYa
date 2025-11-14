@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card } from '../Card/Card';
 import { Button } from '../Button/Button';
 import './VideoPreview.css';
@@ -9,6 +9,7 @@ interface VideoPreviewProps {
   title: string;
   onClose: () => void;
   onPublish?: () => void;
+  onEdit?: (videoId: string) => void;
 }
 
 export const VideoPreview: React.FC<VideoPreviewProps> = ({
@@ -17,14 +18,15 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({
   title,
   onClose,
   onPublish,
+  onEdit,
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedTitle, setEditedTitle] = useState(title);
-
-  const handleSave = () => {
-    // TODO: Implementar guardado de cambios
-    console.log('Saving changes:', { videoId, title: editedTitle });
-    setIsEditing(false);
+  const handleEditVideo = () => {
+    if (onEdit) {
+      onEdit(videoId);
+    } else {
+      // Fallback: abrir en nueva pestaña para editar
+      window.open(`/editor?videoId=${videoId}`, '_blank');
+    }
   };
 
   return (
@@ -39,47 +41,35 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({
           </div>
 
           <div className="video-preview-content">
-            <div className="video-player">
+            <div className="video-player-container">
               <video
                 src={videoUrl}
                 controls
                 autoPlay
-                style={{ width: '100%', maxHeight: '500px' }}
+                loop
+                playsInline
+                className="video-player"
               >
                 Tu navegador no soporta el tag de video.
               </video>
             </div>
 
             <div className="video-preview-info">
-              {isEditing ? (
-                <div className="edit-section">
-                  <label>Título:</label>
-                  <input
-                    type="text"
-                    value={editedTitle}
-                    onChange={e => setEditedTitle(e.target.value)}
-                    className="title-input"
-                  />
-                  <div className="edit-actions">
-                    <Button variant="ghost" onClick={() => setIsEditing(false)}>
-                      Cancelar
-                    </Button>
-                    <Button variant="primary" onClick={handleSave}>
-                      Guardar Cambios
-                    </Button>
-                  </div>
+              <div className="info-section">
+                <div className="info-row">
+                  <strong>Título:</strong>
+                  <span>{title}</span>
                 </div>
-              ) : (
-                <div className="info-section">
-                  <div className="info-row">
-                    <strong>Título:</strong>
-                    <span>{title}</span>
-                  </div>
-                  <Button variant="ghost" onClick={() => setIsEditing(true)}>
-                    ✏️ Editar
+                <div className="action-buttons">
+                  <Button
+                    variant="ghost"
+                    onClick={handleEditVideo}
+                    style={{ gap: '8px' }}
+                  >
+                    ✂️ Editar Video
                   </Button>
                 </div>
-              )}
+              </div>
             </div>
           </div>
 

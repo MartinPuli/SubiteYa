@@ -56,52 +56,49 @@
 
 .video-preview-content {
   padding: 20px;
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.video-player-container {
+  flex-shrink: 0;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 400px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .video-player {
-  margin-bottom: 20px;
-  background: #000;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.video-player video {
   display: block;
   width: 100%;
   height: auto;
+  max-height: 600px;
+  object-fit: contain;
 }
 
 .video-preview-info {
+  flex: 1;
   background: #f5f5f5;
   padding: 20px;
   border-radius: 8px;
-}
-
-.edit-section label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 600;
-}
-
-.title-input {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-  margin-bottom: 12px;
-}
-
-.edit-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
+  min-width: 0;
 }
 
 .info-section {
   display: flex;
   flex-direction: column;
+  gap: 16px;
+}
+
+.action-buttons {
+  display: flex;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .info-row {
@@ -128,6 +125,15 @@
   .video-preview-modal {
     max-width: 100%;
     max-height: 100vh;
+  }
+
+  .video-preview-content {
+    flex-direction: column;
+  }
+
+  .video-player-container {
+    max-width: 100%;
+    width: 100%;
     border-radius: 0;
   }
 
