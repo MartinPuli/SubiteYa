@@ -100,7 +100,7 @@ export async function queueEditJob(
         timestamp: Date.now(),
       },
       delay, // Seconds to wait before delivery (gives worker time to start from cold)
-      retries: 5, // More retries for cold starts (Qstash will retry with exponential backoff)
+      retries: 3, // Max retries allowed in Qstash free tier
       timeout: 300, // 5 minutes timeout for video processing
     });
 
@@ -133,7 +133,7 @@ export async function queueUploadJob(
   try {
     const delay = priority === 'high' ? 0 : priority === 'normal' ? 10 : 60;
 
-    await qstashClient.publishJSON({
+    const response = await qstashClient.publishJSON({
       url: `${uploadWorkerUrl}/process`,
       body: {
         videoId,
@@ -141,7 +141,7 @@ export async function queueUploadJob(
         timestamp: Date.now(),
       },
       delay, // Seconds to wait before delivery
-      retries: 3, // Retry up to 3 times on failure
+      retries: 3, // Max retries allowed in Qstash free tier
     });
 
     console.log(
