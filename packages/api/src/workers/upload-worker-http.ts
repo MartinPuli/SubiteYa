@@ -443,12 +443,16 @@ async function uploadVideoToTikTok(
   videoPath: string
 ): Promise<void> {
   const videoBuffer = await fs.promises.readFile(videoPath);
+  const totalSize = videoBuffer.length;
 
   await axios.put(uploadUrl, videoBuffer, {
     headers: {
       'Content-Type': 'video/mp4',
-      'Content-Length': videoBuffer.length.toString(),
+      'Content-Length': totalSize.toString(),
+      'Content-Range': `bytes 0-${totalSize - 1}/${totalSize}`,
     },
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
   });
 }
 
