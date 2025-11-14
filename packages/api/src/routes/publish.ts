@@ -474,91 +474,19 @@ router.delete('/jobs/:id', async (req: AuthRequest, res: Response) => {
 });
 
 /**
- * POST /publish/process/:videoId - Process video directly (fallback when workers unavailable)
- * This endpoint allows processing videos directly in the API when external workers are down
+ * POST /publish/process/:videoId - DISABLED
+ * This endpoint is disabled - videos are processed through Qstash workers
  */
 router.post(
   '/process/:videoId',
   authenticate,
   async (req: AuthRequest, res: Response) => {
-    const { videoId } = req.params;
-    const userId = req.user!.userId;
-
-    try {
-      // Verify video belongs to user
-      const video = await prisma.video.findFirst({
-        where: { id: videoId, userId },
-        include: { design: true },
-      });
-
-      if (!video) {
-        res.status(404).json({ error: 'Video not found' });
-        return;
-      }
-
-      // Check if already processing or completed
-      const validStatuses: VideoStatus[] = [
-        VideoStatus.PENDING,
-        VideoStatus.FAILED_EDIT,
-      ];
-      if (!validStatuses.includes(video.status)) {
-        res.status(400).json({
-          error: 'Invalid status',
-          message: `Video is ${video.status}, cannot process`,
-        });
-        return;
-      }
-
-      // Start processing (run in background)
-      res
-        .status(202)
-        .json({ message: 'Processing started', videoId: video.id });
-
-      // Process asynchronously
-      processVideoDirectly(videoId).catch(err => {
-        console.error(`[Direct Process] Error processing ${videoId}:`, err);
-      });
-    } catch (error) {
-      console.error('[Direct Process] Error:', error);
-      res.status(500).json({ error: 'Internal Server Error' });
-    }
+    res.status(410).json({
+      error: 'Endpoint disabled',
+      message:
+        'Videos are processed automatically through workers. Check video status in history.',
+    });
   }
 );
-
-/**
- * Process video directly without external workers
- */
-async function processVideoDirectly(videoId: string): Promise<void> {
-  console.log(`[Direct Process] Starting video ${videoId}`);
-
-  try {
-    await prisma.video.update({
-      where: { id: videoId },
-      data: { status: VideoStatus.EDITING, progress: 10 },
-    });
-
-    // Import processing logic here
-    // For now, just mark as edited
-    await prisma.video.update({
-      where: { id: videoId },
-      data: {
-        status: VideoStatus.EDITED,
-        progress: 100,
-        editedUrl: `https://placeholder.com/${videoId}.mp4`, // TODO: actual processing
-      },
-    });
-
-    console.log(`[Direct Process] ✅ Completed video ${videoId}`);
-  } catch (error) {
-    console.error(`[Direct Process] ❌ Failed video ${videoId}:`, error);
-    await prisma.video.update({
-      where: { id: videoId },
-      data: {
-        status: VideoStatus.FAILED_EDIT,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
-    });
-  }
-}
 
 export default router;

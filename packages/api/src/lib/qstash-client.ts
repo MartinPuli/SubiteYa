@@ -87,8 +87,15 @@ export async function queueEditJob(
   }
 
   try {
-    // Delay to allow cold worker startup: High priority: 30s, Normal: 60s, Low: 120s
-    const delay = priority === 'high' ? 30 : priority === 'normal' ? 60 : 120;
+    // Delay to allow cold worker startup
+    let delay: number;
+    if (priority === 'high') {
+      delay = 5;
+    } else if (priority === 'normal') {
+      delay = 10;
+    } else {
+      delay = 30;
+    }
 
     console.log(`[Qstash] 🚀 Publishing to Qstash with delay: ${delay}s`);
 
