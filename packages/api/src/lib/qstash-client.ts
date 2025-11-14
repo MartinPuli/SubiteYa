@@ -86,9 +86,17 @@ export async function queueEditJob(
   await wakeUpWorker(editWorkerUrl);
 
   try {
+    console.log(
+      `[Qstash] 🔍 Attempting to queue edit job for video ${videoId}`
+    );
+    console.log(`[Qstash] 🔍 Client available: ${!!qstashClient}`);
+    console.log(`[Qstash] 🔍 Edit worker URL: ${editWorkerUrl}`);
+
     // Even after wake-up, add some delay for safety (worker needs to connect to DB, etc)
     // High priority: 15s, Normal: 30s, Low: 60s
     const delay = priority === 'high' ? 15 : priority === 'normal' ? 30 : 60;
+
+    console.log(`[Qstash] 🚀 Publishing to Qstash with delay: ${delay}s`);
 
     const response = await qstashClient.publishJSON({
       url: `${editWorkerUrl}/process`,
@@ -98,7 +106,7 @@ export async function queueEditJob(
         timestamp: Date.now(),
       },
       delay, // Seconds to wait before delivery (gives worker time to start)
-      retries: 5, // More retries for cold starts (QStash will retry with exponential backoff)
+      retries: 3, // Max retries allowed in QStash free tier
     });
 
     console.log(
@@ -106,7 +114,13 @@ export async function queueEditJob(
     );
     return true;
   } catch (error) {
-    console.error('[Qstash] Failed to queue edit job:', error);
+    console.error('[Qstash] ❌ Failed to queue edit job:', error);
+    if (error && typeof error === 'object' && 'status' in error) {
+      console.error('[Qstash] ❌ Error details:', {
+        status: (error as any).status,
+        name: (error as any).name,
+      });
+    }
     return false;
   }
 }
@@ -137,7 +151,7 @@ export async function queueUploadJob(
         timestamp: Date.now(),
       },
       delay, // Seconds to wait before delivery
-      retries: 3, // Retry up to 3 times on failure
+      retries: 3, // Max retries allowed in QStash free tier
     });
 
     console.log(
