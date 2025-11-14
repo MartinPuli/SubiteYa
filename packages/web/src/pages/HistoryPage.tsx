@@ -4,6 +4,7 @@ import { Card } from '../components/Card/Card';
 import { Button } from '../components/Button/Button';
 import { useAuthStore } from '../store/authStore';
 import { useAppStore } from '../store/appStore';
+import { API_ENDPOINTS } from '../config/api';
 import './HistoryPage.css';
 
 const getStateColor = (state: string) => {
@@ -44,6 +45,35 @@ export const HistoryPage: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, token } = useAuthStore();
   const { jobs, fetchJobs } = useAppStore();
+
+  const queueForUpload = async (videoId: string) => {
+    if (!token) return;
+
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.videos}/${videoId}/queue-upload`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to queue for upload');
+      }
+
+      // Refresh jobs to show updated status
+      await fetchJobs(token);
+      alert('✅ Video agregado a la cola de subida a TikTok');
+    } catch (error) {
+      console.error('Queue error:', error);
+      alert(
+        `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -105,9 +135,22 @@ export const HistoryPage: React.FC = () => {
                     {job.tiktokConnection.displayName}
                   </p>
                 </div>
-                <span className={`job-status ${getStateColor(job.state)}`}>
-                  {getStateLabel(job.state)}
-                </span>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: '12px' }}
+                >
+                  <span className={`job-status ${getStateColor(job.state)}`}>
+                    {getStateLabel(job.state)}
+                  </span>
+                  {job.state.toLowerCase() === 'completed' && (
+                    <Button
+                      variant="primary"
+                      onClick={() => queueForUpload(job.id)}
+                      style={{ fontSize: '14px', padding: '6px 12px' }}
+                    >
+                      🚀 Subir a TikTok
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="job-date">
                 {new Date(job.createdAt).toLocaleDateString('es-ES', {
