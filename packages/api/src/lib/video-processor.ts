@@ -9,6 +9,8 @@ import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
 import OpenAI from 'openai';
+import { generateNarrationScript } from './script-generator';
+import { generateSpeech } from './elevenlabs';
 
 // Lazy load FFmpeg path to avoid startup errors
 let ffmpegInitialized = false;
@@ -51,6 +53,20 @@ interface VideoProcessingResult {
   success: boolean;
   outputPath?: string;
   error?: string;
+}
+
+interface VoiceNarrationConfig {
+  enableVoiceNarration?: boolean;
+  narrationLanguage?: string | null;
+  narrationVoiceId?: string | null;
+  narrationStyle?: string | null;
+  narrationVolume?: number | null;
+  narrationSpeed?: number | null;
+  originalAudioVolume?: number | null;
+}
+
+interface VoiceNarrationResult extends VideoProcessingResult {
+  subtitles?: SubtitleSegment[];
 }
 
 /**
@@ -476,10 +492,28 @@ interface SubtitleSegment {
   text: string;
 }
 
+async function hasAudioStream(videoPath: string): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(videoPath, (error, data) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      const audioStreams = data.streams?.filter(
+        stream => stream.codec_type === 'audio'
+      );
+      resolve((audioStreams?.length || 0) > 0);
+    });
+  });
+}
+
 /**
  * Extract audio from video file using FFmpeg
  */
 async function extractAudioFromVideo(videoPath: string): Promise<string> {
+  await ensureFfmpegPath();
+
   const audioPath = videoPath.replace(/\.[^.]+$/, '_audio.mp3');
 
   return new Promise((resolve, reject) => {
@@ -503,6 +537,221 @@ async function extractAudioFromVideo(videoPath: string): Promise<string> {
       })
       .run();
   });
+}
+
+async function transcribeAudioWithWhisper(
+  audioPath: string
+): Promise<SubtitleSegment[]> {
+  console.log('Transcribing audio with Whisper:', audioPath);
+
+  const subtitles: SubtitleSegment[] = [];
+
+  const transcription = await openai.audio.transcriptions.create({
+    file: fs.createReadStream(audioPath),
+    model: 'whisper-1',
+    response_format: 'verbose_json',
+    timestamp_granularities: ['segment'],
+  });
+
+  if ('segments' in transcription && Array.isArray(transcription.segments)) {
+    for (const segment of transcription.segments) {
+      if (
+        typeof segment.start === 'number' &&
+        typeof segment.end === 'number' &&
+        typeof segment.text === 'string'
+      ) {
+        subtitles.push({
+          start: segment.start,
+          end: segment.end,
+          text: segment.text.trim(),
+        });
+      }
+    }
+  } else if ('text' in transcription && typeof transcription.text === 'string') {
+    subtitles.push({ start: 0, end: 9999, text: transcription.text.trim() });
+  }
+
+  return subtitles;
+}
+
+async function mixNarrationWithVideo(options: {
+  videoPath: string;
+  narrationAudioPath: string;
+  outputPath: string;
+  narrationVolume: number;
+  originalVolume: number;
+  narrationSpeed: number;
+  includeOriginalAudio: boolean;
+}): Promise<void> {
+  await ensureFfmpegPath();
+
+  const speed = Math.min(Math.max(options.narrationSpeed, 0.5), 2);
+  const narrationVolume = Math.max(options.narrationVolume, 0);
+  const originalVolume = Math.max(options.originalVolume, 0);
+
+  const filters: string[] = [];
+
+  if (options.includeOriginalAudio) {
+    filters.push(`[0:a]volume=${originalVolume.toFixed(2)}[orig]`);
+    filters.push(
+      `[1:a]atempo=${speed.toFixed(2)},volume=${narrationVolume.toFixed(2)}[voice]`
+    );
+    filters.push(
+      '[orig][voice]amix=inputs=2:duration=longest:dropout_transition=2[mixed]'
+    );
+  } else {
+    filters.push(
+      `[1:a]atempo=${speed.toFixed(2)},volume=${narrationVolume.toFixed(2)}[mixed]`
+    );
+  }
+
+  const filterComplex = filters.join(';');
+
+  await new Promise<void>((resolve, reject) => {
+    ffmpeg(options.videoPath)
+      .input(options.narrationAudioPath)
+      .complexFilter(filterComplex, 'mixed')
+      .outputOptions([
+        '-map 0:v',
+        '-map [mixed]',
+        '-c:v copy',
+        '-c:a aac',
+        '-b:a 192k',
+        '-shortest',
+        '-movflags +faststart',
+      ])
+      .output(options.outputPath)
+      .on('start', commandLine => {
+        console.log('FFmpeg narration mix command:', commandLine);
+      })
+      .on('end', () => {
+        console.log('Narration mixed successfully');
+        resolve();
+      })
+      .on('error', err => {
+        console.error('FFmpeg narration mix error:', err);
+        reject(err);
+      })
+      .run();
+  });
+}
+
+async function applyVoiceNarrationToVideo(
+  inputPath: string,
+  config: VoiceNarrationConfig
+): Promise<VoiceNarrationResult> {
+  if (!config.enableVoiceNarration) {
+    return { success: false, error: 'Voice narration disabled' };
+  }
+
+  if (!config.narrationVoiceId) {
+    return { success: false, error: 'Narration voice ID not provided' };
+  }
+
+  if (!process.env.OPENAI_API_KEY) {
+    return {
+      success: false,
+      error: 'OPENAI_API_KEY not configured for voice narration',
+    };
+  }
+
+  if (!process.env.ELEVENLABS_API_KEY) {
+    return {
+      success: false,
+      error: 'ELEVENLABS_API_KEY not configured for voice narration',
+    };
+  }
+
+  let originalAudioPath: string | null = null;
+  let narrationAudioPath: string | null = null;
+
+  try {
+    const hasOriginalAudio = await hasAudioStream(inputPath);
+
+    if (!hasOriginalAudio) {
+      return {
+        success: false,
+        error: 'Video has no audio track to generate narration',
+      };
+    }
+
+    originalAudioPath = await extractAudioFromVideo(inputPath);
+    const originalSegments = await transcribeAudioWithWhisper(originalAudioPath);
+    const transcriptionText = originalSegments
+      .map(segment => segment.text)
+      .join(' ')
+      .trim();
+
+    if (!transcriptionText) {
+      return {
+        success: false,
+        error: 'Unable to transcribe original audio for narration',
+      };
+    }
+
+    const language = config.narrationLanguage || 'es';
+    const style = config.narrationStyle || 'documentary';
+
+    const narrationScript = await generateNarrationScript(
+      transcriptionText,
+      language,
+      style
+    );
+
+    narrationAudioPath = inputPath.replace(
+      /\.[^.]+$/,
+      `_narration_${Date.now()}.mp3`
+    );
+
+    const narrationBuffer = await generateSpeech({
+      voice_id: config.narrationVoiceId,
+      text: narrationScript,
+    });
+
+    await fs.promises.writeFile(narrationAudioPath, narrationBuffer);
+
+    const narrationSubtitles = await transcribeAudioWithWhisper(
+      narrationAudioPath
+    );
+
+    const narrationVolume = Math.max((config.narrationVolume ?? 80) / 100, 0);
+    const originalVolume = Math.max((config.originalAudioVolume ?? 30) / 100, 0);
+    const narrationSpeed = config.narrationSpeed ?? 1.0;
+
+    const outputPath = inputPath.replace(
+      /\.[^.]+$/,
+      `_voice_${Date.now()}.mp4`
+    );
+
+    await mixNarrationWithVideo({
+      videoPath: inputPath,
+      narrationAudioPath,
+      outputPath,
+      narrationVolume,
+      originalVolume,
+      narrationSpeed,
+      includeOriginalAudio: hasOriginalAudio,
+    });
+
+    return {
+      success: true,
+      outputPath,
+      subtitles: narrationSubtitles,
+    };
+  } catch (error) {
+    console.error('Error applying voice narration:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  } finally {
+    if (originalAudioPath) {
+      await fs.promises.unlink(originalAudioPath).catch(() => {});
+    }
+    if (narrationAudioPath) {
+      await fs.promises.unlink(narrationAudioPath).catch(() => {});
+    }
+  }
 }
 
 /**
@@ -532,31 +781,7 @@ export async function generateSubtitles(videoPath: string): Promise<{
 
     // Step 2: Transcribe using OpenAI Whisper
     console.log('Transcribing audio with Whisper...');
-    const transcription = await openai.audio.transcriptions.create({
-      file: fs.createReadStream(audioPath),
-      model: 'whisper-1',
-      response_format: 'verbose_json',
-      timestamp_granularities: ['segment'],
-    });
-
-    // Step 3: Convert Whisper segments to SubtitleSegment[]
-    const subtitles: SubtitleSegment[] = [];
-
-    if ('segments' in transcription && Array.isArray(transcription.segments)) {
-      for (const segment of transcription.segments) {
-        if (
-          typeof segment.start === 'number' &&
-          typeof segment.end === 'number' &&
-          typeof segment.text === 'string'
-        ) {
-          subtitles.push({
-            start: segment.start,
-            end: segment.end,
-            text: segment.text.trim(),
-          });
-        }
-      }
-    }
+    const subtitles = await transcribeAudioWithWhisper(audioPath);
 
     console.log(`✓ Generated ${subtitles.length} subtitle segments`);
 
@@ -833,10 +1058,49 @@ export async function applyBrandPattern(
     subtitleColor?: string;
     subtitleBgColor?: string;
     subtitleFontSize?: number;
+    // Voice narration
+    enableVoiceNarration?: boolean;
+    narrationLanguage?: string | null;
+    narrationVoiceId?: string | null;
+    narrationStyle?: string | null;
+    narrationVolume?: number | null;
+    narrationSpeed?: number | null;
+    originalAudioVolume?: number | null;
   }
 ): Promise<VideoProcessingResult> {
   try {
     let currentPath = inputPath;
+    let voiceSubtitles: SubtitleSegment[] | undefined;
+
+    if (pattern.enableVoiceNarration && pattern.narrationVoiceId) {
+      console.log('Applying AI voice narration...');
+      const voiceResult = await applyVoiceNarrationToVideo(currentPath, {
+        enableVoiceNarration: pattern.enableVoiceNarration,
+        narrationLanguage: pattern.narrationLanguage,
+        narrationVoiceId: pattern.narrationVoiceId,
+        narrationStyle: pattern.narrationStyle,
+        narrationVolume: pattern.narrationVolume,
+        narrationSpeed: pattern.narrationSpeed,
+        originalAudioVolume: pattern.originalAudioVolume,
+      });
+
+      if (!voiceResult.success || !voiceResult.outputPath) {
+        console.warn(
+          'Voice narration processing failed:',
+          voiceResult.error
+        );
+      } else {
+        if (currentPath !== inputPath) {
+          try {
+            await unlink(currentPath);
+          } catch (err) {
+            console.warn('Failed to cleanup pre-voice file:', err);
+          }
+        }
+        currentPath = voiceResult.outputPath;
+        voiceSubtitles = voiceResult.subtitles;
+      }
+    }
 
     // Step 1: Apply visual effects if enabled
     if (pattern.enableEffects && pattern.filterType !== 'none') {
@@ -896,7 +1160,17 @@ export async function applyBrandPattern(
     // Step 3: Generate and burn subtitles if enabled
     if (pattern.enableSubtitles) {
       console.log('Generating subtitles...');
-      const subtitlesResult = await generateSubtitles(currentPath);
+      let subtitlesResult: {
+        success: boolean;
+        subtitles?: SubtitleSegment[];
+        error?: string;
+      };
+
+      if (voiceSubtitles && voiceSubtitles.length > 0) {
+        subtitlesResult = { success: true, subtitles: voiceSubtitles };
+      } else {
+        subtitlesResult = await generateSubtitles(currentPath);
+      }
 
       if (!subtitlesResult.success || !subtitlesResult.subtitles) {
         // Don't fail the whole process, just log warning
