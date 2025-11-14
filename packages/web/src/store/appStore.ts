@@ -8,10 +8,13 @@ interface TikTokConnection {
   isDefault: boolean;
 }
 
+type JobType = 'publish' | 'video';
+
 interface PublishJob {
   id: string;
   caption: string;
   state: string;
+  jobType: JobType;
   tiktokConnection: {
     displayName: string;
     avatarUrl?: string | null;
@@ -23,8 +26,9 @@ interface PublishJob {
     originalFilename?: string | null;
     sizeBytes?: number | null;
   } | null;
-  jobType?: 'publish' | 'video';
 }
+
+type PublishJobApi = Omit<PublishJob, 'jobType'> & { jobType?: JobType };
 
 interface AppState {
   connections: TikTokConnection[];
@@ -139,8 +143,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       const data = await response.json();
       console.log('Jobs fetched:', data.jobs?.length || 0, 'jobs');
+      const normalizedJobs = (data.jobs || []).map((job: PublishJobApi) => ({
+        ...job,
+        jobType: job.jobType ?? 'publish',
+      }));
       set({
-        jobs: data.jobs,
+        jobs: normalizedJobs,
         isLoading: false,
         lastFetchJobs: Date.now(),
       });
@@ -248,7 +256,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       const now = Date.now();
       set(state => ({
-        jobs: state.jobs.filter(job => job.id !== videoId),
+        jobs: state.jobs.filter(
+          job => !(job.jobType === 'video' && job.id === videoId)
+        ),
         isLoading: false,
         lastFetchJobs: now,
       }));

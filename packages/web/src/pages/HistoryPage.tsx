@@ -51,6 +51,7 @@ export const HistoryPage: React.FC = () => {
     url: string;
     title: string;
   } | null>(null);
+  const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
 
   const canDeleteJob = (job: (typeof jobs)[number]) => {
     const state = job.state?.toLowerCase?.() || '';
@@ -62,7 +63,6 @@ export const HistoryPage: React.FC = () => {
         'EDITED',
         'FAILED_EDIT',
         'FAILED_UPLOAD',
-        'POSTED',
       ]);
       return deletableVideoStatuses.has(normalizedStatus);
     }
@@ -74,10 +74,12 @@ export const HistoryPage: React.FC = () => {
     if (!token) return;
 
     const confirmation = window.confirm(
-      `¿Eliminar "${job.caption || 'este video'}" de tu historial? Esta acción no se puede deshacer.`
+      `¿Descartar "${job.caption || 'este video'}" de tu historial? Esta acción no se puede deshacer.`
     );
 
     if (!confirmation) return;
+
+    setDeletingJobId(job.id);
 
     try {
       if (job.jobType === 'video') {
@@ -85,7 +87,10 @@ export const HistoryPage: React.FC = () => {
       } else {
         await deletePublishJob(token, job.id);
       }
-      alert('🗑️ Video eliminado del historial');
+      if (previewVideo?.id === job.id) {
+        setPreviewVideo(null);
+      }
+      alert('🧹 Video descartado del historial');
     } catch (error) {
       console.error('Delete job error:', error);
       alert(
@@ -93,6 +98,8 @@ export const HistoryPage: React.FC = () => {
           error instanceof Error ? error.message : 'Error desconocido'
         }`
       );
+    } finally {
+      setDeletingJobId(null);
     }
   };
 
@@ -233,9 +240,10 @@ export const HistoryPage: React.FC = () => {
                       <Button
                         variant="danger"
                         onClick={() => handleDelete(job)}
+                        disabled={deletingJobId === job.id}
                         style={{ fontSize: '14px', padding: '6px 12px' }}
                       >
-                        🗑️ Eliminar
+                        {deletingJobId === job.id ? '⏳ Descartando…' : '🗑️ Descartar'}
                       </Button>
                     )}
                   </div>

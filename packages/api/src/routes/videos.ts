@@ -16,7 +16,6 @@ const DELETABLE_STATUSES = new Set<VideoStatus>([
   VideoStatus.EDITED,
   VideoStatus.FAILED_EDIT,
   VideoStatus.FAILED_UPLOAD,
-  VideoStatus.POSTED,
 ]);
 
 // All routes require authentication
