@@ -265,41 +265,77 @@ async function refreshTikTokToken(connection: {
     throw new Error('TikTok credentials not configured');
   }
 
-  const refreshToken = decryptToken(connection.refreshTokenEnc);
+  try {
+    const refreshToken = decryptToken(connection.refreshTokenEnc);
 
-  const response = await axios.post(
-    'https://open.tiktokapis.com/v2/oauth/token/',
-    {
-      client_key: TIKTOK_CLIENT_KEY,
-      client_secret: TIKTOK_CLIENT_SECRET,
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json',
+    console.log('[Upload Worker] 🔄 Attempting token refresh...');
+
+    const response = await axios.post(
+      'https://open.tiktokapis.com/v2/oauth/token/',
+      {
+        client_key: TIKTOK_CLIENT_KEY,
+        client_secret: TIKTOK_CLIENT_SECRET,
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
       },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    console.log('[Upload Worker] 🔄 Token refresh response:', {
+      status: response.status,
+      hasAccessToken: !!response.data?.access_token,
+      hasRefreshToken: !!response.data?.refresh_token,
+      expiresIn: response.data?.expires_in,
+      error: response.data?.error,
+    });
+
+    if (!response.data?.access_token) {
+      throw new Error(
+        `Failed to refresh TikTok token: ${response.data?.error?.message || 'No access token in response'}`
+      );
     }
-  );
 
-  if (!response.data?.access_token) {
-    throw new Error('Failed to refresh TikTok token');
+    const { access_token, refresh_token, expires_in } = response.data;
+
+    // Update connection with new tokens
+    await prisma.tikTokConnection.update({
+      where: { id: connection.id },
+      data: {
+        accessTokenEnc: encryptToken(access_token),
+        refreshTokenEnc: encryptToken(refresh_token),
+        expiresAt: new Date(Date.now() + expires_in * 1000),
+      },
+    });
+
+    console.log('[Upload Worker] ✅ Token refreshed successfully');
+    return access_token;
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error)) {
+      console.error('[Upload Worker] ❌ Token refresh failed:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+
+      // If token is invalid, mark connection as expired
+      if (
+        error.response?.status === 401 ||
+        error.response?.data?.error?.code === 'invalid_grant'
+      ) {
+        console.error(
+          '[Upload Worker] 🔴 Refresh token invalid - user needs to reconnect account'
+        );
+        throw new Error(
+          'TikTok refresh token expired or revoked. User must reconnect their account.'
+        );
+      }
+    }
+    throw error;
   }
-
-  const { access_token, refresh_token, expires_in } = response.data;
-
-  // Update connection with new tokens
-  await prisma.tikTokConnection.update({
-    where: { id: connection.id },
-    data: {
-      accessTokenEnc: encryptToken(access_token),
-      refreshTokenEnc: encryptToken(refresh_token),
-      expiresAt: new Date(Date.now() + expires_in * 1000),
-    },
-  });
-
-  console.log('[Upload Worker] ✅ Token refreshed successfully');
-  return access_token;
 }
 
 /**
