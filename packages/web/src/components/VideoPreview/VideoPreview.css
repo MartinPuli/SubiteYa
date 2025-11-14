@@ -1,0 +1,137 @@
+.video-preview-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.video-preview-modal {
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.video-preview-card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.video-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.video-preview-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 4px 8px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.close-button:hover {
+  color: #000;
+}
+
+.video-preview-content {
+  padding: 20px;
+}
+
+.video-player {
+  margin-bottom: 20px;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.video-player video {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.video-preview-info {
+  background: #f5f5f5;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.edit-section label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.title-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info-row {
+  display: flex;
+  gap: 12px;
+}
+
+.info-row strong {
+  min-width: 80px;
+}
+
+.video-preview-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+@media (max-width: 768px) {
+  .video-preview-overlay {
+    padding: 0;
+  }
+
+  .video-preview-modal {
+    max-width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .video-preview-card {
+    border-radius: 0;
+  }
+}

@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/Card/Card';
 import { Button } from '../components/Button/Button';
+import { VideoPreview } from '../components/VideoPreview/VideoPreview';
 import { useAuthStore } from '../store/authStore';
 import { useAppStore } from '../store/appStore';
 import { API_ENDPOINTS } from '../config/api';
@@ -45,6 +46,11 @@ export const HistoryPage: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, token } = useAuthStore();
   const { jobs, fetchJobs } = useAppStore();
+  const [previewVideo, setPreviewVideo] = useState<{
+    id: string;
+    url: string;
+    title: string;
+  } | null>(null);
 
   const queueForUpload = async (videoId: string) => {
     if (!token) return;
@@ -147,10 +153,18 @@ export const HistoryPage: React.FC = () => {
                       <Button
                         variant="ghost"
                         onClick={() => {
-                          // TODO: Implementar preview/edición
-                          alert(
-                            'Próximamente: Vista previa y edición del video'
-                          );
+                          const jobWithUrl = job as typeof job & {
+                            editedUrl?: string;
+                          };
+                          if (jobWithUrl.editedUrl) {
+                            setPreviewVideo({
+                              id: job.id,
+                              url: jobWithUrl.editedUrl,
+                              title: job.caption,
+                            });
+                          } else {
+                            alert('Video aún no disponible para preview');
+                          }
                         }}
                         style={{ fontSize: '14px', padding: '6px 12px' }}
                       >
@@ -179,6 +193,19 @@ export const HistoryPage: React.FC = () => {
             </Card>
           ))}
         </div>
+      )}
+
+      {previewVideo && (
+        <VideoPreview
+          videoUrl={previewVideo.url}
+          videoId={previewVideo.id}
+          title={previewVideo.title}
+          onClose={() => setPreviewVideo(null)}
+          onPublish={() => {
+            queueForUpload(previewVideo.id);
+            setPreviewVideo(null);
+          }}
+        />
       )}
 
       <div className="history-footer">
