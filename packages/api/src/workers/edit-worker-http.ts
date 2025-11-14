@@ -196,12 +196,20 @@ app.post('/process', async (req: Request, res: Response) => {
 
     markExecutionStart(parsedBody.videoId);
 
-    // Get video with design (check terminal states first)
+    // Get video with account and its brand patterns
     const video = await prisma.video.findUnique({
       where: { id: parsedBody.videoId },
       include: {
-        design: true,
+        design: true, // Old system (deprecated)
         user: true,
+        account: {
+          include: {
+            patterns: {
+              where: { isDefault: true },
+              take: 1,
+            },
+          },
+        },
       },
     });
 
@@ -210,6 +218,10 @@ app.post('/process', async (req: Request, res: Response) => {
       markExecutionEnd(parsedBody.videoId, 'failed');
       res.status(404).json({ error: 'Video not found' });
       return;
+    }
+
+    if (!video.account) {
+      throw new Error('Video has no associated account');
     }
 
     // Skip if already in terminal state (EDITED, FAILED_EDIT, POSTED, etc.)
@@ -249,18 +261,17 @@ app.post('/process', async (req: Request, res: Response) => {
       status: 'EDITING',
     });
 
-    // Get design spec
-    let designSpec: DesignSpecType;
-    if (video.editSpecJson) {
-      designSpec = video.editSpecJson as DesignSpecType;
-    } else if (video.design?.specJson) {
-      designSpec = video.design.specJson as DesignSpecType;
-    } else {
-      throw new Error('No design spec available');
+    // Get BrandPattern from account (NEW SYSTEM)
+    const brandPattern = video.account.patterns?.[0];
+
+    if (!brandPattern && !video.design && !video.editSpecJson) {
+      throw new Error(
+        'No brand pattern or design spec available for this account'
+      );
     }
 
     console.log(
-      `[Edit Worker] 🎨 Processing with design: ${video.design?.name || 'frozen spec'}`
+      `[Edit Worker] 🎨 Processing with ${brandPattern ? `BrandPattern: ${brandPattern.name}` : video.design ? `DesignProfile: ${video.design.name}` : 'frozen spec'}`
     );
 
     // Download video from S3 to temp file (streaming)
@@ -287,26 +298,82 @@ app.post('/process', async (req: Request, res: Response) => {
       data: { progress: 30 },
     });
 
-    // Convert DesignSpec to pattern format
-    const pattern = {
-      logoUrl: designSpec.brand?.watermark?.url,
-      logoPosition: designSpec.brand?.watermark?.position || 'bottom-right',
-      logoSize: 15,
-      logoOpacity: (designSpec.brand?.watermark?.opacity || 0.8) * 100,
-      enableEffects: false,
-      filterType: 'none',
-      brightness: 100,
-      contrast: 100,
-      saturation: 100,
-      enableSubtitles: designSpec.captions?.enabled || false,
-      subtitleStyle: designSpec.captions?.style || 'classic',
-      subtitlePosition: 'bottom',
-      subtitleColor: designSpec.typography?.colorPrimary || '#FFFFFF',
-      subtitleBgColor: 'rgba(0,0,0,0.7)',
-      subtitleFontSize: 24,
-    };
+    // Build pattern from BrandPattern (NEW) or fallback to old DesignProfile
+    let pattern;
 
-    console.log(`[Edit Worker] 🎬 Applying branding...`);
+    if (brandPattern) {
+      // Use BrandPattern (NEW SYSTEM) - specJson contains the full config
+      const spec = brandPattern.specJson as any;
+      pattern = {
+        logoUrl: spec.brand?.watermark?.url,
+        logoPosition: spec.brand?.watermark?.position || 'bottom-right',
+        logoSize: spec.brand?.watermark?.size || 15,
+        logoOpacity: (spec.brand?.watermark?.opacity || 0.8) * 100,
+        enableEffects: spec.effects?.enabled || false,
+        filterType: spec.effects?.filter || 'none',
+        brightness: spec.effects?.brightness || 100,
+        contrast: spec.effects?.contrast || 100,
+        saturation: spec.effects?.saturation || 100,
+        enableSubtitles: spec.captions?.enabled || false,
+        subtitleStyle: spec.captions?.style || 'classic',
+        subtitlePosition: spec.captions?.position || 'bottom',
+        subtitleColor: spec.typography?.colorPrimary || '#FFFFFF',
+        subtitleBgColor: spec.captions?.background || 'rgba(0,0,0,0.7)',
+        subtitleFontSize: spec.captions?.fontSize || 24,
+      };
+      console.log(`[Edit Worker] 🎨 Using BrandPattern: ${brandPattern.name}`);
+    } else if (video.editSpecJson) {
+      // Fallback: frozen spec from video
+      const spec = video.editSpecJson as any;
+      pattern = {
+        logoUrl: spec.brand?.watermark?.url,
+        logoPosition: spec.brand?.watermark?.position || 'bottom-right',
+        logoSize: 15,
+        logoOpacity: (spec.brand?.watermark?.opacity || 0.8) * 100,
+        enableEffects: false,
+        filterType: 'none',
+        brightness: 100,
+        contrast: 100,
+        saturation: 100,
+        enableSubtitles: spec.captions?.enabled || false,
+        subtitleStyle: spec.captions?.style || 'classic',
+        subtitlePosition: 'bottom',
+        subtitleColor: spec.typography?.colorPrimary || '#FFFFFF',
+        subtitleBgColor: 'rgba(0,0,0,0.7)',
+        subtitleFontSize: 24,
+      };
+      console.log(`[Edit Worker] 🎨 Using frozen editSpecJson`);
+    } else if (video.design?.specJson) {
+      // Fallback: old DesignProfile
+      const spec = video.design.specJson as any;
+      pattern = {
+        logoUrl: spec.brand?.watermark?.url,
+        logoPosition: spec.brand?.watermark?.position || 'bottom-right',
+        logoSize: 15,
+        logoOpacity: (spec.brand?.watermark?.opacity || 0.8) * 100,
+        enableEffects: false,
+        filterType: 'none',
+        brightness: 100,
+        contrast: 100,
+        saturation: 100,
+        enableSubtitles: spec.captions?.enabled || false,
+        subtitleStyle: spec.captions?.style || 'classic',
+        subtitlePosition: 'bottom',
+        subtitleColor: spec.typography?.colorPrimary || '#FFFFFF',
+        subtitleBgColor: 'rgba(0,0,0,0.7)',
+        subtitleFontSize: 24,
+      };
+      console.log(
+        `[Edit Worker] 🎨 Using old DesignProfile: ${video.design.name}`
+      );
+    } else {
+      throw new Error('No pattern configuration available');
+    }
+
+    console.log(
+      `[Edit Worker] 🎬 Applying branding with pattern:`,
+      JSON.stringify(pattern, null, 2)
+    );
 
     const result = await applyBrandPattern(tempFilePath, pattern);
 
