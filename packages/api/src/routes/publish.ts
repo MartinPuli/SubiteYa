@@ -335,11 +335,11 @@ router.get('/jobs', async (req: AuthRequest, res: Response) => {
 
     // Map video statuses to job states
     const statusToState: Record<string, string> = {
-      PENDING: 'queued',
-      EDITING: 'uploading',
-      EDITED: 'completed',
-      UPLOADING: 'publishing',
-      POSTED: 'published',
+      PENDING: 'queued', // En Cola de Edición
+      EDITING: 'uploading', // Editando Video
+      EDITED: 'completed', // Editado (listo para publicar)
+      UPLOADING: 'publishing', // En Cola de Publicación
+      POSTED: 'published', // Publicado
       FAILED_EDIT: 'failed',
       FAILED_UPLOAD: 'failed',
     };
@@ -349,6 +349,8 @@ router.get('/jobs', async (req: AuthRequest, res: Response) => {
       caption: video.title,
       state: statusToState[video.status] || 'queued',
       createdAt: video.createdAt,
+      editedUrl: video.editedUrl, // Agregar URL para preview
+      status: video.status, // Status real para el frontend
       tiktokConnection: {
         displayName: video.account?.displayName || 'Cuenta desconocida',
         avatarUrl: video.account?.avatarUrl,

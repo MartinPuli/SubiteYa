@@ -33,6 +33,21 @@ if (!ENCRYPTION_KEY) {
 }
 
 /**
+ * Encrypt token helper (compatible with tiktok.ts encryption using AES-256-GCM)
+ */
+function encryptToken(token: string): string {
+  const iv = crypto.randomBytes(12);
+  const key = Buffer.from(ENCRYPTION_KEY.slice(0, 32));
+
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  let encrypted = cipher.update(token, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+
+  const authTag = cipher.getAuthTag();
+  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+}
+
+/**
  * Decrypt token helper (compatible with tiktok.ts encryption using AES-256-GCM)
  */
 function decryptToken(encryptedToken: string): string {
@@ -224,33 +239,114 @@ async function getTikTokAccessToken(accountId: string): Promise<string> {
     throw new Error('TikTok connection not found');
   }
 
+  // Check if token is expired (if we have expiresAt)
+  if (connection.expiresAt && new Date(connection.expiresAt) < new Date()) {
+    console.log('[Upload Worker] 🔄 Access token expired, refreshing...');
+    const newAccessToken = await refreshTikTokToken(connection);
+    return newAccessToken;
+  }
+
   // Decrypt access token
   const accessToken = decryptToken(connection.accessTokenEnc);
   return accessToken;
 }
 
 /**
- * Get TikTok creator info
+ * Refresh TikTok access token
  */
-async function getTikTokCreatorInfo(accessToken: string): Promise<string> {
+async function refreshTikTokToken(connection: {
+  id: string;
+  refreshTokenEnc: string;
+}): Promise<string> {
+  const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY || '';
+  const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET || '';
+
+  if (!TIKTOK_CLIENT_KEY || !TIKTOK_CLIENT_SECRET) {
+    throw new Error('TikTok credentials not configured');
+  }
+
+  const refreshToken = decryptToken(connection.refreshTokenEnc);
+
   const response = await axios.post(
-    'https://open.tiktokapis.com/v2/post/publish/creator_info/query/',
-    {},
+    'https://open.tiktokapis.com/v2/oauth/token/',
+    {
+      client_key: TIKTOK_CLIENT_KEY,
+      client_secret: TIKTOK_CLIENT_SECRET,
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+    },
     {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
     }
   );
 
-  if (response.data?.error?.code !== 'ok') {
-    throw new Error(
-      `TikTok API error: ${response.data?.error?.message || 'Unknown error'}`
-    );
+  if (!response.data?.access_token) {
+    throw new Error('Failed to refresh TikTok token');
   }
 
-  return response.data.data?.creator_avatar_url || '';
+  const { access_token, refresh_token, expires_in } = response.data;
+
+  // Update connection with new tokens
+  await prisma.tikTokConnection.update({
+    where: { id: connection.id },
+    data: {
+      accessTokenEnc: encryptToken(access_token),
+      refreshTokenEnc: encryptToken(refresh_token),
+      expiresAt: new Date(Date.now() + expires_in * 1000),
+    },
+  });
+
+  console.log('[Upload Worker] ✅ Token refreshed successfully');
+  return access_token;
+}
+
+/**
+ * Get TikTok creator info (with auto-retry on 401)
+ */
+async function getTikTokCreatorInfo(
+  accessToken: string,
+  accountId: string,
+  retryCount = 0
+): Promise<string> {
+  try {
+    const response = await axios.post(
+      'https://open.tiktokapis.com/v2/post/publish/creator_info/query/',
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (response.data?.error?.code !== 'ok') {
+      throw new Error(
+        `TikTok API error: ${response.data?.error?.message || 'Unknown error'}`
+      );
+    }
+
+    return response.data.data?.creator_avatar_url || '';
+  } catch (error: unknown) {
+    // If 401 and first attempt, try refreshing token
+    if (
+      axios.isAxiosError(error) &&
+      error.response?.status === 401 &&
+      retryCount === 0
+    ) {
+      console.log('[Upload Worker] 🔄 401 error, refreshing token...');
+      const connection = await prisma.tikTokConnection.findUnique({
+        where: { id: accountId },
+      });
+      if (!connection) throw new Error('Connection not found');
+
+      const newAccessToken = await refreshTikTokToken(connection);
+      return getTikTokCreatorInfo(newAccessToken, accountId, retryCount + 1);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -527,7 +623,7 @@ app.post('/process', async (req: Request, res: Response) => {
 
     // Get creator info (required by TikTok API)
     console.log('[Upload Worker] 👤 Fetching creator info...');
-    await getTikTokCreatorInfo(accessToken);
+    await getTikTokCreatorInfo(accessToken, accountId);
 
     await prisma.video.update({
       where: { id: parsedBody.videoId },
