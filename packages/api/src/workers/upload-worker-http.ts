@@ -397,42 +397,56 @@ async function initTikTokUpload(
   disableDuet: boolean,
   disableStitch: boolean
 ): Promise<{ publishId: string; uploadUrl: string }> {
-  const response = await axios.post(
-    'https://open.tiktokapis.com/v2/post/publish/video/init/',
-    {
-      post_info: {
-        title,
-        privacy_level: privacyLevel,
-        disable_comment: disableComment,
-        disable_duet: disableDuet,
-        disable_stitch: disableStitch,
-        video_cover_timestamp_ms: 1000,
+  try {
+    const response = await axios.post(
+      'https://open.tiktokapis.com/v2/post/publish/video/init/',
+      {
+        post_info: {
+          title,
+          privacy_level: privacyLevel,
+          disable_comment: disableComment,
+          disable_duet: disableDuet,
+          disable_stitch: disableStitch,
+          video_cover_timestamp_ms: 1000,
+        },
+        source_info: {
+          source: 'FILE_UPLOAD',
+          video_size: videoSize,
+          chunk_size: videoSize,
+          total_chunk_count: 1,
+        },
       },
-      source_info: {
-        source: 'FILE_UPLOAD',
-        video_size: videoSize,
-        chunk_size: videoSize,
-        total_chunk_count: 1,
-      },
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-
-  if (response.data?.error?.code !== 'ok') {
-    throw new Error(
-      `TikTok init error: ${response.data?.error?.message || 'Unknown error'}`
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
     );
-  }
 
-  return {
-    publishId: response.data.data?.publish_id,
-    uploadUrl: response.data.data?.upload_url,
-  };
+    if (response.data?.error?.code !== 'ok') {
+      throw new Error(
+        `TikTok init error: ${response.data?.error?.message || 'Unknown error'}`
+      );
+    }
+
+    return {
+      publishId: response.data.data?.publish_id,
+      uploadUrl: response.data.data?.upload_url,
+    };
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error)) {
+      console.error('[Upload Worker] 🔴 TikTok init failed:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        errorCode: error.response?.data?.error?.code,
+        errorMessage: error.response?.data?.error?.message,
+        logId: error.response?.data?.error?.log_id,
+        fullResponse: JSON.stringify(error.response?.data, null, 2),
+      });
+    }
+    throw error;
+  }
 }
 
 /**
