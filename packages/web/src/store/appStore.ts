@@ -8,21 +8,35 @@ interface TikTokConnection {
   isDefault: boolean;
 }
 
+type JobType = 'publish' | 'video';
+
 interface PublishJob {
   id: string;
   caption: string;
   state: string;
+  jobType: JobType;
   tiktokConnection: {
     displayName: string;
+    avatarUrl?: string | null;
   };
   createdAt: string;
+  editedUrl?: string | null;
+  status?: string;
+  videoAsset?: {
+    originalFilename?: string | null;
+    sizeBytes?: number | null;
+  } | null;
 }
+
+type PublishJobApi = Omit<PublishJob, 'jobType'> & { jobType?: JobType };
 
 interface AppState {
   connections: TikTokConnection[];
   jobs: PublishJob[];
   isLoading: boolean;
   error: string | null;
+  lastFetchConnections: number | null;
+  lastFetchJobs: number | null;
 
   // Actions
   setConnections: (connections: TikTokConnection[]) => void;
@@ -31,27 +45,48 @@ interface AppState {
   setError: (error: string | null) => void;
 
   // API methods
-  fetchConnections: (token: string) => Promise<void>;
-  fetchJobs: (token: string) => Promise<void>;
+  fetchConnections: (token: string, forceRefresh?: boolean) => Promise<void>;
+  fetchJobs: (token: string, forceRefresh?: boolean) => Promise<void>;
   deleteConnection: (token: string, connectionId: string) => Promise<void>;
   setDefaultConnection: (token: string, connectionId: string) => Promise<void>;
   createMockConnection: (token: string, displayName: string) => Promise<void>;
+  deleteVideo: (token: string, videoId: string) => Promise<void>;
+  deletePublishJob: (token: string, jobId: string) => Promise<void>;
 }
 
 const API_URL = API_BASE_URL;
+const CACHE_DURATION = 30000; // 30 segundos
 
 export const useAppStore = create<AppState>((set, get) => ({
   connections: [],
   jobs: [],
   isLoading: false,
   error: null,
+  lastFetchConnections: null,
+  lastFetchJobs: null,
 
   setConnections: connections => set({ connections }),
   setJobs: jobs => set({ jobs }),
   setLoading: isLoading => set({ isLoading }),
   setError: error => set({ error }),
 
-  fetchConnections: async (token: string) => {
+  fetchConnections: async (token: string, forceRefresh = false) => {
+    const state = get();
+    const now = Date.now();
+
+    // Si ya tenemos datos y no es force refresh, verificar cache
+    if (
+      !forceRefresh &&
+      state.connections.length > 0 &&
+      state.lastFetchConnections
+    ) {
+      const timeSinceLastFetch = now - state.lastFetchConnections;
+      if (timeSinceLastFetch < CACHE_DURATION) {
+        console.log('Using cached connections data');
+        return;
+      }
+    }
+
     set({ isLoading: true, error: null });
     try {
       const response = await fetch(`${API_URL}/connections`, {
@@ -64,7 +99,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
 
       const data = await response.json();
-      set({ connections: data.connections, isLoading: false });
+      set({
+        connections: data.connections,
+        isLoading: false,
+        lastFetchConnections: Date.now(),
+      });
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Error desconocido';
@@ -73,7 +112,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  fetchJobs: async (token: string) => {
+  fetchJobs: async (token: string, forceRefresh = false) => {
+    const state = get();
+    const now = Date.now();
+
+    // Si ya tenemos datos y no es force refresh, verificar cache
+    if (!forceRefresh && state.jobs.length > 0 && state.lastFetchJobs) {
+      const timeSinceLastFetch = now - state.lastFetchJobs;
+      if (timeSinceLastFetch < CACHE_DURATION) {
+        console.log('Using cached jobs data');
+        return;
+      }
+    }
+
     set({ isLoading: true, error: null });
     try {
       console.log('Fetching jobs from:', `${API_URL}/publish/jobs`);
@@ -92,7 +143,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       const data = await response.json();
       console.log('Jobs fetched:', data.jobs?.length || 0, 'jobs');
-      set({ jobs: data.jobs, isLoading: false });
+      const normalizedJobs = (data.jobs || []).map((job: PublishJobApi) => ({
+        ...job,
+        jobType: job.jobType ?? 'publish',
+      }));
+      set({
+        jobs: normalizedJobs,
+        isLoading: false,
+        lastFetchJobs: Date.now(),
+      });
     } catch (error) {
       console.error('Fetch jobs exception:', error);
       const message =
@@ -168,6 +227,74 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       // Refresh connections
       await get().fetchConnections(token);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Error desconocido';
+      set({ error: message, isLoading: false });
+      throw error;
+    }
+  },
+
+  deleteVideo: async (token: string, videoId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_URL}/videos/${videoId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        let message = 'Error al eliminar video';
+        try {
+          const error = await response.json();
+          if (error?.message) message = error.message;
+        } catch (err) {
+          console.error('Delete video parse error:', err);
+        }
+        throw new Error(message);
+      }
+
+      const now = Date.now();
+      set(state => ({
+        jobs: state.jobs.filter(
+          job => !(job.jobType === 'video' && job.id === videoId)
+        ),
+        isLoading: false,
+        lastFetchJobs: now,
+      }));
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Error desconocido';
+      set({ error: message, isLoading: false });
+      throw error;
+    }
+  },
+
+  deletePublishJob: async (token: string, jobId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_URL}/publish/jobs/${jobId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        let message = 'Error al eliminar publicación';
+        try {
+          const error = await response.json();
+          if (error?.message) message = error.message;
+        } catch (err) {
+          console.error('Delete publish job parse error:', err);
+        }
+        throw new Error(message);
+      }
+
+      const now = Date.now();
+      set(state => ({
+        jobs: state.jobs.filter(job => job.id !== jobId),
+        isLoading: false,
+        lastFetchJobs: now,
+      }));
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Error desconocido';

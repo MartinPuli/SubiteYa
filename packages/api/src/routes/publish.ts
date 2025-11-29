@@ -20,6 +20,8 @@ import { createId } from '@paralleldrive/cuid2';
 
 const router = Router();
 
+const DELETABLE_PUBLISH_STATES = new Set(['failed', 'completed', 'published']);
+
 const writeFile = promisify(fs.writeFile);
 const unlink = promisify(fs.unlink);
 
@@ -286,6 +288,7 @@ router.get('/jobs', async (req: AuthRequest, res: Response) => {
 
     const { state, limit = '50' } = req.query;
 
+    // Fetch old publish_jobs
     interface WhereClause {
       userId: string;
       state?: string;
@@ -317,7 +320,50 @@ router.get('/jobs', async (req: AuthRequest, res: Response) => {
       take: parseInt(limit as string, 10),
     });
 
-    console.log(`[GET /jobs] Found ${jobs.length} jobs for user ${userId}`);
+    // Also fetch videos from new system and format as jobs
+    const videos = await prisma.video.findMany({
+      where: { userId },
+      include: {
+        account: {
+          select: {
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit as string, 10),
+    });
+
+    // Map video statuses to job states
+    const statusToState: Record<string, string> = {
+      PENDING: 'queued', // En Cola de Edición
+      EDITING: 'uploading', // Editando Video
+      EDITED: 'completed', // Editado (listo para publicar)
+      UPLOADING: 'publishing', // En Cola de Publicación
+      POSTED: 'published', // Publicado
+      FAILED_EDIT: 'failed',
+      FAILED_UPLOAD: 'failed',
+    };
+
+    const videoJobs = videos.map(video => ({
+      id: video.id,
+      caption: video.title,
+      state: statusToState[video.status] || 'queued',
+      createdAt: video.createdAt,
+      editedUrl: video.editedUrl, // Agregar URL para preview
+      status: video.status, // Status real para el frontend
+      tiktokConnection: {
+        displayName: video.account?.displayName || 'Cuenta desconocida',
+        avatarUrl: video.account?.avatarUrl,
+      },
+      videoAsset: null,
+      jobType: 'video' as const,
+    }));
+
+    console.log(
+      `[GET /jobs] Found ${jobs.length} publish_jobs + ${videos.length} videos for user ${userId}`
+    );
 
     const serializedJobs = jobs.map(job => ({
       ...job,
@@ -327,9 +373,16 @@ router.get('/jobs', async (req: AuthRequest, res: Response) => {
             sizeBytes: Number(job.videoAsset.sizeBytes),
           }
         : null,
+      jobType: 'publish' as const,
     }));
 
-    res.json({ jobs: serializedJobs });
+    // Combine both and sort by date
+    const allJobs = [...serializedJobs, ...videoJobs].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    res.json({ jobs: allJobs });
   } catch (error) {
     console.error('Get jobs error:', error);
     res.status(500).json({
@@ -382,92 +435,58 @@ router.get('/jobs/:id', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// DELETE /publish/jobs/:id - Remove legacy publish job from history
+router.delete('/jobs/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const jobId = req.params.id;
+
+    const job = await prisma.publishJob.findFirst({
+      where: { id: jobId, userId },
+    });
+
+    if (!job) {
+      res.status(404).json({
+        error: 'Not Found',
+        message: 'Trabajo no encontrado',
+      });
+      return;
+    }
+
+    if (!DELETABLE_PUBLISH_STATES.has(job.state.toLowerCase())) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: `El trabajo en estado ${job.state} no puede eliminarse`,
+      });
+      return;
+    }
+
+    await prisma.publishJob.delete({ where: { id: jobId } });
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Delete publish job error:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Error al eliminar publicación',
+    });
+  }
+});
+
 /**
- * POST /publish/process/:videoId - Process video directly (fallback when workers unavailable)
- * This endpoint allows processing videos directly in the API when external workers are down
+ * POST /publish/process/:videoId - DISABLED
+ * This endpoint is disabled - videos are processed through Qstash workers
  */
 router.post(
   '/process/:videoId',
   authenticate,
   async (req: AuthRequest, res: Response) => {
-    const { videoId } = req.params;
-    const userId = req.user!.userId;
-
-    try {
-      // Verify video belongs to user
-      const video = await prisma.video.findFirst({
-        where: { id: videoId, userId },
-        include: { design: true },
-      });
-
-      if (!video) {
-        res.status(404).json({ error: 'Video not found' });
-        return;
-      }
-
-      // Check if already processing or completed
-      const validStatuses: VideoStatus[] = [
-        VideoStatus.PENDING,
-        VideoStatus.FAILED_EDIT,
-      ];
-      if (!validStatuses.includes(video.status)) {
-        res.status(400).json({
-          error: 'Invalid status',
-          message: `Video is ${video.status}, cannot process`,
-        });
-        return;
-      }
-
-      // Start processing (run in background)
-      res
-        .status(202)
-        .json({ message: 'Processing started', videoId: video.id });
-
-      // Process asynchronously
-      processVideoDirectly(videoId).catch(err => {
-        console.error(`[Direct Process] Error processing ${videoId}:`, err);
-      });
-    } catch (error) {
-      console.error('[Direct Process] Error:', error);
-      res.status(500).json({ error: 'Internal Server Error' });
-    }
+    res.status(410).json({
+      error: 'Endpoint disabled',
+      message:
+        'Videos are processed automatically through workers. Check video status in history.',
+    });
   }
 );
-
-/**
- * Process video directly without external workers
- */
-async function processVideoDirectly(videoId: string): Promise<void> {
-  console.log(`[Direct Process] Starting video ${videoId}`);
-
-  try {
-    await prisma.video.update({
-      where: { id: videoId },
-      data: { status: VideoStatus.EDITING, progress: 10 },
-    });
-
-    // Import processing logic here
-    // For now, just mark as edited
-    await prisma.video.update({
-      where: { id: videoId },
-      data: {
-        status: VideoStatus.EDITED,
-        progress: 100,
-        editedUrl: `https://placeholder.com/${videoId}.mp4`, // TODO: actual processing
-      },
-    });
-
-    console.log(`[Direct Process] ✅ Completed video ${videoId}`);
-  } catch (error) {
-    console.error(`[Direct Process] ❌ Failed video ${videoId}:`, error);
-    await prisma.video.update({
-      where: { id: videoId },
-      data: {
-        status: VideoStatus.FAILED_EDIT,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
-    });
-  }
-}
 
 export default router;

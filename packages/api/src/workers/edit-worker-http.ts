@@ -23,6 +23,8 @@ import type { z } from 'zod';
 
 type DesignSpecType = z.infer<typeof DesignSpec>;
 
+type RequestWithRawBody = Request & { rawBody?: string };
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -80,8 +82,14 @@ function markExecutionEnd(
   }
 }
 
-// Body parser for JSON
-app.use(express.json());
+// Body parser for JSON (store raw body for QStash signature verification)
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      (req as RequestWithRawBody).rawBody = buf.toString();
+    },
+  })
+);
 
 /**
  * Verify Qstash signature
@@ -100,12 +108,21 @@ async function verifyQstashSignature(
       return { valid: false };
     }
 
-    const body = await qstashReceiver.verify({
+    const rawBody = (req as RequestWithRawBody).rawBody;
+    const bodyToVerify = rawBody ?? JSON.stringify(req.body);
+
+    // qstashReceiver.verify() returns true/false, doesn't return the body
+    const isValid = await qstashReceiver.verify({
       signature,
-      body: JSON.stringify(req.body),
+      body: bodyToVerify,
     });
 
-    return { valid: true, body };
+    if (!isValid) {
+      return { valid: false };
+    }
+
+    // If valid, return the original parsed body
+    return { valid: true, body: req.body };
   } catch (error) {
     console.error('[Edit Worker] Signature verification failed:', error);
     return { valid: false };
@@ -119,9 +136,18 @@ app.post('/process', async (req: Request, res: Response) => {
   const startTime = Date.now();
   let tempFilePath: string | null = null;
   let outputFilePath: string | null = null;
-  const { videoId } = req.body;
+  let videoId: string | undefined;
 
   try {
+    console.log(
+      '[Edit Worker] 🔍 Raw request body:',
+      JSON.stringify(req.body, null, 2)
+    );
+    console.log(
+      '[Edit Worker] 🔍 Request headers:',
+      JSON.stringify(req.headers, null, 2)
+    );
+
     // Verify Qstash signature
     const { valid, body } = await verifyQstashSignature(req);
     if (!valid) {
@@ -130,7 +156,29 @@ app.post('/process', async (req: Request, res: Response) => {
       return;
     }
 
-    const parsedBody = body as { videoId: string };
+    console.log(
+      '[Edit Worker] 🔍 Body after signature verification:',
+      JSON.stringify(body, null, 2)
+    );
+    console.log('[Edit Worker] 🔍 Body type:', typeof body);
+
+    const parsedBody = body as { videoId?: string };
+    console.log(
+      '[Edit Worker] 🔍 Parsed body:',
+      JSON.stringify(parsedBody, null, 2)
+    );
+
+    if (!parsedBody?.videoId) {
+      console.error('[Edit Worker] Missing videoId in request body');
+      console.error(
+        '[Edit Worker] Full body received:',
+        JSON.stringify(body, null, 2)
+      );
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+
+    videoId = parsedBody.videoId;
     console.log(
       `[Edit Worker] 📥 Received job for video ${parsedBody.videoId}`
     );
@@ -148,12 +196,20 @@ app.post('/process', async (req: Request, res: Response) => {
 
     markExecutionStart(parsedBody.videoId);
 
-    // Get video with design (check terminal states first)
+    // Get video with account and its brand patterns
     const video = await prisma.video.findUnique({
       where: { id: parsedBody.videoId },
       include: {
-        design: true,
+        design: true, // Old system (deprecated)
         user: true,
+        account: {
+          include: {
+            patterns: {
+              where: { isDefault: true },
+              take: 1,
+            },
+          },
+        },
       },
     });
 
@@ -162,6 +218,10 @@ app.post('/process', async (req: Request, res: Response) => {
       markExecutionEnd(parsedBody.videoId, 'failed');
       res.status(404).json({ error: 'Video not found' });
       return;
+    }
+
+    if (!video.account) {
+      throw new Error('Video has no associated account');
     }
 
     // Skip if already in terminal state (EDITED, FAILED_EDIT, POSTED, etc.)
@@ -201,18 +261,17 @@ app.post('/process', async (req: Request, res: Response) => {
       status: 'EDITING',
     });
 
-    // Get design spec
-    let designSpec: DesignSpecType;
-    if (video.editSpecJson) {
-      designSpec = video.editSpecJson as DesignSpecType;
-    } else if (video.design?.specJson) {
-      designSpec = video.design.specJson as DesignSpecType;
-    } else {
-      throw new Error('No design spec available');
+    // Get BrandPattern from account (NEW SYSTEM)
+    const brandPattern = video.account.patterns?.[0];
+
+    if (!brandPattern && !video.design && !video.editSpecJson) {
+      throw new Error(
+        'No brand pattern or design spec available for this account'
+      );
     }
 
     console.log(
-      `[Edit Worker] 🎨 Processing with design: ${video.design?.name || 'frozen spec'}`
+      `[Edit Worker] 🎨 Processing with ${brandPattern ? `BrandPattern: ${brandPattern.name}` : video.design ? `DesignProfile: ${video.design.name}` : 'frozen spec'}`
     );
 
     // Download video from S3 to temp file (streaming)
@@ -239,26 +298,97 @@ app.post('/process', async (req: Request, res: Response) => {
       data: { progress: 30 },
     });
 
-    // Convert DesignSpec to pattern format
-    const pattern = {
-      logoUrl: designSpec.brand?.watermark?.url,
-      logoPosition: designSpec.brand?.watermark?.position || 'bottom-right',
-      logoSize: 15,
-      logoOpacity: (designSpec.brand?.watermark?.opacity || 0.8) * 100,
-      enableEffects: false,
-      filterType: 'none',
-      brightness: 100,
-      contrast: 100,
-      saturation: 100,
-      enableSubtitles: designSpec.captions?.enabled || false,
-      subtitleStyle: designSpec.captions?.style || 'classic',
-      subtitlePosition: 'bottom',
-      subtitleColor: designSpec.typography?.colorPrimary || '#FFFFFF',
-      subtitleBgColor: 'rgba(0,0,0,0.7)',
-      subtitleFontSize: 24,
-    };
+    // Build pattern from BrandPattern (NEW) or fallback to old DesignProfile
+    let pattern;
 
-    console.log(`[Edit Worker] 🎬 Applying branding...`);
+    if (brandPattern) {
+      // Use BrandPattern (NEW SYSTEM) - fields are directly on the model
+      pattern = {
+        logoUrl: brandPattern.logoUrl || undefined,
+        logoPosition: brandPattern.logoPosition,
+        logoSize: brandPattern.logoSize,
+        logoOpacity: brandPattern.logoOpacity,
+        enableEffects: brandPattern.enableEffects,
+        filterType: brandPattern.filterType,
+        brightness: brandPattern.brightness,
+        contrast: brandPattern.contrast,
+        saturation: brandPattern.saturation,
+        enableSubtitles: brandPattern.enableSubtitles,
+        subtitleStyle: brandPattern.subtitleStyle,
+        subtitlePosition: brandPattern.subtitlePosition,
+        subtitleColor: brandPattern.subtitleColor,
+        subtitleBgColor: brandPattern.subtitleBgColor,
+        subtitleFontSize: brandPattern.subtitleFontSize,
+        enableVoiceNarration: brandPattern.enable_voice_narration,
+        narrationLanguage: brandPattern.narration_language || undefined,
+        narrationVoiceId: brandPattern.narration_voice_id || undefined,
+        narrationStyle: brandPattern.narration_style || undefined,
+        narrationVolume: brandPattern.narration_volume,
+        narrationSpeed: brandPattern.narration_speed,
+        originalAudioVolume: brandPattern.original_audio_volume,
+      };
+      console.log(`[Edit Worker] 🎨 Using BrandPattern: ${brandPattern.name}`);
+      console.log(`[Edit Worker] 🔍 Pattern values:`, {
+        enableEffects: pattern.enableEffects,
+        brightness: pattern.brightness,
+        contrast: pattern.contrast,
+        saturation: pattern.saturation,
+        logoUrl: pattern.logoUrl ? 'SET' : 'NOT SET',
+        enableSubtitles: pattern.enableSubtitles,
+        enableVoiceNarration: pattern.enableVoiceNarration,
+      });
+    } else if (video.editSpecJson) {
+      // Fallback: frozen spec from video
+      const spec = video.editSpecJson as any;
+      pattern = {
+        logoUrl: spec.brand?.watermark?.url,
+        logoPosition: spec.brand?.watermark?.position || 'bottom-right',
+        logoSize: 15,
+        logoOpacity: (spec.brand?.watermark?.opacity || 0.8) * 100,
+        enableEffects: false,
+        filterType: 'none',
+        brightness: 100,
+        contrast: 100,
+        saturation: 100,
+        enableSubtitles: spec.captions?.enabled || false,
+        subtitleStyle: spec.captions?.style || 'classic',
+        subtitlePosition: 'bottom',
+        subtitleColor: spec.typography?.colorPrimary || '#FFFFFF',
+        subtitleBgColor: 'rgba(0,0,0,0.7)',
+        subtitleFontSize: 24,
+      };
+      console.log(`[Edit Worker] 🎨 Using frozen editSpecJson`);
+    } else if (video.design?.specJson) {
+      // Fallback: old DesignProfile
+      const spec = video.design.specJson as any;
+      pattern = {
+        logoUrl: spec.brand?.watermark?.url,
+        logoPosition: spec.brand?.watermark?.position || 'bottom-right',
+        logoSize: 15,
+        logoOpacity: (spec.brand?.watermark?.opacity || 0.8) * 100,
+        enableEffects: false,
+        filterType: 'none',
+        brightness: 100,
+        contrast: 100,
+        saturation: 100,
+        enableSubtitles: spec.captions?.enabled || false,
+        subtitleStyle: spec.captions?.style || 'classic',
+        subtitlePosition: 'bottom',
+        subtitleColor: spec.typography?.colorPrimary || '#FFFFFF',
+        subtitleBgColor: 'rgba(0,0,0,0.7)',
+        subtitleFontSize: 24,
+      };
+      console.log(
+        `[Edit Worker] 🎨 Using old DesignProfile: ${video.design.name}`
+      );
+    } else {
+      throw new Error('No pattern configuration available');
+    }
+
+    console.log(
+      `[Edit Worker] 🎬 Applying branding with pattern:`,
+      JSON.stringify(pattern, null, 2)
+    );
 
     const result = await applyBrandPattern(tempFilePath, pattern);
 
