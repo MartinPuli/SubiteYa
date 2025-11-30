@@ -689,10 +689,14 @@ app.post('/process', async (req: Request, res: Response) => {
     const disableComment = parseBoolean(editSpec.disableComment);
     const disableDuet = parseBoolean(editSpec.disableDuet);
     const disableStitch = parseBoolean(editSpec.disableStitch);
+
+    // Force SELF_ONLY for unaudited TikTok apps (development mode)
     const privacyLevel =
       typeof editSpec.privacyLevel === 'string'
         ? editSpec.privacyLevel
-        : 'PUBLIC_TO_EVERYONE';
+        : 'SELF_ONLY';
+
+    console.log(`[Upload Worker] 🔒 Using privacy level: ${privacyLevel}`);
 
     // CONCURRENCY CHECK: Limit concurrent uploads per account
     const concurrentJobs = getAccountConcurrentJobs(accountId);
