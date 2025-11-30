@@ -690,11 +690,12 @@ app.post('/process', async (req: Request, res: Response) => {
     const disableDuet = parseBoolean(editSpec.disableDuet);
     const disableStitch = parseBoolean(editSpec.disableStitch);
 
-    // Force SELF_ONLY for unaudited TikTok apps (development mode)
+    // Force private uploads for unaudited TikTok apps (development mode)
+    // Valid privacy levels for unaudited apps: MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR
     const privacyLevel =
       typeof editSpec.privacyLevel === 'string'
         ? editSpec.privacyLevel
-        : 'SELF_ONLY';
+        : 'MUTUAL_FOLLOW_FRIENDS';
 
     console.log(`[Upload Worker] 🔒 Using privacy level: ${privacyLevel}`);
 

@@ -216,7 +216,7 @@ router.post(
               disableComment,
               disableDuet,
               disableStitch,
-              privacyLevel: 'SELF_ONLY', // Force private for unaudited apps
+              privacyLevel: 'MUTUAL_FOLLOW_FRIENDS', // For unaudited apps
             },
           },
           include: {
