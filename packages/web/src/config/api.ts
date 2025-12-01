@@ -8,6 +8,9 @@ export const API_BASE_URL =
     : 'http://localhost:3000/api');
 
 export const API_ENDPOINTS = {
+  // Base URL for dynamic endpoints
+  base: API_BASE_URL,
+
   // Auth
   login: `${API_BASE_URL}/auth/login`,
   register: `${API_BASE_URL}/auth/register`,
