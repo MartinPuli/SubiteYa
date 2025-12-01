@@ -118,7 +118,10 @@ router.post('/:id/confirm', async (req: AuthRequest, res: Response) => {
       data: {
         status: VideoStatus.EDITING_QUEUED,
         designId,
-        editSpecJson: editSpecJson as Prisma.JsonValue,
+        editSpecJson:
+          editSpecJson === null
+            ? Prisma.DbNull
+            : (editSpecJson as Prisma.InputJsonValue),
         traceId,
       },
     });

@@ -71,8 +71,6 @@ export async function authenticate(
     if (req.logger) {
       req.logger = req.logger.child({
         userId: user.id,
-        email: user.email,
-        role: user.role,
       });
     }
 
