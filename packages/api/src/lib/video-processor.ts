@@ -1184,15 +1184,21 @@ export async function applyBrandPattern(
       }
     }
 
+    // Normalize effect values so 0 is treated as explicit input (previously skipped)
+    const brightness =
+      typeof pattern.brightness === 'number' ? pattern.brightness : 100;
+    const contrast =
+      typeof pattern.contrast === 'number' ? pattern.contrast : 100;
+    const saturation =
+      typeof pattern.saturation === 'number' ? pattern.saturation : 100;
+    const filterType = pattern.filterType || 'none';
+
     // Step 1: Apply visual effects if enabled OR if any adjustment values are set
     const hasAdjustments =
-      (pattern.brightness && pattern.brightness !== 100) ||
-      (pattern.contrast && pattern.contrast !== 100) ||
-      (pattern.saturation && pattern.saturation !== 100);
+      brightness !== 100 || contrast !== 100 || saturation !== 100;
 
     const shouldApplyEffects =
-      (pattern.enableEffects && pattern.filterType !== 'none') ||
-      hasAdjustments;
+      (pattern.enableEffects && filterType !== 'none') || hasAdjustments;
 
     if (shouldApplyEffects) {
       console.log('Applying visual effects...', {
@@ -1203,10 +1209,10 @@ export async function applyBrandPattern(
         enableEffects: pattern.enableEffects,
       });
       const effectsResult = await applyEffectsToVideo(currentPath, {
-        filterType: pattern.filterType || 'none',
-        brightness: pattern.brightness || 100,
-        contrast: pattern.contrast || 100,
-        saturation: pattern.saturation || 100,
+        filterType,
+        brightness,
+        contrast,
+        saturation,
       });
 
       if (!effectsResult.success) {
