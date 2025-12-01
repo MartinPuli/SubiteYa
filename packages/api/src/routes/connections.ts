@@ -106,7 +106,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    // Check if connection is used in pending jobs
+    // Check if connection is used in pending jobs or videos
     const pendingJobs = await prisma.publishJob.count({
       where: {
         tiktokConnectionId: connectionId,
@@ -114,10 +114,17 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
       },
     });
 
-    if (pendingJobs > 0) {
+    const pendingVideos = await prisma.video.count({
+      where: {
+        accountId: connectionId,
+        status: { in: ['PENDING', 'EDITING', 'UPLOADING'] },
+      },
+    });
+
+    if (pendingJobs > 0 || pendingVideos > 0) {
       res.status(409).json({
         error: 'Conflict',
-        message: `No se puede eliminar: hay ${pendingJobs} publicaciones pendientes`,
+        message: `No se puede eliminar: hay ${pendingJobs + pendingVideos} trabajos pendientes`,
       });
       return;
     }

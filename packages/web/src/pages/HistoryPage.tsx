@@ -52,9 +52,6 @@ export const HistoryPage: React.FC = () => {
     title: string;
   } | null>(null);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
-  const [generatingPreviewId, setGeneratingPreviewId] = useState<string | null>(
-    null
-  );
 
   const canDeleteJob = (job: (typeof jobs)[number]) => {
     const state = job.state?.toLowerCase?.() || '';
@@ -132,42 +129,6 @@ export const HistoryPage: React.FC = () => {
       alert(
         `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
-    }
-  };
-
-  const generatePreview = async (videoId: string, title: string) => {
-    if (!token) return;
-
-    setGeneratingPreviewId(videoId);
-
-    try {
-      const response = await fetch(`${API_ENDPOINTS.base}/preview/${videoId}`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to generate preview');
-      }
-
-      const data = await response.json();
-
-      // Show preview modal with generated preview URL
-      setPreviewVideo({
-        id: videoId,
-        url: data.previewUrl,
-        title: `Preview: ${title}`,
-      });
-    } catch (error) {
-      console.error('Preview generation error:', error);
-      alert(
-        `Error al generar preview: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    } finally {
-      setGeneratingPreviewId(null);
     }
   };
 
@@ -276,22 +237,14 @@ export const HistoryPage: React.FC = () => {
                               });
                             } else {
                               console.error('[Ver Video] No editedUrl found');
-                              alert('Video aún no disponible para preview');
+                              alert(
+                                'Video editado no disponible. Verifica que el video esté en estado EDITED.'
+                              );
                             }
                           }}
                           style={{ fontSize: '14px', padding: '6px 12px' }}
                         >
-                          👁️ Ver Video
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          onClick={() => generatePreview(job.id, job.caption)}
-                          disabled={generatingPreviewId === job.id}
-                          style={{ fontSize: '14px', padding: '6px 12px' }}
-                        >
-                          {generatingPreviewId === job.id
-                            ? '⏳ Generando...'
-                            : '🎬 Preview con Efectos'}
+                          👁️ Ver Video Editado
                         </Button>
                         <Button
                           variant="primary"
