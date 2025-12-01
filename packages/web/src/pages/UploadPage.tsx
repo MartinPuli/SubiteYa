@@ -79,8 +79,20 @@ export const UploadPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (files.length === 0 || selectedAccounts.length === 0 || !token) {
-      toast.warning('⚠️ Selecciona al menos un video y una cuenta');
+    if (files.length === 0) {
+      toast.warning('⚠️ Selecciona al menos un video');
+      return;
+    }
+    if (selectedAccounts.length === 0) {
+      toast.warning('⚠️ Selecciona al menos una cuenta');
+      return;
+    }
+    if (!caption || caption.trim().length === 0) {
+      toast.warning('⚠️ Escribe un título o descripción para el video');
+      return;
+    }
+    if (!token) {
+      toast.error('❌ Sesión expirada, por favor inicia sesión nuevamente');
       return;
     }
 
