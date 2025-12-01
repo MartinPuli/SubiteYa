@@ -40,5 +40,5 @@ RUN cd packages/api && npx prisma generate
 # Exponer puerto
 EXPOSE 3000
 
-# Comando de inicio (sin migraciones automáticas)
-CMD ["npm", "run", "start", "-w", "@subiteya/api"]
+# Comando de inicio (CON migraciones automáticas)
+CMD ["npm", "run", "start:migrate", "-w", "@subiteya/api"]
