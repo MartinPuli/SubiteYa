@@ -13,24 +13,26 @@ RUN ffmpeg -version
 # Crear directorio de trabajo
 WORKDIR /app
 
-# Copiar archivos de configuración del monorepo
+# ===== BUILD STAGE: Instalar TODAS las dependencias del monorepo =====
+# Copiar configuración del workspace root
 COPY package*.json ./
 COPY turbo.json ./
 
-# Copiar todos los package.json de los workspaces primero (para aprovechar cache)
-COPY packages/api/package*.json ./packages/api/
-COPY packages/observability/package*.json ./packages/observability/
-COPY packages/shared/package*.json ./packages/shared/
-COPY packages/web/package*.json ./packages/web/
-
-# Instalar dependencias (usando npm ci para builds reproducibles)
-RUN npm ci --legacy-peer-deps
-
-# Copiar el resto del código fuente
+# Copiar todos los workspaces
 COPY packages ./packages
 
-# Build del proyecto
-RUN npm run build
+# Instalar todas las dependencias (esto resuelve workspace:*)
+RUN npm install --legacy-peer-deps
+
+# Build solo del paquete API y sus dependencias internas
+RUN npm run build --workspace=@subiteya/observability
+RUN npm run build --workspace=@subiteya/shared  
+RUN npm run build --workspace=@subiteya/api
+
+# ===== PRODUCTION STAGE: Solo archivos necesarios para runtime =====
+# Limpiar node_modules y reinstalar solo dependencias de producción
+RUN rm -rf node_modules packages/*/node_modules
+RUN npm install --workspace=@subiteya/api --workspace=@subiteya/observability --workspace=@subiteya/shared --omit=dev --legacy-peer-deps
 
 # Exponer puerto
 EXPOSE 3000
