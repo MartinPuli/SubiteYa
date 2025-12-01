@@ -20,6 +20,12 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({
   onPublish,
   onEdit,
 }) => {
+  console.log('[VideoPreview] Rendering with:', {
+    videoUrl,
+    videoId,
+    title,
+  });
+
   const handleEditVideo = () => {
     if (onEdit) {
       onEdit(videoId);
@@ -49,6 +55,22 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({
                 loop
                 playsInline
                 className="video-player"
+                onError={e => {
+                  console.error('[VideoPreview] Video load error:', {
+                    videoUrl,
+                    error: e,
+                    target: e.currentTarget,
+                  });
+                }}
+                onLoadStart={() => {
+                  console.log(
+                    '[VideoPreview] Video started loading:',
+                    videoUrl
+                  );
+                }}
+                onLoadedData={() => {
+                  console.log('[VideoPreview] Video loaded successfully');
+                }}
               >
                 Tu navegador no soporta el tag de video.
               </video>

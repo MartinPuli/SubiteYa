@@ -256,13 +256,26 @@ export const HistoryPage: React.FC = () => {
                             const jobWithUrl = job as typeof job & {
                               editedUrl?: string;
                             };
+                            console.log('[Ver Video] Clicking with job:', {
+                              id: job.id,
+                              caption: job.caption,
+                              editedUrl: jobWithUrl.editedUrl,
+                              status: job.status,
+                              state: job.state,
+                              fullJob: job,
+                            });
                             if (jobWithUrl.editedUrl) {
+                              console.log(
+                                '[Ver Video] Opening video:',
+                                jobWithUrl.editedUrl
+                              );
                               setPreviewVideo({
                                 id: job.id,
                                 url: jobWithUrl.editedUrl,
                                 title: job.caption,
                               });
                             } else {
+                              console.error('[Ver Video] No editedUrl found');
                               alert('Video aún no disponible para preview');
                             }
                           }}
