@@ -101,6 +101,12 @@ router.post(
         '[POST /publish] File:',
         file ? `${file.originalname} (${file.size} bytes)` : 'NO FILE'
       );
+      console.log('[POST /publish] Body:', {
+        title: req.body.title,
+        caption: req.body.caption,
+        accountIds: req.body.accountIds,
+        accountIdsType: typeof req.body.accountIds,
+      });
 
       if (!file) {
         console.log('[POST /publish] ERROR: No file provided');
@@ -131,6 +137,7 @@ router.post(
       const title = titleParam || caption;
 
       if (!title || title.trim().length === 0) {
+        console.log('[POST /publish] ERROR: No title provided');
         res.status(400).json({
           error: 'Bad Request',
           message: 'El título/descripción es requerido',
@@ -139,6 +146,7 @@ router.post(
       }
 
       if (!accountIds || accountIds.length === 0) {
+        console.log('[POST /publish] ERROR: No accountIds provided');
         res.status(400).json({
           error: 'Bad Request',
           message: 'Debe seleccionar al menos una cuenta',
@@ -147,10 +155,28 @@ router.post(
       }
 
       // Parse accountIds
-      const parsedAccountIds =
-        typeof accountIds === 'string' ? JSON.parse(accountIds) : accountIds;
+      let parsedAccountIds;
+      try {
+        parsedAccountIds =
+          typeof accountIds === 'string' ? JSON.parse(accountIds) : accountIds;
+      } catch (parseError) {
+        console.log(
+          '[POST /publish] ERROR: Failed to parse accountIds:',
+          accountIds,
+          parseError
+        );
+        res.status(400).json({
+          error: 'Bad Request',
+          message: 'accountIds tiene un formato inválido',
+        });
+        return;
+      }
 
       if (!Array.isArray(parsedAccountIds) || parsedAccountIds.length === 0) {
+        console.log(
+          '[POST /publish] ERROR: parsedAccountIds not valid array:',
+          parsedAccountIds
+        );
         res.status(400).json({
           error: 'Bad Request',
           message: 'accountIds debe ser un array con al menos un ID',
