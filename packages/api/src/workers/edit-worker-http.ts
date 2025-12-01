@@ -398,6 +398,14 @@ app.post('/process', async (req: Request, res: Response) => {
 
     outputFilePath = result.outputPath;
 
+    // Check if output is same as input (no processing happened)
+    const wasActuallyEdited = outputFilePath !== tempFilePath;
+    console.log(`[Edit Worker] 📊 Processing result:`, {
+      wasActuallyEdited,
+      inputPath: tempFilePath,
+      outputPath: outputFilePath,
+    });
+
     await prisma.video.update({
       where: { id: parsedBody.videoId },
       data: { progress: 70 },

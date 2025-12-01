@@ -1308,6 +1308,26 @@ export async function applyBrandPattern(
       }
     }
 
+    // Track if any processing was done
+    const wasProcessed = currentPath !== inputPath;
+
+    if (!wasProcessed) {
+      console.warn('⚠️ No transformations were applied! Pattern settings:', {
+        enableVoiceNarration: pattern.enableVoiceNarration,
+        narrationVoiceId: pattern.narrationVoiceId ? 'SET' : 'NOT SET',
+        enableEffects: pattern.enableEffects,
+        filterType: pattern.filterType,
+        brightness: pattern.brightness,
+        contrast: pattern.contrast,
+        saturation: pattern.saturation,
+        logoUrl: pattern.logoUrl ? 'SET' : 'NOT SET',
+        enableSubtitles: pattern.enableSubtitles,
+      });
+      console.warn('⚠️ Returning original file without changes');
+    } else {
+      console.log('✅ Video processing complete, transformations applied');
+    }
+
     return { success: true, outputPath: currentPath };
   } catch (error) {
     console.error('Error applying brand pattern:', error);
