@@ -14,6 +14,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'node:stream';
 import crypto from 'node:crypto';
 import path from 'node:path';
+import { recordS3Operation } from './metrics';
 
 // Initialize S3 client
 const s3Client = new S3Client({
@@ -96,6 +97,7 @@ export async function uploadToS3(
   });
 
   await s3Client.send(command);
+  recordS3Operation('upload');
 
   console.log(`[S3] Uploaded ${key} (${size} bytes) to ${BUCKET_NAME}`);
 
@@ -157,6 +159,7 @@ export async function downloadFromS3(key: string): Promise<Buffer> {
   });
 
   const response = await s3Client.send(command);
+  recordS3Operation('download');
 
   if (!response.Body) {
     throw new Error(`File not found: ${key}`);
@@ -184,6 +187,7 @@ export async function downloadStreamFromS3(key: string): Promise<Readable> {
   });
 
   const response = await s3Client.send(command);
+  recordS3Operation('download');
 
   if (!response.Body) {
     throw new Error(`File not found: ${key}`);
@@ -203,6 +207,7 @@ export async function deleteFromS3(key: string): Promise<void> {
   });
 
   await s3Client.send(command);
+  recordS3Operation('delete');
   console.log(`[S3] Deleted ${key}`);
 }
 

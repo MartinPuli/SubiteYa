@@ -64,6 +64,18 @@ export async function authenticate(
       acceptedPrivacyVersion: user.acceptedPrivacyVersion,
     };
 
+    if (req.context) {
+      req.context.userId = user.id;
+    }
+
+    if (req.logger) {
+      req.logger = req.logger.child({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+      });
+    }
+
     next();
   } catch (error) {
     res.status(401).json({

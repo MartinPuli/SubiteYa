@@ -67,13 +67,18 @@ async function wakeUpWorker(workerUrl: string): Promise<void> {
   );
 }
 
+type QueueJobOptions = {
+  priority?: 'high' | 'normal' | 'low';
+  traceId?: string;
+};
+
 /**
  * Queue a video for editing
  * Sends HTTP POST to Edit Worker /process endpoint
  */
 export async function queueEditJob(
   videoId: string,
-  priority: 'high' | 'normal' | 'low' = 'normal'
+  { priority = 'normal', traceId }: QueueJobOptions = {}
 ): Promise<boolean> {
   console.log(`[Qstash] 🔍 Attempting to queue edit job for video ${videoId}`);
   console.log(`[Qstash] 🔍 Client available: ${!!qstashClient}`);
@@ -105,6 +110,7 @@ export async function queueEditJob(
         videoId,
         priority,
         timestamp: Date.now(),
+        traceId,
       },
       delay, // Seconds to wait before delivery (gives worker time to start from cold)
       retries: 3, // Max retries allowed in Qstash free tier
@@ -128,7 +134,7 @@ export async function queueEditJob(
  */
 export async function queueUploadJob(
   videoId: string,
-  priority: 'high' | 'normal' | 'low' = 'normal'
+  { priority = 'normal', traceId }: QueueJobOptions = {}
 ): Promise<boolean> {
   if (!qstashClient || !uploadWorkerUrl) {
     console.warn(
@@ -138,7 +144,14 @@ export async function queueUploadJob(
   }
 
   try {
-    const delay = priority === 'high' ? 0 : priority === 'normal' ? 10 : 60;
+    let delay: number;
+    if (priority === 'high') {
+      delay = 0;
+    } else if (priority === 'normal') {
+      delay = 10;
+    } else {
+      delay = 60;
+    }
 
     const response = await qstashClient.publishJSON({
       url: `${uploadWorkerUrl}/process`,
@@ -146,13 +159,14 @@ export async function queueUploadJob(
         videoId,
         priority,
         timestamp: Date.now(),
+        traceId,
       },
       delay, // Seconds to wait before delivery
       retries: 3, // Max retries allowed in Qstash free tier
     });
 
     console.log(
-      `[Qstash] ✅ Queued upload job for video ${videoId} → ${uploadWorkerUrl}`
+      `[Qstash] ✅ Queued upload job for video ${videoId} → ${uploadWorkerUrl} (messageId: ${response.messageId}, delay: ${delay}s)`
     );
     return true;
   } catch (error) {

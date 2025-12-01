@@ -8,7 +8,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import crypto from 'crypto';
+import { requestContextMiddleware } from './middleware/request-context';
 import { testEncryption } from './utils/encryption';
 
 dotenv.config();
@@ -137,13 +137,8 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Request logging
-app.use((req: Request, _res: Response, next: NextFunction) => {
-  const requestId = crypto.randomUUID();
-  req.headers['x-request-id'] = requestId;
-  console.log(`[${requestId}] ${req.method} ${req.path} - IP: ${req.ip}`);
-  next();
-});
+// Request context and structured logging
+app.use(requestContextMiddleware());
 
 // Health check
 app.get('/health', (_req: Request, res: Response) => {
@@ -191,7 +186,11 @@ import monitorRoutes from './routes/monitor';
 import previewRoutes from './routes/preview';
 
 // Import rate limiters
-import { generalLimiter, apiLimiter } from './middleware/rate-limit';
+import {
+  generalLimiter,
+  apiLimiter,
+  monitorLimiter,
+} from './middleware/rate-limit';
 
 // Apply general rate limiter to all routes
 app.use(generalLimiter);
@@ -217,7 +216,7 @@ app.use('/api/me', apiLimiter, meRoutes);
 app.use('/api/accounts', apiLimiter, designsRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/elevenlabs', apiLimiter, elevenlabsRoutes);
-app.use('/api/monitor', apiLimiter, monitorRoutes); // Qstash monitoring endpoints
+app.use('/api/monitor', monitorLimiter, monitorRoutes); // Qstash monitoring endpoints
 app.use('/api/preview', apiLimiter, previewRoutes); // Video preview generation
 
 // 404 handler

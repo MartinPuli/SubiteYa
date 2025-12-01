@@ -1275,6 +1275,24 @@ Cada worker genera logs con prefijos claros:
 - `s3_operations_total`: Requests a S3 (upload/download)
 - `tiktok_api_requests_total`: Requests a TikTok API
 
+#### API de métricas unificadas
+
+- `GET /api/monitor/metrics` (requiere JWT) expone en un solo payload:
+  - `runtime`: counters/gauges/histogramas provenientes del collector en memoria (`video_*`, `s3_*`, `tiktok_api_*`).
+  - `database.videosByStatus`, `jobsByStatus`, `jobsByType`: agregados en tiempo real usando Prisma `groupBy`.
+  - `database.dailyThroughput`: lista `{ day, created, processed, failed }` para los últimos 7 días (ideal para charts de líneas).
+  - `database.topicLeaders`: top 5 hashtags/temas inferidos del título (`#crypto`, `impuestos 2025`, etc.).
+  - `database.accountsWithFailures`: top 5 cuentas con más fallos en los últimos 7 días.
+  - `database.recentFailures`: últimos 5 videos fallidos con mensaje y cuenta.
+- Ejemplo de consumo:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  https://api.subiteya.com/api/monitor/metrics | jq '.database.dailyThroughput'
+```
+
+> Tip: montar un dashboard (Grafana/Metabase) leyendo este endpoint cada minuto para graficar throughput vs. fallos y detectar picos en cuentas específicas.
+
 ### 10.3 Health Checks
 
 Ambos workers exponen `GET /health`:

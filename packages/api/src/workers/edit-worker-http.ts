@@ -20,8 +20,21 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { z } from 'zod';
+import { getLogger } from '@subiteya/observability';
+import { randomUUID } from 'node:crypto';
+import {
+  markEditJobFinished,
+  markEditJobStarted,
+  recordTempFileSize,
+} from '../lib/metrics';
 
 type DesignSpecType = z.infer<typeof DesignSpec>;
+
+interface EditWorkerPayload {
+  videoId?: string;
+  priority?: 'high' | 'normal' | 'low';
+  traceId?: string;
+}
 
 type RequestWithRawBody = Request & { rawBody?: string };
 
@@ -96,7 +109,7 @@ app.use(
  */
 async function verifyQstashSignature(
   req: Request
-): Promise<{ valid: boolean; body?: any }> {
+): Promise<{ valid: boolean; body?: unknown }> {
   if (!qstashReceiver) {
     console.warn('[Edit Worker] Signature verification disabled');
     return { valid: true, body: req.body };
@@ -137,6 +150,9 @@ app.post('/process', async (req: Request, res: Response) => {
   let tempFilePath: string | null = null;
   let outputFilePath: string | null = null;
   let videoId: string | undefined;
+  let metricsJobStarted = false;
+  let metricsRecorded = false;
+  let jobLogger = getLogger();
 
   try {
     console.log(
@@ -162,11 +178,24 @@ app.post('/process', async (req: Request, res: Response) => {
     );
     console.log('[Edit Worker] 🔍 Body type:', typeof body);
 
-    const parsedBody = body as { videoId?: string };
+    const parsedBody = body as EditWorkerPayload;
     console.log(
       '[Edit Worker] 🔍 Parsed body:',
       JSON.stringify(parsedBody, null, 2)
     );
+
+    const traceId =
+      typeof parsedBody.traceId === 'string' && parsedBody.traceId.length > 0
+        ? parsedBody.traceId
+        : randomUUID();
+    jobLogger = getLogger({
+      requestId: traceId,
+      jobId: parsedBody.videoId,
+    });
+    jobLogger.info('Received edit job', {
+      videoId: parsedBody.videoId,
+      priority: parsedBody.priority,
+    });
 
     if (!parsedBody?.videoId) {
       console.error('[Edit Worker] Missing videoId in request body');
@@ -174,11 +203,15 @@ app.post('/process', async (req: Request, res: Response) => {
         '[Edit Worker] Full body received:',
         JSON.stringify(body, null, 2)
       );
+      jobLogger.error('Edit job missing videoId', undefined, {
+        payload: parsedBody,
+      });
       res.status(400).json({ error: 'Invalid payload' });
       return;
     }
 
     videoId = parsedBody.videoId;
+    res.setHeader('X-Trace-Id', traceId);
     console.log(
       `[Edit Worker] 📥 Received job for video ${parsedBody.videoId}`
     );
@@ -254,6 +287,9 @@ app.post('/process', async (req: Request, res: Response) => {
         error: null, // Clear any previous error
       },
     });
+
+    markEditJobStarted();
+    metricsJobStarted = true;
 
     notifyUser(video.userId, {
       type: 'video_status_changed',
@@ -339,7 +375,7 @@ app.post('/process', async (req: Request, res: Response) => {
       });
     } else if (video.editSpecJson) {
       // Fallback: frozen spec from video
-      const spec = video.editSpecJson as any;
+      const spec = video.editSpecJson as DesignSpecType;
       pattern = {
         logoUrl: spec.brand?.watermark?.url,
         logoPosition: spec.brand?.watermark?.position || 'bottom-right',
@@ -360,7 +396,7 @@ app.post('/process', async (req: Request, res: Response) => {
       console.log(`[Edit Worker] 🎨 Using frozen editSpecJson`);
     } else if (video.design?.specJson) {
       // Fallback: old DesignProfile
-      const spec = video.design.specJson as any;
+      const spec = video.design.specJson as DesignSpecType;
       pattern = {
         logoUrl: spec.brand?.watermark?.url,
         logoPosition: spec.brand?.watermark?.position || 'bottom-right',
@@ -397,6 +433,13 @@ app.post('/process', async (req: Request, res: Response) => {
     }
 
     outputFilePath = result.outputPath;
+
+    try {
+      const outputStats = await fs.promises.stat(outputFilePath);
+      recordTempFileSize(outputStats.size);
+    } catch (statError) {
+      console.warn('[Edit Worker] ⚠️ Unable to stat output file:', statError);
+    }
 
     // Check if output is same as input (no processing happened)
     const wasActuallyEdited = outputFilePath !== tempFilePath;
@@ -446,6 +489,15 @@ app.post('/process', async (req: Request, res: Response) => {
     console.log(
       `[Edit Worker] ✅ Completed video ${parsedBody.videoId} in ${duration}ms`
     );
+    jobLogger.info('Edit job completed', {
+      videoId: parsedBody.videoId,
+      durationMs: duration,
+    });
+
+    if (metricsJobStarted && !metricsRecorded) {
+      markEditJobFinished({ success: true, durationMs: duration });
+      metricsRecorded = true;
+    }
 
     res
       .status(200)
@@ -454,6 +506,14 @@ app.post('/process', async (req: Request, res: Response) => {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
     console.error('[Edit Worker] ❌ Error:', errorMessage);
+
+    if (metricsJobStarted && !metricsRecorded) {
+      markEditJobFinished({
+        success: false,
+        durationMs: Date.now() - startTime,
+      });
+      metricsRecorded = true;
+    }
 
     if (videoId) {
       markExecutionEnd(videoId, 'failed');
@@ -476,6 +536,14 @@ app.post('/process', async (req: Request, res: Response) => {
     }
 
     res.status(500).json({ error: errorMessage });
+    if (error instanceof Error) {
+      jobLogger.error('Edit job failed', error, { videoId });
+    } else {
+      jobLogger.error('Edit job failed', undefined, {
+        videoId,
+        error: errorMessage,
+      });
+    }
   } finally {
     // ROBUST CLEANUP: Always delete temp files
     if (tempFilePath) {

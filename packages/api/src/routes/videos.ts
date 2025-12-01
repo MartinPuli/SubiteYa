@@ -4,9 +4,10 @@
  */
 
 import { Router, Response } from 'express';
+import { randomUUID } from 'node:crypto';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
-import { VideoStatus } from '@prisma/client';
+import { Prisma, VideoStatus } from '@prisma/client';
 import { createId } from '@paralleldrive/cuid2';
 import { queueEditJob, queueUploadJob } from '../lib/qstash-client';
 
@@ -25,6 +26,7 @@ router.use(authenticate);
 router.post('/', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
+    const requestTraceId = req.context?.traceId ?? randomUUID();
     const { srcUrl, accountId, title, thumbnailUrl, duration } = req.body;
 
     if (!srcUrl) {
@@ -45,10 +47,14 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         thumbnailUrl: thumbnailUrl || null,
         duration: duration || null,
         status: VideoStatus.DRAFT,
+        traceId: requestTraceId,
       },
     });
 
-    console.log(`[POST /videos] Created video ${video.id} for user ${userId}`);
+    req.logger?.info('Created draft video', {
+      videoId: video.id,
+      traceId: requestTraceId,
+    });
 
     res.status(201).json({ video });
   } catch (error) {
@@ -87,6 +93,8 @@ router.post('/:id/confirm', async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    const traceId = video.traceId ?? req.context?.traceId ?? randomUUID();
+
     // Get design profile if account has one
     let designId = video.designId;
     let editSpecJson = video.editSpecJson;
@@ -110,7 +118,8 @@ router.post('/:id/confirm', async (req: AuthRequest, res: Response) => {
       data: {
         status: VideoStatus.EDITING_QUEUED,
         designId,
-        editSpecJson: editSpecJson as any,
+        editSpecJson: editSpecJson as Prisma.JsonValue,
+        traceId,
       },
     });
 
@@ -122,11 +131,12 @@ router.post('/:id/confirm', async (req: AuthRequest, res: Response) => {
         type: 'edit',
         status: 'queued',
         priority: 5,
+        traceId,
       },
     });
 
     // Queue job in BullMQ
-    await queueEditJob(id);
+    await queueEditJob(id, { traceId });
 
     console.log(
       `[POST /videos/${id}/confirm] Video queued for editing, job: ${job.id}`
@@ -190,11 +200,14 @@ router.post('/:id/queue-upload', async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    const traceId = video.traceId ?? req.context?.traceId ?? randomUUID();
+
     // Update video to UPLOAD_QUEUED
     const updatedVideo = await prisma.video.update({
       where: { id },
       data: {
         status: VideoStatus.UPLOAD_QUEUED,
+        traceId,
       },
     });
 
@@ -206,11 +219,12 @@ router.post('/:id/queue-upload', async (req: AuthRequest, res: Response) => {
         type: 'upload',
         status: 'queued',
         priority: 5,
+        traceId,
       },
     });
 
     // Queue job in BullMQ
-    await queueUploadJob(id);
+    await queueUploadJob(id, { traceId });
 
     console.log(
       `[POST /videos/${id}/queue-upload] Video queued for upload, job: ${job.id}`

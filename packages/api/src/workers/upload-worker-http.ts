@@ -19,8 +19,22 @@ import os from 'node:os';
 import path from 'node:path';
 import axios from 'axios';
 import crypto from 'node:crypto';
+import { getLogger } from '@subiteya/observability';
+import {
+  markUploadJobFinished,
+  markUploadJobStarted,
+  recordTempFileSize,
+  trackTikTokRequest,
+  updateAccountBackoffGauge,
+} from '../lib/metrics';
 
 type RequestWithRawBody = Request & { rawBody?: string };
+
+interface UploadWorkerPayload {
+  videoId?: string;
+  priority?: 'high' | 'normal' | 'low';
+  traceId?: string;
+}
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -90,7 +104,11 @@ if (QSTASH_SIGNING_KEY) {
 // Idempotency tracking: videoId → execution state
 const activeExecutions = new Map<
   string,
-  { startTime: number; status: 'running' | 'completed' | 'failed' }
+  {
+    startTime: number;
+    status: 'running' | 'completed' | 'failed';
+    accountId?: string | null;
+  }
 >();
 
 // Backoff tracking per account: accountId → { consecutiveFailures, lastFailureTime }
@@ -98,9 +116,9 @@ const accountBackoff = new Map<
   string,
   { consecutiveFailures: number; lastFailureTime: number }
 >();
+updateAccountBackoffGauge(accountBackoff.size);
 
 const MAX_CONCURRENT_PER_ACCOUNT = 3;
-const MAX_RETRIES = 3;
 
 function isExecutionInProgress(videoId: string): boolean {
   const execution = activeExecutions.get(videoId);
@@ -118,8 +136,12 @@ function isExecutionInProgress(videoId: string): boolean {
   return execution.status === 'running';
 }
 
-function markExecutionStart(videoId: string): void {
-  activeExecutions.set(videoId, { startTime: Date.now(), status: 'running' });
+function markExecutionStart(videoId: string, accountId?: string | null): void {
+  activeExecutions.set(videoId, {
+    startTime: Date.now(),
+    status: 'running',
+    accountId,
+  });
 }
 
 function markExecutionEnd(
@@ -135,7 +157,9 @@ function markExecutionEnd(
 function getAccountConcurrentJobs(accountId: string): number {
   let count = 0;
   for (const [, execution] of activeExecutions) {
-    if (execution.status === 'running') count++;
+    if (execution.status === 'running' && execution.accountId === accountId) {
+      count++;
+    }
   }
   return count;
 }
@@ -169,10 +193,12 @@ function recordAccountFailure(accountId: string): void {
   info.consecutiveFailures++;
   info.lastFailureTime = Date.now();
   accountBackoff.set(accountId, info);
+  updateAccountBackoffGauge(accountBackoff.size);
 }
 
 function recordAccountSuccess(accountId: string): void {
   accountBackoff.delete(accountId);
+  updateAccountBackoffGauge(accountBackoff.size);
 }
 
 // Body parser for JSON (store raw body for QStash signature verification)
@@ -270,19 +296,21 @@ async function refreshTikTokToken(connection: {
 
     console.log('[Upload Worker] 🔄 Attempting token refresh...');
 
-    const response = await axios.post(
-      'https://open.tiktokapis.com/v2/oauth/token/',
-      {
-        client_key: TIKTOK_CLIENT_KEY,
-        client_secret: TIKTOK_CLIENT_SECRET,
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
+    const response = await trackTikTokRequest('token.refresh', () =>
+      axios.post(
+        'https://open.tiktokapis.com/v2/oauth/token/',
+        {
+          client_key: TIKTOK_CLIENT_KEY,
+          client_secret: TIKTOK_CLIENT_SECRET,
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
         },
-      }
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      )
     );
 
     console.log('[Upload Worker] 🔄 Token refresh response:', {
@@ -347,15 +375,17 @@ async function getTikTokCreatorInfo(
   retryCount = 0
 ): Promise<string> {
   try {
-    const response = await axios.post(
-      'https://open.tiktokapis.com/v2/post/publish/creator_info/query/',
-      {},
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      }
+    const response = await trackTikTokRequest('creator_info', () =>
+      axios.post(
+        'https://open.tiktokapis.com/v2/post/publish/creator_info/query/',
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
     );
 
     if (response.data?.error?.code !== 'ok') {
@@ -398,30 +428,32 @@ async function initTikTokUpload(
   disableStitch: boolean
 ): Promise<{ publishId: string; uploadUrl: string }> {
   try {
-    const response = await axios.post(
-      'https://open.tiktokapis.com/v2/post/publish/video/init/',
-      {
-        post_info: {
-          title,
-          privacy_level: privacyLevel,
-          disable_comment: disableComment,
-          disable_duet: disableDuet,
-          disable_stitch: disableStitch,
-          video_cover_timestamp_ms: 1000,
+    const response = await trackTikTokRequest('video.init', () =>
+      axios.post(
+        'https://open.tiktokapis.com/v2/post/publish/video/init/',
+        {
+          post_info: {
+            title,
+            privacy_level: privacyLevel,
+            disable_comment: disableComment,
+            disable_duet: disableDuet,
+            disable_stitch: disableStitch,
+            video_cover_timestamp_ms: 1000,
+          },
+          source_info: {
+            source: 'FILE_UPLOAD',
+            video_size: videoSize,
+            chunk_size: videoSize,
+            total_chunk_count: 1,
+          },
         },
-        source_info: {
-          source: 'FILE_UPLOAD',
-          video_size: videoSize,
-          chunk_size: videoSize,
-          total_chunk_count: 1,
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      }
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
     );
 
     if (response.data?.error?.code !== 'ok') {
@@ -459,15 +491,17 @@ async function uploadVideoToTikTok(
   const videoBuffer = await fs.promises.readFile(videoPath);
   const totalSize = videoBuffer.length;
 
-  await axios.put(uploadUrl, videoBuffer, {
-    headers: {
-      'Content-Type': 'video/mp4',
-      'Content-Length': totalSize.toString(),
-      'Content-Range': `bytes 0-${totalSize - 1}/${totalSize}`,
-    },
-    maxContentLength: Infinity,
-    maxBodyLength: Infinity,
-  });
+  await trackTikTokRequest('video.upload_put', () =>
+    axios.put(uploadUrl, videoBuffer, {
+      headers: {
+        'Content-Type': 'video/mp4',
+        'Content-Length': totalSize.toString(),
+        'Content-Range': `bytes 0-${totalSize - 1}/${totalSize}`,
+      },
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+    })
+  );
 }
 
 /**
@@ -478,17 +512,19 @@ async function checkTikTokUploadStatus(
   publishId: string
 ): Promise<{ status: string; failReason?: string }> {
   try {
-    const response = await axios.post(
-      'https://open.tiktokapis.com/v2/post/publish/status/fetch/',
-      {
-        publish_id: publishId,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+    const response = await trackTikTokRequest('status.fetch', () =>
+      axios.post(
+        'https://open.tiktokapis.com/v2/post/publish/status/fetch/',
+        {
+          publish_id: publishId,
         },
-      }
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
     );
 
     console.log('[Upload Worker] 📊 Upload status:', {
@@ -522,17 +558,19 @@ async function finalizeTikTokUpload(
   console.log('[Upload Worker] 🔍 Finalizing with publish_id:', publishId);
 
   try {
-    const response = await axios.post(
-      'https://open.tiktokapis.com/v2/post/publish/video/submit/',
-      {
-        publish_id: publishId,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+    const response = await trackTikTokRequest('video.submit', () =>
+      axios.post(
+        'https://open.tiktokapis.com/v2/post/publish/video/submit/',
+        {
+          publish_id: publishId,
         },
-      }
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
     );
 
     console.log('[Upload Worker] 📋 Finalize response:', {
@@ -582,6 +620,9 @@ app.post('/process', async (req: Request, res: Response) => {
   let tempFilePath: string | null = null;
   let videoId: string | undefined;
   let accountId: string | null = null;
+  let metricsJobStarted = false;
+  let metricsRecorded = false;
+  let jobLogger = getLogger();
 
   try {
     // Verify Qstash signature
@@ -596,10 +637,24 @@ app.post('/process', async (req: Request, res: Response) => {
     console.log('[Upload Worker] Received body:', JSON.stringify(body));
     console.log('[Upload Worker] Body type:', typeof body);
 
-    const parsedBody = body as { videoId?: string };
+    const parsedBody = body as UploadWorkerPayload;
+    const traceId =
+      typeof parsedBody.traceId === 'string' && parsedBody.traceId.length > 0
+        ? parsedBody.traceId
+        : crypto.randomUUID();
+    jobLogger = getLogger({
+      requestId: traceId,
+      jobId: parsedBody.videoId,
+    });
+    res.setHeader('X-Trace-Id', traceId);
+    jobLogger.info('Received upload job', {
+      videoId: parsedBody.videoId,
+      priority: parsedBody.priority,
+    });
     if (!parsedBody?.videoId) {
       console.error('[Upload Worker] Missing videoId in request body');
       console.error('[Upload Worker] Received body was:', parsedBody);
+      jobLogger.error('Upload job missing videoId');
       res.status(400).json({ error: 'Invalid payload' });
       return;
     }
@@ -614,13 +669,14 @@ app.post('/process', async (req: Request, res: Response) => {
       console.log(
         `[Upload Worker] ⏭️  Skipping ${parsedBody.videoId} - already in progress or recently completed`
       );
+      jobLogger.info('Upload job skipped (already processing)', {
+        videoId: parsedBody.videoId,
+      });
       res
         .status(200)
         .json({ success: true, skipped: true, reason: 'idempotent' });
       return;
     }
-
-    markExecutionStart(parsedBody.videoId);
 
     // Get video with account (check terminal states first)
     const video = await prisma.video.findUnique({
@@ -639,6 +695,10 @@ app.post('/process', async (req: Request, res: Response) => {
     }
 
     accountId = video.accountId;
+
+    if (accountId) {
+      jobLogger = jobLogger.child({ tiktokConnectionId: accountId });
+    }
 
     // Skip if already in terminal state
     const terminalStates: VideoStatus[] = [
@@ -666,6 +726,8 @@ app.post('/process', async (req: Request, res: Response) => {
     if (!accountId) {
       throw new Error('Video has no associated TikTok account');
     }
+
+    markExecutionStart(parsedBody.videoId, accountId);
 
     const editSpec = (video.editSpecJson ?? {}) as {
       disableComment?: boolean | string;
@@ -708,6 +770,10 @@ app.post('/process', async (req: Request, res: Response) => {
       console.log(
         `[Upload Worker] ⏸️  Account ${accountId} has ${concurrentJobs} concurrent jobs (max: ${MAX_CONCURRENT_PER_ACCOUNT})`
       );
+      jobLogger.warn('Upload job throttled due to concurrency limit', {
+        accountId,
+        concurrentJobs,
+      });
       markExecutionEnd(parsedBody.videoId, 'failed');
       res.status(429).json({
         error: 'Too many concurrent uploads for this account',
@@ -722,6 +788,10 @@ app.post('/process', async (req: Request, res: Response) => {
       console.log(
         `[Upload Worker] ⏸️  Account ${accountId} in backoff period (${Math.ceil(backoffInfo.delayMs! / 1000)}s remaining)`
       );
+      jobLogger.warn('Upload job throttled due to backoff', {
+        accountId,
+        retryAfterSeconds: Math.ceil(backoffInfo.delayMs! / 1000),
+      });
       markExecutionEnd(parsedBody.videoId, 'failed');
       res.status(429).json({
         error: 'Account in backoff period',
@@ -745,6 +815,9 @@ app.post('/process', async (req: Request, res: Response) => {
       videoId: parsedBody.videoId,
       status: 'UPLOADING',
     });
+
+    markUploadJobStarted();
+    metricsJobStarted = true;
 
     // Get TikTok access token
     console.log('[Upload Worker] 🔑 Getting access token...');
@@ -791,6 +864,7 @@ app.post('/process', async (req: Request, res: Response) => {
     // Get video file size
     const stats = await fs.promises.stat(tempFilePath);
     const videoSize = stats.size;
+    recordTempFileSize(videoSize);
 
     console.log(
       `[Upload Worker] 📊 Video size: ${(videoSize / 1024 / 1024).toFixed(2)} MB`
@@ -920,6 +994,11 @@ app.post('/process', async (req: Request, res: Response) => {
     console.log(
       `[Upload Worker] ✅ Completed video ${parsedBody.videoId} in ${duration}ms`
     );
+    jobLogger.info('Upload job completed', {
+      videoId: parsedBody.videoId,
+      durationMs: duration,
+      accountId,
+    });
 
     if (finalizeResult.shareUrl) {
       console.log(
@@ -939,10 +1018,23 @@ app.post('/process', async (req: Request, res: Response) => {
       shareUrl: finalizeResult.shareUrl,
       tiktokVideoId: finalizeResult.videoId,
     });
+
+    if (metricsJobStarted && !metricsRecorded) {
+      markUploadJobFinished({ success: true, durationMs: duration });
+      metricsRecorded = true;
+    }
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
     console.error('[Upload Worker] ❌ Error:', errorMessage);
+
+    if (metricsJobStarted && !metricsRecorded) {
+      markUploadJobFinished({
+        success: false,
+        durationMs: Date.now() - startTime,
+      });
+      metricsRecorded = true;
+    }
 
     if (videoId) {
       markExecutionEnd(videoId, 'failed');
@@ -966,6 +1058,16 @@ app.post('/process', async (req: Request, res: Response) => {
           },
         })
         .catch(() => {});
+    }
+
+    if (error instanceof Error) {
+      jobLogger.error('Upload job failed', error, { videoId, accountId });
+    } else {
+      jobLogger.error('Upload job failed', undefined, {
+        videoId,
+        accountId,
+        error: errorMessage,
+      });
     }
 
     res.status(500).json({ error: errorMessage });

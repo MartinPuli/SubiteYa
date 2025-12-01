@@ -17,6 +17,7 @@ import { uploadToS3 } from '../lib/storage';
 import { queueEditJob } from '../lib/qstash-client';
 import { VideoStatus } from '@prisma/client';
 import { createId } from '@paralleldrive/cuid2';
+import { markVideoIngested } from '../lib/metrics';
 
 const router = Router();
 
@@ -220,10 +221,13 @@ router.post(
           console.error('[POST /publish] Failed to delete temp file:', err);
       });
 
+      const requestTraceId = req.context?.traceId ?? crypto.randomUUID();
+
       // Create videos for each account and queue them
       const createdVideos = [];
 
       for (const connection of connections) {
+        const videoTraceId = `${requestTraceId}:${connection.id.slice(0, 6)}`;
         // Note: We don't use designId anymore (that's for old DesignProfile system)
         // The Edit Worker will fetch the BrandPattern directly from the connection
 
@@ -244,6 +248,7 @@ router.post(
               disableStitch,
               privacyLevel: 'MUTUAL_FOLLOW_FRIENDS', // For unaudited apps
             },
+            traceId: videoTraceId,
           },
           include: {
             account: {
@@ -261,7 +266,9 @@ router.post(
         });
 
         // Queue edit job (or process immediately if workers are unavailable)
-        const jobQueued = await queueEditJob(video.id);
+        const jobQueued = await queueEditJob(video.id, {
+          traceId: videoTraceId,
+        });
 
         if (!jobQueued) {
           // If QStash/workers unavailable, mark as PENDING and user can trigger manually
@@ -273,6 +280,14 @@ router.post(
         console.log(
           `[${connection.displayName}] Video ${video.id} created and queued for editing`
         );
+
+        req.logger?.info('Queued video for editing', {
+          videoId: video.id,
+          traceId: videoTraceId,
+          accountId: connection.id,
+        });
+
+        markVideoIngested();
 
         createdVideos.push(video);
       }

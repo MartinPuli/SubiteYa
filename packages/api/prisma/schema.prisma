@@ -313,6 +313,7 @@ model Video {
   title        String?
   error        String?
   progress     Int          @default(0)
+  traceId      String?      @map("trace_id") @db.VarChar(64)
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -338,6 +339,7 @@ model Job {
   finishedAt DateTime? @map("finished_at")
   log        String?
   error      String?
+  traceId    String?   @map("trace_id") @db.VarChar(64)
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
   video      Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)

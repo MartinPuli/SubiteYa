@@ -69,3 +69,13 @@ export const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Stricter limiter for monitoring endpoints
+export const monitorLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30,
+  skipSuccessfulRequests: false,
+  message: 'Demasiadas solicitudes de monitoreo. Por favor, espera 1 minuto.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
