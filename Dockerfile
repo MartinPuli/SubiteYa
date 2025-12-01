@@ -34,6 +34,9 @@ RUN npm run build --workspace=@subiteya/api
 RUN rm -rf node_modules packages/*/node_modules
 RUN npm install --workspace=@subiteya/api --workspace=@subiteya/observability --workspace=@subiteya/shared --omit=dev --legacy-peer-deps
 
+# Regenerar Prisma Client después de reinstalar dependencias de producción
+RUN cd packages/api && npx prisma generate
+
 # Exponer puerto
 EXPOSE 3000
 
