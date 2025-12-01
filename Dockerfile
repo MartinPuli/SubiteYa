@@ -37,11 +37,8 @@ RUN npm install --workspace=@subiteya/api --workspace=@subiteya/observability --
 # Regenerar Prisma Client después de reinstalar dependencias de producción
 RUN cd packages/api && npx prisma generate
 
-# Hacer ejecutable el script de inicio
-RUN chmod +x packages/api/start-with-migrations.sh
-
 # Exponer puerto
 EXPOSE 3000
 
-# Comando de inicio (CON migraciones automáticas usando script bash)
-CMD ["bash", "packages/api/start-with-migrations.sh"]
+# Comando de inicio - ejecutar migraciones y luego iniciar
+CMD cd packages/api && npx prisma migrate deploy && cd ../.. && node packages/api/dist/index.js
