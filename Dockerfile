@@ -40,5 +40,5 @@ RUN cd packages/api && npx prisma generate
 # Exponer puerto
 EXPOSE 3000
 
-# Comando de inicio - ejecutar migraciones y luego iniciar
-CMD cd packages/api && npx prisma migrate deploy && cd ../.. && node packages/api/dist/index.js
+# Comando de inicio - ejecutar migraciones Y luego iniciar (con sh -c para encadenar comandos)
+CMD ["sh", "-c", "cd packages/api && npx prisma migrate deploy && cd ../.. && node packages/api/dist/index.js"]
