@@ -690,14 +690,17 @@ app.post('/process', async (req: Request, res: Response) => {
     const disableDuet = parseBoolean(editSpec.disableDuet);
     const disableStitch = parseBoolean(editSpec.disableStitch);
 
-    // Force private uploads for unaudited TikTok apps (development mode)
-    // Valid privacy levels for unaudited apps: MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR
-    const privacyLevel =
-      typeof editSpec.privacyLevel === 'string'
-        ? editSpec.privacyLevel
-        : 'MUTUAL_FOLLOW_FRIENDS';
+    // Force SELF_ONLY for unaudited TikTok apps (required by TikTok API)
+    // Once the app passes TikTok's audit, you can use other privacy levels:
+    // - MUTUAL_FOLLOW_FRIENDS: Only mutual followers can see
+    // - FOLLOWER_OF_CREATOR: Only followers can see
+    // - PUBLIC_TO_EVERYONE: Everyone can see (requires audit)
+    // For now, force SELF_ONLY to avoid "unaudited_client_can_only_post_to_private_accounts" error
+    const privacyLevel = 'SELF_ONLY';
 
-    console.log(`[Upload Worker] 🔒 Using privacy level: ${privacyLevel}`);
+    console.log(
+      `[Upload Worker] 🔒 Using privacy level: ${privacyLevel} (unaudited app mode)`
+    );
 
     // CONCURRENCY CHECK: Limit concurrent uploads per account
     const concurrentJobs = getAccountConcurrentJobs(accountId);
