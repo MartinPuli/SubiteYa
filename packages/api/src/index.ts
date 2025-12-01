@@ -188,6 +188,7 @@ import designsRoutes from './routes/designs';
 import eventsRoutes from './routes/events';
 import elevenlabsRoutes from './routes/elevenlabs';
 import monitorRoutes from './routes/monitor';
+import previewRoutes from './routes/preview';
 
 // Import rate limiters
 import { generalLimiter, apiLimiter } from './middleware/rate-limit';
@@ -217,6 +218,7 @@ app.use('/api/accounts', apiLimiter, designsRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/elevenlabs', apiLimiter, elevenlabsRoutes);
 app.use('/api/monitor', apiLimiter, monitorRoutes); // Qstash monitoring endpoints
+app.use('/api/preview', apiLimiter, previewRoutes); // Video preview generation
 
 // 404 handler
 app.use((req: Request, res: Response) => {
